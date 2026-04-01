@@ -138,7 +138,6 @@ export async function fetchFileContent(
 
     throw new Error("Unexpected response format");
   } catch (error: any) {
-    console.error(`Failed to fetch file ${path}:`, error);
     throw error;
   }
 }
@@ -214,20 +213,20 @@ export async function fetchPRFiles(
     let baseContent = "";
     let headContent = "";
 
-    try {
-      if (file.status !== "added") {
+    if (file.status !== "added") {
+      try {
         baseContent = await fetchFileContent(repoFullName, file.filename, baseBranch);
+      } catch {
+        baseContent = "";
       }
-    } catch {
-      baseContent = "";
     }
 
-    try {
-      if (file.status !== "removed") {
+    if (file.status !== "removed") {
+      try {
         headContent = await fetchFileContent(repoFullName, file.filename, headBranch);
+      } catch {
+        headContent = "";
       }
-    } catch {
-      headContent = "";
     }
 
     result.push({

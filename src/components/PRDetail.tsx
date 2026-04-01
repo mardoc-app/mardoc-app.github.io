@@ -14,6 +14,16 @@ import { PullRequest, PRFile, PRComment } from "@/types";
 import { useApp } from "@/lib/app-context";
 import { createPRComment, createInlineComment, fetchPRFiles, fetchPRComments } from "@/lib/github-api";
 import DiffViewer from "./DiffViewer";
+import Showdown from "showdown";
+
+const descriptionConverter = new Showdown.Converter({
+  tables: true,
+  tasklists: true,
+  strikethrough: true,
+  simplifiedAutoLink: true,
+  literalMidWordUnderscores: true,
+  ghCompatibleHeaderId: true,
+});
 
 interface PRDetailProps {
   pr: PullRequest;
@@ -170,9 +180,17 @@ export default function PRDetail({ pr, onBack }: PRDetailProps) {
                 </span>
               </div>
               {pr.description && (
-                <p className="text-sm text-[var(--text-secondary)] mt-2">
-                  {pr.description}
-                </p>
+                <details className="mt-2">
+                  <summary className="text-xs text-[var(--text-muted)] cursor-pointer hover:text-[var(--text-secondary)] transition-colors">
+                    Description
+                  </summary>
+                  <div
+                    className="text-sm text-[var(--text-secondary)] mt-1 prose prose-sm dark:prose-invert max-w-none max-h-48 overflow-y-auto pr-description"
+                    dangerouslySetInnerHTML={{
+                      __html: descriptionConverter.makeHtml(pr.description),
+                    }}
+                  />
+                </details>
               )}
             </div>
           </div>
