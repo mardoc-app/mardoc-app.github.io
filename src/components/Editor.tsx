@@ -16,7 +16,7 @@ import { TableCell } from "@tiptap/extension-table-cell";
 import { TableHeader } from "@tiptap/extension-table-header";
 import Showdown from "showdown";
 import { rewriteImageUrls, loadAuthenticatedImages } from "@/lib/github-api";
-import { renderMermaidBlocks } from "@/lib/mermaid";
+import { preRenderMermaid } from "@/lib/mermaid";
 import {
   Bold,
   Italic,
@@ -385,14 +385,8 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const [pendingSelection, setPendingSelection] = useState<string | null>(null);
   const [commentInput, setCommentInput] = useState("");
-  // Post-render: fetch private repo images and render mermaid diagrams
-  useEffect(() => {
-    if (!editorContainerRef.current) return;
-    loadAuthenticatedImages(editorContainerRef.current);
-    renderMermaidBlocks(editorContainerRef.current);
-  }, [filePath]);
-
   const editor = useEditor({
+    immediatelyRender: false,
     extensions: [
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
@@ -428,17 +422,30 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
     },
   });
 
-  // Update content when file changes — also reset comments
+  // Update content when file changes: pre-render mermaid, set content, then fetch images
   useEffect(() => {
+    let cancelled = false;
+
     if (editor && content) {
-      const newHtml = markdownToHtml(content, repoFullName, branch, filePath);
-      editor.commands.setContent(newHtml);
+      const rawHtml = markdownToHtml(content, repoFullName, branch, filePath);
+      preRenderMermaid(rawHtml).then((html) => {
+        if (cancelled) return;
+        editor.commands.setContent(html);
+        // Fetch private repo images after TipTap renders
+        setTimeout(() => {
+          if (!cancelled && editorContainerRef.current) {
+            loadAuthenticatedImages(editorContainerRef.current);
+          }
+        }, 50);
+      });
     }
+
     setComments([]);
     setShowComments(false);
     setActiveCommentId(null);
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filePath]);
+  }, [filePath, editor]);
 
   const addLink = useCallback(() => {
     if (!editor) return;
