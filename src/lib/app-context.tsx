@@ -111,12 +111,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setGithubTokenState(savedToken);
       setIsDemoMode(false);
       initOctokit(savedToken);
-      const savedRepo = localStorage.getItem(REPO_KEY);
-      if (savedRepo) {
-        setCurrentRepo(savedRepo);
-      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Set current repo and load data
@@ -167,6 +162,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     },
     [githubToken]
   );
+
+  // Auto-restore saved repo once authentication is ready
+  useEffect(() => {
+    if (!githubToken || currentRepo) return;
+    const savedRepo = localStorage.getItem(REPO_KEY);
+    if (savedRepo) {
+      setCurrentRepo(savedRepo);
+    }
+  }, [githubToken, currentRepo, setCurrentRepo]);
 
   // Switch branch and reload file tree
   const setSelectedBranch = useCallback(
