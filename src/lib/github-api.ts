@@ -502,6 +502,9 @@ export async function createReviewPR(
  * Rewrite relative image `src` attributes in rendered HTML to point at
  * raw.githubusercontent.com so images from the repo render correctly.
  */
+// Lookup map for image metadata — survives TipTap stripping data attributes
+const imageMetaMap = new Map<string, { owner: string; repo: string; ref: string; path: string }>();
+
 export function rewriteImageUrls(
   html: string,
   repoFullName: string,
@@ -531,15 +534,17 @@ export function rewriteImageUrls(
         resolvedPath = resolved.join("/");
       }
 
-      return `${before}https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${resolvedPath}" data-gh-owner="${owner}" data-gh-repo="${repo}" data-gh-ref="${ref}" data-gh-path="${resolvedPath}${after}`;
+      const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${resolvedPath}`;
+      imageMetaMap.set(rawUrl, { owner, repo, ref, path: resolvedPath });
+      return `${before}${rawUrl}" data-gh-owner="${owner}" data-gh-repo="${repo}" data-gh-ref="${ref}" data-gh-path="${resolvedPath}${after}`;
     }
   );
 }
 
 /**
  * Fetch all repo images in a container via Octokit (works for private repos).
- * Reads data-gh-* attributes set by rewriteImageUrls, fetches base64 content,
- * and replaces src with data URIs.
+ * Uses data-gh-* attributes when available (DiffViewer), falls back to
+ * imageMetaMap lookup by src URL (Editor/TipTap which strips data attributes).
  */
 export async function loadAuthenticatedImages(
   container: HTMLElement
@@ -547,7 +552,10 @@ export async function loadAuthenticatedImages(
   const octokit = getOctokit();
   if (!octokit) return;
 
-  const imgs = container.querySelectorAll<HTMLImageElement>("img[data-gh-path]");
+  // Match images with data attributes OR raw.githubusercontent.com URLs
+  const imgs = container.querySelectorAll<HTMLImageElement>(
+    'img[data-gh-path], img[src*="raw.githubusercontent.com"]'
+  );
   if (imgs.length === 0) return;
 
   const mimeTypes: Record<string, string> = {
@@ -558,10 +566,19 @@ export async function loadAuthenticatedImages(
 
   await Promise.allSettled(
     Array.from(imgs).map(async (img) => {
-      const owner = img.dataset.ghOwner;
-      const repo = img.dataset.ghRepo;
-      const ref = img.dataset.ghRef;
-      const path = img.dataset.ghPath;
+      // Try data attributes first (preserved in dangerouslySetInnerHTML)
+      let owner = img.dataset.ghOwner;
+      let repo = img.dataset.ghRepo;
+      let ref = img.dataset.ghRef;
+      let path = img.dataset.ghPath;
+
+      // Fall back to metadata map (for TipTap which strips data attributes)
+      if (!path) {
+        const meta = imageMetaMap.get(img.src);
+        if (!meta) return;
+        ({ owner, repo, ref, path } = meta);
+      }
+
       if (!owner || !repo || !ref || !path) return;
 
       const { data } = await octokit.repos.getContent({
