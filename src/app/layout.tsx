@@ -5,7 +5,7 @@ import { AppProvider } from "@/lib/app-context";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "MarkDoc Editor",
+  title: "mardoc.app",
   description: "A collaborative markdown editor with GitHub integration",
 };
 

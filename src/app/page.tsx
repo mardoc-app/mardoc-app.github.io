@@ -43,7 +43,7 @@ export default function Home() {
           <div className="flex items-center gap-2">
             <BookOpen size={18} className="text-[var(--accent)]" />
             <span className="font-semibold text-sm text-[var(--text-primary)]">
-              MarkDoc
+              mardoc.app
             </span>
           </div>
           <div className="h-4 w-px bg-[var(--border)]" />
@@ -120,7 +120,7 @@ export default function Home() {
                   <BookOpen size={28} className="text-[var(--accent)]" />
                 </div>
                 <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-2">
-                  Welcome to MarkDoc
+                  Welcome to mardoc.app
                 </h2>
                 <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-6">
                   {isDemoMode

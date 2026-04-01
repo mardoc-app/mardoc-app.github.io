@@ -14,7 +14,7 @@ export const repoFiles: RepoFile[] = [
         type: "file",
         content: `# Getting Started
 
-Welcome to the **MarkDoc Editor** — a collaborative markdown workspace backed by GitHub.
+Welcome to the **mardoc.app** — a collaborative markdown workspace backed by GitHub.
 
 ## Installation
 
@@ -56,7 +56,7 @@ The application uses a modern React stack with Next.js for server-side rendering
         type: "file",
         content: `# API Reference
 
-This document covers the core APIs available in the MarkDoc Editor.
+This document covers the core APIs available in the mardoc.app.
 
 ## Editor API
 
@@ -109,7 +109,7 @@ The editor supports GitHub webhooks for real-time synchronization. Configure you
         type: "file",
         content: `# Contributing Guide
 
-Thank you for your interest in contributing to MarkDoc Editor!
+Thank you for your interest in contributing to mardoc.app!
 
 ## Development Setup
 
@@ -145,13 +145,13 @@ Please use GitHub Issues to report bugs. Include:
     name: "README.md",
     path: "README.md",
     type: "file",
-    content: `# MarkDoc Editor
+    content: `# mardoc.app
 
 A collaborative markdown editor with GitHub integration, PR review capabilities, and inline commenting.
 
 ## Overview
 
-MarkDoc Editor brings a Notion-like editing experience to your GitHub-backed markdown files. Review PRs with rendered diffs, leave inline comments, and collaborate seamlessly.
+mardoc.app brings a Notion-like editing experience to your GitHub-backed markdown files. Review PRs with rendered diffs, leave inline comments, and collaborate seamlessly.
 
 ## Key Features
 
@@ -211,7 +211,7 @@ export const pullRequests: PullRequest[] = [
         status: "modified",
         baseContent: `# Getting Started
 
-Welcome to the **MarkDoc Editor** — a collaborative markdown workspace backed by GitHub.
+Welcome to the **mardoc.app** — a collaborative markdown workspace backed by GitHub.
 
 ## Installation
 
@@ -246,7 +246,7 @@ The application uses a modern React stack with Next.js for server-side rendering
 > **Note**: This is a prototype with mock data. GitHub integration will be added in a future release.`,
         headContent: `# Getting Started
 
-Welcome to the **MarkDoc Editor** — a collaborative markdown workspace backed by GitHub.
+Welcome to the **mardoc.app** — a collaborative markdown workspace backed by GitHub.
 
 ## Prerequisites
 
@@ -350,7 +350,7 @@ The application uses a modern React stack with Next.js for server-side rendering
         status: "modified",
         baseContent: `# API Reference
 
-This document covers the core APIs available in the MarkDoc Editor.
+This document covers the core APIs available in the mardoc.app.
 
 ## Editor API
 
@@ -396,7 +396,7 @@ The editor supports GitHub webhooks for real-time synchronization. Configure you
 *Last updated: March 2026*`,
         headContent: `# API Reference
 
-This document covers the core APIs available in the MarkDoc Editor.
+This document covers the core APIs available in the mardoc.app.
 
 ## Editor API
 
