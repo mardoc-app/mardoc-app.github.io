@@ -1,0 +1,369 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --surface: #ffffff;
+  --surface-secondary: #f7f7f5;
+  --surface-hover: #f0f0ee;
+  --border: #e8e8e5;
+  --text-primary: #1a1a1a;
+  --text-secondary: #5a5a5a;
+  --text-muted: #9a9a9a;
+  --accent: #2383e2;
+  --accent-hover: #1b6ec2;
+  --accent-muted: #e8f0fe;
+  --diff-add: #dafbe1;
+  --diff-add-text: #1a7f37;
+  --diff-remove: #ffebe9;
+  --diff-remove-text: #cf222e;
+}
+
+.dark {
+  --surface: #191919;
+  --surface-secondary: #252525;
+  --surface-hover: #2f2f2f;
+  --border: #363636;
+  --text-primary: #e8e8e8;
+  --text-secondary: #a0a0a0;
+  --text-muted: #6a6a6a;
+  --accent: #529cca;
+  --accent-hover: #6db3de;
+  --accent-muted: #1c3a52;
+  --diff-add: #1a3a2a;
+  --diff-add-text: #56d364;
+  --diff-remove: #3d1a1e;
+  --diff-remove-text: #f85149;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background-color: var(--surface);
+  color: var(--text-primary);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* TipTap editor styles */
+.ProseMirror {
+  outline: none;
+  min-height: 300px;
+  padding: 0;
+}
+
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--text-muted);
+  pointer-events: none;
+  height: 0;
+}
+
+.ProseMirror h1 { font-size: 2em; font-weight: 700; margin: 1em 0 0.5em; }
+.ProseMirror h2 { font-size: 1.5em; font-weight: 600; margin: 0.8em 0 0.4em; }
+.ProseMirror h3 { font-size: 1.25em; font-weight: 600; margin: 0.6em 0 0.3em; }
+
+.ProseMirror ul,
+.ProseMirror ol {
+  padding-left: 1.5em;
+}
+
+.ProseMirror ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0;
+}
+
+.ProseMirror ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.ProseMirror ul[data-type="taskList"] li label {
+  margin-top: 0.15em;
+}
+
+.ProseMirror blockquote {
+  border-left: 3px solid var(--border);
+  padding-left: 1em;
+  color: var(--text-secondary);
+  margin: 0.8em 0;
+}
+
+.ProseMirror pre {
+  background-color: var(--surface-secondary);
+  border-radius: 6px;
+  padding: 0.75em 1em;
+  overflow-x: auto;
+  font-family: "SF Mono", "Fira Code", "Fira Mono", Menlo, monospace;
+  font-size: 0.9em;
+}
+
+.ProseMirror code {
+  background-color: var(--surface-secondary);
+  border-radius: 3px;
+  padding: 0.15em 0.3em;
+  font-family: "SF Mono", "Fira Code", "Fira Mono", Menlo, monospace;
+  font-size: 0.9em;
+}
+
+.ProseMirror pre code {
+  background: none;
+  padding: 0;
+}
+
+.ProseMirror img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+}
+
+.ProseMirror a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.ProseMirror hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1.5em 0;
+}
+
+/* Table styles — GitHub-quality rendering */
+.ProseMirror table,
+.diff-content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+  font-size: 0.875em;
+  line-height: 1.5;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  display: table;
+}
+.ProseMirror thead,
+.diff-content thead {
+  background-color: var(--surface-secondary);
+}
+.ProseMirror table th,
+.diff-content table th {
+  border: 1px solid var(--border);
+  padding: 8px 16px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.8em;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+.ProseMirror table td,
+.diff-content table td {
+  border: 1px solid var(--border);
+  padding: 6px 16px;
+  text-align: left;
+  color: var(--text-secondary);
+  vertical-align: top;
+}
+.ProseMirror table tbody tr:nth-child(even),
+.diff-content table tbody tr:nth-child(even) {
+  background-color: var(--surface-secondary);
+}
+.ProseMirror table tbody tr:hover,
+.diff-content table tbody tr:hover {
+  background-color: var(--surface-hover);
+}
+/* Table container for horizontal scroll on wide tables */
+.ProseMirror .table-wrapper,
+.diff-content .table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 1em 0;
+}
+
+/* Code blocks in diff content */
+.diff-content pre {
+  background-color: var(--surface-secondary);
+  border-radius: 6px;
+  padding: 0.75em 1em;
+  overflow-x: auto;
+  font-family: "SF Mono", "Fira Code", "Fira Mono", Menlo, monospace;
+  font-size: 0.9em;
+}
+.diff-content code {
+  background-color: var(--surface-secondary);
+  border-radius: 3px;
+  padding: 0.15em 0.3em;
+  font-family: "SF Mono", "Fira Code", "Fira Mono", Menlo, monospace;
+  font-size: 0.9em;
+}
+.diff-content pre code {
+  background: none;
+  padding: 0;
+}
+
+/* Diff styles */
+.diff-added {
+  background-color: var(--diff-add);
+  color: var(--diff-add-text);
+  text-decoration: none;
+  padding: 1px 2px;
+  border-radius: 2px;
+}
+
+.diff-removed {
+  background-color: var(--diff-remove);
+  color: var(--diff-remove-text);
+  text-decoration: line-through;
+  padding: 1px 2px;
+  border-radius: 2px;
+}
+
+.diff-block-added {
+  background-color: var(--diff-add);
+  border-left: 3px solid var(--diff-add-text);
+  padding: 0.5em 1em;
+  margin: 0.5em 0;
+  border-radius: 0 4px 4px 0;
+}
+
+.diff-block-removed {
+  background-color: var(--diff-remove);
+  border-left: 3px solid var(--diff-remove-text);
+  padding: 0.5em 1em;
+  margin: 0.5em 0;
+  border-radius: 0 4px 4px 0;
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+/* Comment highlight */
+.comment-highlight {
+  background-color: var(--accent-muted);
+  border-bottom: 2px solid var(--accent);
+  cursor: pointer;
+  padding: 1px 0;
+}
+
+/* Selection-based comment highlights */
+.selection-comment-highlight {
+  background-color: var(--accent-muted);
+  border-bottom: 2px solid var(--accent);
+  cursor: pointer;
+  padding: 1px 0;
+  border-radius: 2px;
+  transition: background-color 0.15s ease;
+}
+.selection-comment-highlight:hover {
+  background-color: var(--accent);
+  color: white;
+}
+
+/* Flash animation when scrolling to a comment */
+.comment-highlight-flash {
+  animation: commentFlash 1.5s ease-out;
+}
+@keyframes commentFlash {
+  0% { background-color: var(--accent); color: white; }
+  30% { background-color: var(--accent); color: white; }
+  100% { background-color: transparent; color: inherit; }
+}
+
+/* Fade-in animation for floating toolbar */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Custom context menu */
+.context-menu {
+  position: fixed;
+  z-index: 100;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  min-width: 180px;
+  animation: fadeInUp 0.12s ease-out;
+}
+.context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.1s ease;
+  text-align: left;
+}
+.context-menu-item:hover {
+  background: var(--surface-hover);
+}
+.context-menu-item .icon {
+  color: var(--text-muted);
+  width: 14px;
+  display: flex;
+  align-items: center;
+}
+.context-menu-separator {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+/* Toolbar button */
+.toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.toolbar-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+.toolbar-btn.active {
+  background: var(--accent-muted);
+  color: var(--accent);
+}

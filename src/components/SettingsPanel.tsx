@@ -1,0 +1,339 @@
+"use client";
+
+import React, { useState, useEffect, useMemo } from "react";
+import { Settings, X, Github, LogIn, LogOut, RefreshCw, Lock, Globe, Search } from "lucide-react";
+import { useApp } from "@/lib/app-context";
+import { fetchUserRepos } from "@/lib/github-api";
+
+interface SettingsPanelProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
+  const {
+    isAuthenticated,
+    githubToken,
+    setGithubToken,
+    currentRepo,
+    setCurrentRepo,
+    isDemoMode,
+  } = useApp();
+
+  const [tokenInput, setTokenInput] = useState("");
+  const [repoInput, setRepoInput] = useState(currentRepo || "");
+  const [userRepos, setUserRepos] = useState<
+    { fullName: string; description: string; isPrivate: boolean }[]
+  >([]);
+  const [loadingRepos, setLoadingRepos] = useState(false);
+  const [repoFilter, setRepoFilter] = useState("");
+  const [activeTab, setActiveTab] = useState<"connect" | "repo">(
+    isAuthenticated ? "repo" : "connect"
+  );
+
+  // Filter repos based on search input
+  const filteredRepos = useMemo(() => {
+    if (!repoFilter.trim()) return userRepos;
+    const query = repoFilter.toLowerCase();
+    return userRepos.filter(
+      (r) =>
+        r.fullName.toLowerCase().includes(query) ||
+        r.description.toLowerCase().includes(query)
+    );
+  }, [userRepos, repoFilter]);
+
+  // Load user repos when authenticated
+  useEffect(() => {
+    if (isAuthenticated && isOpen) {
+      setLoadingRepos(true);
+      fetchUserRepos()
+        .then(setUserRepos)
+        .catch(console.error)
+        .finally(() => setLoadingRepos(false));
+    }
+  }, [isAuthenticated, isOpen]);
+
+  const handleConnect = () => {
+    if (tokenInput.trim()) {
+      setGithubToken(tokenInput.trim());
+      setActiveTab("repo");
+    }
+  };
+
+  const handleDisconnect = () => {
+    setGithubToken(null);
+    setTokenInput("");
+    setUserRepos([]);
+    setActiveTab("connect");
+  };
+
+  const handleSelectRepo = (repo: string) => {
+    setRepoInput(repo);
+    setCurrentRepo(repo);
+    onClose();
+  };
+
+  const handleManualRepo = () => {
+    if (repoInput.trim()) {
+      setCurrentRepo(repoInput.trim());
+      onClose();
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-[var(--surface)] rounded-xl shadow-2xl w-full max-w-lg border border-[var(--border)] max-h-[80vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
+          <div className="flex items-center gap-2">
+            <Settings size={18} className="text-[var(--text-secondary)]" />
+            <h2 className="text-base font-semibold text-[var(--text-primary)]">Settings</h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="toolbar-btn"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex border-b border-[var(--border)] px-5">
+          <button
+            onClick={() => setActiveTab("connect")}
+            className={`px-3 py-2.5 text-sm font-medium transition-colors ${
+              activeTab === "connect"
+                ? "text-[var(--text-primary)] border-b-2 border-[var(--accent)]"
+                : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+            }`}
+          >
+            GitHub Connection
+          </button>
+          <button
+            onClick={() => setActiveTab("repo")}
+            className={`px-3 py-2.5 text-sm font-medium transition-colors ${
+              activeTab === "repo"
+                ? "text-[var(--text-primary)] border-b-2 border-[var(--accent)]"
+                : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+            }`}
+          >
+            Repository
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-5">
+          {activeTab === "connect" ? (
+            <div className="space-y-4">
+              {isAuthenticated ? (
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                      <Github size={16} className="text-green-600 dark:text-green-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-[var(--text-primary)]">Connected to GitHub</p>
+                      <p className="text-xs text-[var(--text-muted)]">Token active</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleDisconnect}
+                    className="flex items-center gap-2 text-sm px-3 py-2 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                  >
+                    <LogOut size={14} />
+                    Disconnect
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-sm text-[var(--text-secondary)] mb-3">
+                    Connect with a GitHub Personal Access Token to browse real repositories.
+                    The app also works in demo mode with sample data.
+                  </p>
+
+                  <div className="bg-[var(--surface-secondary)] rounded-lg p-3 mb-4">
+                    <p className="text-xs text-[var(--text-secondary)] mb-2">
+                      <strong>How to create a token:</strong>
+                    </p>
+                    <ol className="text-xs text-[var(--text-muted)] space-y-1 list-decimal ml-4">
+                      <li>Go to GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens</li>
+                      <li>Click "Generate new token"</li>
+                      <li>Select the repositories you want to access</li>
+                      <li>Under Permissions, enable: Contents (Read), Pull Requests (Read & Write), Issues (Read & Write)</li>
+                      <li>Generate and paste below</li>
+                    </ol>
+                  </div>
+
+                  <label className="block text-sm font-medium text-[var(--text-primary)] mb-1.5">
+                    Personal Access Token
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="password"
+                      value={tokenInput}
+                      onChange={(e) => setTokenInput(e.target.value)}
+                      placeholder="github_pat_..."
+                      className="flex-1 px-3 py-2 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] font-mono"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleConnect();
+                      }}
+                    />
+                    <button
+                      onClick={handleConnect}
+                      disabled={!tokenInput.trim()}
+                      className="flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white text-sm rounded-lg hover:bg-[var(--accent-hover)] transition-colors disabled:opacity-40"
+                    >
+                      <LogIn size={14} />
+                      Connect
+                    </button>
+                  </div>
+
+                  <div className="mt-4 pt-4 border-t border-[var(--border)]">
+                    <p className="text-xs text-[var(--text-muted)]">
+                      When Auth0 is configured, you can log in with GitHub OAuth instead.
+                      Currently running in {isDemoMode ? "demo" : "connected"} mode.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Manual repo input */}
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-primary)] mb-1.5">
+                  Repository (owner/name or full URL)
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={repoInput}
+                    onChange={(e) => setRepoInput(e.target.value)}
+                    placeholder="e.g., Cloudzero/feature-ai-collector-macos"
+                    className="flex-1 px-3 py-2 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] font-mono"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleManualRepo();
+                    }}
+                  />
+                  <button
+                    onClick={handleManualRepo}
+                    disabled={!repoInput.trim()}
+                    className="px-4 py-2 bg-[var(--accent)] text-white text-sm rounded-lg hover:bg-[var(--accent-hover)] transition-colors disabled:opacity-40"
+                  >
+                    Open
+                  </button>
+                </div>
+              </div>
+
+              {/* User repos list */}
+              {isAuthenticated && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm font-medium text-[var(--text-primary)]">
+                      Your repositories
+                      {userRepos.length > 0 && (
+                        <span className="text-[var(--text-muted)] font-normal ml-1">
+                          ({filteredRepos.length}{repoFilter ? ` of ${userRepos.length}` : ""})
+                        </span>
+                      )}
+                    </label>
+                    <button
+                      onClick={() => {
+                        setLoadingRepos(true);
+                        fetchUserRepos()
+                          .then(setUserRepos)
+                          .catch(console.error)
+                          .finally(() => setLoadingRepos(false));
+                      }}
+                      className="toolbar-btn"
+                      title="Refresh"
+                    >
+                      <RefreshCw size={12} className={loadingRepos ? "animate-spin" : ""} />
+                    </button>
+                  </div>
+
+                  {/* Search/filter input */}
+                  {userRepos.length > 0 && (
+                    <div className="relative mb-2">
+                      <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+                      <input
+                        type="text"
+                        value={repoFilter}
+                        onChange={(e) => setRepoFilter(e.target.value)}
+                        placeholder="Filter repositories..."
+                        className="w-full pl-8 pr-3 py-1.5 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] transition-colors"
+                      />
+                      {repoFilter && (
+                        <button
+                          onClick={() => setRepoFilter("")}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                        >
+                          <X size={12} />
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {loadingRepos ? (
+                    <div className="text-sm text-[var(--text-muted)] py-4 text-center">
+                      Loading repositories...
+                    </div>
+                  ) : filteredRepos.length > 0 ? (
+                    <div className="space-y-1 max-h-60 overflow-y-auto">
+                      {filteredRepos.map((repo) => (
+                        <button
+                          key={repo.fullName}
+                          onClick={() => handleSelectRepo(repo.fullName)}
+                          className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
+                            currentRepo === repo.fullName
+                              ? "bg-[var(--accent-muted)] border border-[var(--accent)]"
+                              : "hover:bg-[var(--surface-hover)] border border-transparent"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            {repo.isPrivate ? (
+                              <Lock size={12} className="text-[var(--text-muted)]" />
+                            ) : (
+                              <Globe size={12} className="text-[var(--text-muted)]" />
+                            )}
+                            <span className="text-sm font-mono text-[var(--text-primary)]">
+                              {repo.fullName}
+                            </span>
+                          </div>
+                          {repo.description && (
+                            <p className="text-xs text-[var(--text-muted)] mt-0.5 ml-5 truncate">
+                              {repo.description}
+                            </p>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  ) : userRepos.length > 0 ? (
+                    <p className="text-sm text-[var(--text-muted)] py-2 text-center">
+                      No repos matching &ldquo;{repoFilter}&rdquo;
+                    </p>
+                  ) : (
+                    <p className="text-sm text-[var(--text-muted)] py-2">
+                      No repositories found. Try entering a repo name manually above.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {!isAuthenticated && (
+                <div className="bg-[var(--accent-muted)] rounded-lg p-3">
+                  <p className="text-xs text-[var(--accent)]">
+                    Connect your GitHub account in the "GitHub Connection" tab to browse your repositories.
+                    You can also type any public repo name above.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
