@@ -40,10 +40,19 @@ interface AppState {
 
 const AppContext = createContext<AppState | null>(null);
 
+const TOKEN_KEY = "mardoc_github_token";
+const REPO_KEY = "mardoc_current_repo";
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  // Auth state
-  const [githubToken, setGithubTokenState] = useState<string | null>(null);
-  const [isDemoMode, setIsDemoMode] = useState(true);
+  // Auth state — rehydrate from localStorage
+  const [githubToken, setGithubTokenState] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem(TOKEN_KEY);
+  });
+  const [isDemoMode, setIsDemoMode] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return !localStorage.getItem(TOKEN_KEY);
+  });
 
   // Repo state
   const [currentRepo, setCurrentRepoState] = useState<string | null>(null);
@@ -64,23 +73,38 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const isAuthenticated = !!githubToken;
 
-  // Initialize octokit when token changes
+  // Initialize octokit when token changes, persist to localStorage
   const setGithubToken = useCallback((token: string | null) => {
     setGithubTokenState(token);
     if (token) {
+      localStorage.setItem(TOKEN_KEY, token);
       initOctokit(token);
       setIsDemoMode(false);
     } else {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(REPO_KEY);
       setIsDemoMode(true);
       setRepoFiles(mockFiles);
       setPRList(mockPRs);
     }
   }, []);
 
+  // Restore session on mount: init Octokit and reload last repo
+  useEffect(() => {
+    if (!githubToken) return;
+    initOctokit(githubToken);
+    const savedRepo = localStorage.getItem(REPO_KEY);
+    if (savedRepo) {
+      setCurrentRepo(savedRepo);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally run once on mount
+
   // Set current repo and load data
   const setCurrentRepo = useCallback(
     async (repo: string) => {
       setCurrentRepoState(repo);
+      localStorage.setItem(REPO_KEY, repo);
       setError(null);
 
       if (!githubToken) return;
