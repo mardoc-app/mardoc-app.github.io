@@ -3,6 +3,8 @@
 import { Octokit } from "@octokit/rest";
 import { RepoFile, PullRequest, PRFile, PRComment } from "@/types";
 import { isDocumentFile } from "@/lib/file-types";
+import { utf8ToBase64, base64ToUtf8 } from "@/lib/base64-utf8";
+import { isLineResolutionError, runInlineFallback } from "@/lib/review-fallback";
 
 let octokitInstance: Octokit | null = null;
 
@@ -172,13 +174,7 @@ export async function fetchFileContent(
     });
 
     if ("content" in data && data.encoding === "base64") {
-      // Properly decode base64 → UTF-8 (atob only handles Latin-1, mangling multi-byte chars)
-      const binaryStr = atob(data.content);
-      const bytes = new Uint8Array(binaryStr.length);
-      for (let i = 0; i < binaryStr.length; i++) {
-        bytes[i] = binaryStr.charCodeAt(i);
-      }
-      return new TextDecoder("utf-8").decode(bytes);
+      return base64ToUtf8(data.content);
     }
 
     throw new Error("Unexpected response format");
@@ -558,6 +554,128 @@ export async function createInlineComment(
 }
 
 /**
+ * A pending inline comment queued for submission as part of a batched review.
+ * Maps 1:1 to the shape GitHub's pulls.createReview accepts in its `comments[]`.
+ */
+export interface PendingInlineComment {
+  path: string;
+  body: string;
+  line: number;
+  startLine?: number;
+  side?: "LEFT" | "RIGHT";
+}
+
+export type ReviewEvent = "APPROVE" | "REQUEST_CHANGES" | "COMMENT";
+
+/**
+ * Submit a PR review. If `comments` is provided, they are batched into the
+ * review as inline comments (a single notification to the author instead of N).
+ * Pass `event` = APPROVE / REQUEST_CHANGES / COMMENT.
+ *
+ * Note: REQUEST_CHANGES requires a non-empty body per GitHub API rules.
+ */
+export async function submitReview(
+  repoFullName: string,
+  prNumber: number,
+  event: ReviewEvent,
+  body?: string,
+  comments?: PendingInlineComment[]
+): Promise<void> {
+  const octokit = getOctokit();
+  if (!octokit) throw new Error("Not authenticated");
+
+  const { owner, repo } = parseOwnerRepo(repoFullName);
+
+  const { data: prData } = await octokit.pulls.get({
+    owner,
+    repo,
+    pull_number: prNumber,
+  });
+  const commitId = prData.head.sha;
+
+  const reviewComments = (comments || []).map((c) => {
+    const entry: Record<string, any> = {
+      path: c.path,
+      body: c.body,
+      line: c.line,
+      side: c.side || "RIGHT",
+    };
+    if (c.startLine && c.startLine !== c.line) {
+      entry.start_line = c.startLine;
+      entry.start_side = c.side || "RIGHT";
+    }
+    return entry;
+  });
+
+  await octokit.pulls.createReview({
+    owner,
+    repo,
+    pull_number: prNumber,
+    commit_id: commitId,
+    event,
+    body: body || undefined,
+    comments: reviewComments.length > 0 ? (reviewComments as any) : undefined,
+  });
+}
+
+/**
+ * Submit a review with graceful fallback for out-of-hunk comments.
+ *
+ * GitHub's pulls.createReview requires every inline comment's `line` to sit
+ * inside a diff hunk on that file. A single unresolvable line rejects the
+ * whole review ("Unprocessable Entity: Line could not be resolved").
+ *
+ * We try the batched path first. On a 422 that looks like a line-resolution
+ * error, fall back to posting each comment individually:
+ *   1. createInlineComment for each — succeeds for in-hunk lines.
+ *   2. On per-comment failure, post it as a general PR issue comment with the
+ *      file + line context baked into the body so the feedback isn't lost.
+ *   3. Finally submit the review event (APPROVE / REQUEST_CHANGES) with no
+ *      comments. For COMMENT the individual comments are the review.
+ *
+ * Returns the count of comments that had to fall back to general PR comments,
+ * so the caller can surface a warning.
+ */
+export async function submitReviewBatched(
+  repoFullName: string,
+  prNumber: number,
+  event: ReviewEvent,
+  body: string | undefined,
+  comments: PendingInlineComment[]
+): Promise<{ unresolvedCount: number }> {
+  try {
+    await submitReview(repoFullName, prNumber, event, body, comments);
+    return { unresolvedCount: 0 };
+  } catch (err) {
+    if (!isLineResolutionError(err)) {
+      throw err;
+    }
+  }
+
+  const { unresolvedCount } = await runInlineFallback(comments, {
+    postInlineComment: (c) =>
+      createInlineComment(
+        repoFullName,
+        prNumber,
+        c.body,
+        c.path,
+        c.line,
+        c.startLine,
+        c.side || "RIGHT"
+      ),
+    postIssueComment: (text) => createPRComment(repoFullName, prNumber, text),
+  });
+
+  if (event !== "COMMENT") {
+    // Record the approval / change-request state even though the comments
+    // were posted outside the review envelope.
+    await submitReview(repoFullName, prNumber, event, body, []);
+  }
+
+  return { unresolvedCount };
+}
+
+/**
  * Apply a suggestion by committing the replacement text to the PR branch.
  * Fetches the file at the head branch, replaces the specified lines, and commits.
  */
@@ -586,13 +704,7 @@ export async function applySuggestion(
     throw new Error("Unexpected response format");
   }
 
-  // Decode file content
-  const binaryStr = atob(data.content);
-  const bytes = new Uint8Array(binaryStr.length);
-  for (let i = 0; i < binaryStr.length; i++) {
-    bytes[i] = binaryStr.charCodeAt(i);
-  }
-  const currentContent = new TextDecoder("utf-8").decode(bytes);
+  const currentContent = base64ToUtf8(data.content);
 
   // Replace the specified lines with the suggestion text
   const lines = currentContent.split("\n");
@@ -600,20 +712,12 @@ export async function applySuggestion(
   const after = lines.slice(endLine);
   const newContent = [...before, replacementText, ...after].join("\n");
 
-  // Encode and commit
-  const contentBytes = new TextEncoder().encode(newContent);
-  let binaryString = "";
-  for (let i = 0; i < contentBytes.length; i++) {
-    binaryString += String.fromCharCode(contentBytes[i]);
-  }
-  const encoded = btoa(binaryString);
-
   await octokit.repos.createOrUpdateFileContents({
     owner,
     repo,
     path: filePath,
     message: "Apply suggestion from review",
-    content: encoded,
+    content: utf8ToBase64(newContent),
     sha: data.sha,
     branch: headBranch,
   });
@@ -755,7 +859,7 @@ export async function createReviewPR(
     repo,
     path: filePath,
     message: `review: ${title}`,
-    content: btoa(updatedContent),
+    content: utf8ToBase64(updatedContent),
     branch: branchName,
     sha: ((
       await octokit.repos.getContent({ owner, repo, path: filePath, ref: defaultBranch })
@@ -811,21 +915,13 @@ export async function createFileAsPR(
     sha: ref.object.sha,
   });
 
-  // Encode content for the GitHub API
-  const contentBytes = new TextEncoder().encode(content);
-  let binaryString = "";
-  for (let i = 0; i < contentBytes.length; i++) {
-    binaryString += String.fromCharCode(contentBytes[i]);
-  }
-  const encoded = btoa(binaryString);
-
   // Commit the new file
   await octokit.repos.createOrUpdateFileContents({
     owner,
     repo,
     path: filePath,
     message: `docs: add ${filePath}`,
-    content: encoded,
+    content: utf8ToBase64(content),
     branch: branchName,
   });
 
@@ -857,19 +953,12 @@ export async function commitFileToPRBranch(
 
   const { owner, repo } = parseOwnerRepo(repoFullName);
 
-  const contentBytes = new TextEncoder().encode(content);
-  let binaryString = "";
-  for (let i = 0; i < contentBytes.length; i++) {
-    binaryString += String.fromCharCode(contentBytes[i]);
-  }
-  const encoded = btoa(binaryString);
-
   await octokit.repos.createOrUpdateFileContents({
     owner,
     repo,
     path: filePath,
     message,
-    content: encoded,
+    content: utf8ToBase64(content),
     branch,
   });
 }
