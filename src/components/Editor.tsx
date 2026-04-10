@@ -37,6 +37,12 @@ const Image = BaseImage.extend({
 });
 
 import { rewriteImageUrls, loadAuthenticatedImages, createReviewPR, createInlineComment, mapSelectionToLines, fetchFileContent, createFileAsPR, commitFileToPRBranch } from "@/lib/github-api";
+import {
+  clearDraft,
+  formatRelativeSavedAt,
+  reconcileDraft,
+  resolveDraftOnLoad,
+} from "@/lib/draft-store";
 import { classifyLink, resolvePath, findFileByPath } from "@/lib/link-handler";
 import { useApp } from "@/lib/app-context";
 import { openExternal } from "@/lib/open-external";
@@ -61,6 +67,7 @@ import {
   Image as ImageIcon,
   Highlighter,
   FileCode,
+  Braces,
   MessageSquarePlus,
   MessageSquare,
   Send,
@@ -626,7 +633,7 @@ function CommentSidePanel({
 
 export default function Editor({ content, onContentChange, filePath, repoFullName, branch }: EditorProps) {
   const editorContainerRef = useRef<HTMLDivElement>(null);
-  const { isDemoMode, isEmbedded, refreshRepo, prBranchForNewFile, prNumberForNewFile, openPR, pullRequests, repoFiles, openFile } = useApp();
+  const { isDemoMode, isEmbedded, refreshRepo, prBranchForNewFile, prNumberForNewFile, openPR, pullRequests, repoFiles, openFile, setEditorIsDirty } = useApp();
   const { wide, toggle: toggleWide, contentClass } = useWideFormat();
   const [comments, setComments] = useState<EditorComment[]>([]);
   const [showComments, setShowComments] = useState(false);
@@ -654,6 +661,48 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
   const [isDirty, setIsDirty] = useState(false);
   const originalMarkdownRef = useRef<string | null>(null);
   const dirtyCheckTimer = useRef<ReturnType<typeof setTimeout>>();
+
+  // Draft autosave — a locally-saved copy of unsaved edits so a browser refresh
+  // doesn't lose work. The restore prompt is shown only when a draft exists
+  // that differs from the upstream content on file open.
+  const [draftPrompt, setDraftPrompt] = useState<
+    { markdown: string; savedAt: number } | null
+  >(null);
+  // Remember the raw upstream markdown for this file so "discard draft" can
+  // restore the editor without re-fetching.
+  const upstreamMarkdownRef = useRef<string>("");
+
+  // Mirror dirty state into AppContext so the global nav guard can intercept
+  // file/PR/branch switches when there's unsaved work.
+  useEffect(() => {
+    setEditorIsDirty(isDirty);
+    return () => {
+      // When the editor unmounts (view switch), clear the global flag — the
+      // unmount itself happens after the user has already discarded edits or
+      // committed them.
+      setEditorIsDirty(false);
+    };
+  }, [isDirty, setEditorIsDirty]);
+
+  // The TipTap onUpdate handler captures closures ONCE at useEditor time — it
+  // doesn't re-bind when props (filePath, repoFullName, branch, isNewFile)
+  // change. Without this ref, autosave would keep writing drafts to the key
+  // of the first file opened even after the user switches files. Updating
+  // this ref on every render keeps onUpdate looking at current props.
+  const draftScopeRef = useRef({
+    repoFullName,
+    branch,
+    filePath,
+    isNewFile,
+    isLocalFile,
+  });
+  draftScopeRef.current = {
+    repoFullName,
+    branch,
+    filePath,
+    isNewFile,
+    isLocalFile,
+  };
   const [showEditPRModal, setShowEditPRModal] = useState(false);
   const [editPRTitle, setEditPRTitle] = useState("");
   const [showNewFileModal, setShowNewFileModal] = useState(false);
@@ -690,15 +739,19 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
     content: markdownToHtml(content, repoFullName, branch, filePath),
     onUpdate: ({ editor }) => {
       onContentChange?.(editor.getHTML());
-      if (!isNewFile && originalMarkdownRef.current !== null) {
-        // Debounce the Turndown comparison to avoid running on every keystroke
-        if (dirtyCheckTimer.current) clearTimeout(dirtyCheckTimer.current);
-        dirtyCheckTimer.current = setTimeout(() => {
-          const turndown = createTurndownService();
-          const currentMd = turndown.turndown(editor.getHTML());
-          setIsDirty(currentMd !== originalMarkdownRef.current);
-        }, 300);
-      }
+      // Debounce the Turndown comparison to avoid running on every keystroke.
+      // reconcileDraft encapsulates the autosave decision — tested in
+      // draft-store.test.ts. Scope comes from a ref because onUpdate captures
+      // closures ONCE at useEditor creation time and would otherwise go stale
+      // on file switches.
+      if (dirtyCheckTimer.current) clearTimeout(dirtyCheckTimer.current);
+      dirtyCheckTimer.current = setTimeout(() => {
+        const scope = draftScopeRef.current;
+        const turndown = createTurndownService();
+        const currentMd = turndown.turndown(editor.getHTML());
+        const { dirty } = reconcileDraft(scope, originalMarkdownRef.current, currentMd);
+        setIsDirty(dirty);
+      }, 300);
     },
     editorProps: {
       attributes: {
@@ -713,6 +766,7 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
 
     if (editor) {
       if (content) {
+        upstreamMarkdownRef.current = content;
         const rawHtml = markdownToHtml(content, repoFullName, branch, filePath);
         preRenderMermaid(rawHtml).then((html) => {
           if (cancelled) return;
@@ -720,6 +774,19 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
           // Capture baseline markdown for dirty comparison
           const turndown = createTurndownService();
           originalMarkdownRef.current = turndown.turndown(editor.getHTML());
+
+          // Check for a locally-saved draft that differs from upstream — if
+          // found, offer to restore it. resolveDraftOnLoad handles the
+          // new-file / local-file skip and the "draft matches upstream"
+          // cleanup in one place. Tested in draft-store.test.ts.
+          const draft = resolveDraftOnLoad(
+            { repoFullName, branch, filePath, isNewFile, isLocalFile },
+            originalMarkdownRef.current
+          );
+          if (draft) {
+            setDraftPrompt({ markdown: draft.markdown, savedAt: draft.savedAt });
+          }
+
           // Fetch private repo images after TipTap renders
           setTimeout(() => {
             if (!cancelled && editorContainerRef.current) {
@@ -738,6 +805,7 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
     setSubmittedPR(null);
     setSubmitError(null);
     setIsDirty(false);
+    setDraftPrompt(null);
     setCodeView(false);
     setCodeContent("");
     if (editor) editor.setEditable(true);
@@ -994,14 +1062,16 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
         }
         refreshRepo();
       } else {
-        // Create a new PR
-        if (!newFileTitle.trim()) return;
+        // Create a new PR. Fall back to "Add <path>" when the user leaves the
+        // title blank — the modal already shows this as a placeholder, so
+        // using it as the real title matches the visible intent.
+        const title = newFileTitle.trim() || `Add ${path}`;
 
         const pr = await createFileAsPR(
           repoFullName,
           path,
           markdown,
-          newFileTitle,
+          title,
         );
 
         setSubmittedPR(pr);
@@ -1045,13 +1115,14 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
       setSubmittedPR(pr);
       setShowEditPRModal(false);
       setIsDirty(false);
+      clearDraft(repoFullName, branch, filePath);
       refreshRepo();
     } catch (err: any) {
       setSubmitError(err.message || "Failed to create PR");
     } finally {
       setSubmittingPR(false);
     }
-  }, [repoFullName, isDemoMode, editor, filePath, isLocalFile, editFilePath, editPRTitle, codeView, codeContent, refreshRepo]);
+  }, [repoFullName, branch, isDemoMode, editor, filePath, isLocalFile, editFilePath, editPRTitle, codeView, codeContent, refreshRepo]);
 
   // Save to disk via VS Code extension (embed mode only)
   const [savingToDisk, setSavingToDisk] = useState(false);
@@ -1073,8 +1144,9 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
     setSavingToDisk(true);
     window.parent.postMessage({ type: "file:save", filePath: savePath, content: markdown }, "*");
     setIsDirty(false);
+    clearDraft(repoFullName, branch, filePath);
     setTimeout(() => setSavingToDisk(false), 500);
-  }, [editor, isEmbedded, codeView, codeContent, filePath]);
+  }, [editor, isEmbedded, codeView, codeContent, filePath, repoFullName, branch]);
 
   // Click handler — intercept clicks on <a> and <img> tags in the editor
   const handleEditorClick = useCallback((e: React.MouseEvent) => {
@@ -1397,10 +1469,15 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
             )}
             <button
               onClick={toggleCodeView}
-              className={`toolbar-btn ${codeView ? "active" : ""}`}
-              title={codeView ? "Rich view" : "Code view"}
+              className={`flex items-center gap-1 px-2 py-1 text-[11px] rounded-md transition-colors ${
+                codeView
+                  ? "bg-[var(--accent-muted)] text-[var(--accent)] font-medium"
+                  : "text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+              }`}
+              title={codeView ? "Switch back to rich editor" : "Edit raw markdown"}
             >
-              <FileCode size={15} />
+              <Braces size={13} />
+              {codeView ? "Rich" : "Code"}
             </button>
             <button
               onClick={toggleWide}
@@ -1458,6 +1535,13 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
               ) : (
                 <>
                   {filePath}
+                  {isDirty && (
+                    <span
+                      className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500"
+                      title="Unsaved changes"
+                      aria-label="Unsaved changes"
+                    />
+                  )}
                   <span className="text-[10px] text-[var(--text-muted)] opacity-60">
                     — select text to comment
                   </span>
@@ -1482,11 +1566,60 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
               />
             )}
 
+            {/* Draft restore banner — shows when a locally-saved draft is
+                newer than upstream content for this file. */}
+            {draftPrompt && !isNewFile && !isLocalFile && (
+              <div className="mb-4 p-3 border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 rounded-md flex items-center justify-between gap-3">
+                <div className="text-xs text-[var(--text-primary)]">
+                  <strong>Unsaved draft found</strong>{" "}
+                  <span className="text-[var(--text-secondary)]">
+                    saved {formatRelativeSavedAt(draftPrompt.savedAt)}.
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={async () => {
+                      const md = draftPrompt.markdown;
+                      const rawHtml = markdownToHtml(md, repoFullName, branch, filePath);
+                      const html = await preRenderMermaid(rawHtml);
+                      editor.commands.setContent(html);
+                      // Re-derive isDirty against original
+                      const turndown = createTurndownService();
+                      const currentMd = turndown.turndown(editor.getHTML());
+                      setIsDirty(currentMd !== originalMarkdownRef.current);
+                      setDraftPrompt(null);
+                    }}
+                    className="text-xs px-3 py-1 bg-amber-600 text-white rounded hover:bg-amber-700 transition-colors"
+                  >
+                    Restore
+                  </button>
+                  <button
+                    onClick={() => {
+                      clearDraft(repoFullName, branch, filePath);
+                      setDraftPrompt(null);
+                    }}
+                    className="text-xs px-3 py-1 border border-[var(--border)] text-[var(--text-secondary)] rounded hover:bg-[var(--surface-hover)] transition-colors"
+                  >
+                    Discard
+                  </button>
+                </div>
+              </div>
+            )}
+
             {codeView ? (
               <textarea
                 ref={codeTextareaRef}
                 value={codeContent}
-                onChange={(e) => { setCodeContent(e.target.value); setIsDirty(e.target.value !== originalMarkdownRef.current); }}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setCodeContent(next);
+                  const { dirty } = reconcileDraft(
+                    draftScopeRef.current,
+                    originalMarkdownRef.current,
+                    next
+                  );
+                  setIsDirty(dirty);
+                }}
                 onKeyDown={handleCodeViewKeyDown}
                 className="w-full min-h-[60vh] p-4 font-mono text-sm leading-relaxed bg-[var(--surface-secondary)] text-[var(--text-primary)] border border-[var(--border)] rounded-lg resize-y focus:outline-none focus:border-[var(--accent)]"
                 spellCheck={false}
@@ -1658,7 +1791,7 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
               </button>
               <button
                 onClick={handleSaveNewFile}
-                disabled={savingNewFile || !newFilePath.trim() || (!isAddingToPR && !newFileTitle.trim()) || isDemoMode}
+                disabled={savingNewFile || !newFilePath.trim() || isDemoMode}
                 className="flex items-center gap-1.5 text-xs px-4 py-1.5 bg-[var(--accent)] text-white rounded-md hover:bg-[var(--accent-hover)] disabled:opacity-40 transition-colors"
               >
                 {savingNewFile ? (
