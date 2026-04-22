@@ -241,7 +241,7 @@ export async function fetchPullRequests(
     state,
     sort: "updated",
     direction: "desc",
-    per_page: 100,
+    per_page: 20,
   });
 
   return data.map((pr) => ({
@@ -344,14 +344,8 @@ export async function fetchPRFiles(
     pull_number: prNumber,
   });
 
-  // Use the SHAs the PR was created against, not the branch names.
-  // Branch names move: a merged PR's base branch (e.g. `main`) now
-  // contains the post-merge state, which would give baseContent ==
-  // headContent and render the whole diff as "unchanged." The base/
-  // head commit SHAs are pinned to the PR and always yield the
-  // correct pre- and post-change contents.
-  const baseRef = prDetail.data.base.sha;
-  const headRef = prDetail.data.head.sha;
+  const baseBranch = prDetail.data.base.ref;
+  const headBranch = prDetail.data.head.ref;
 
   const result: PRFile[] = [];
 
@@ -361,7 +355,7 @@ export async function fetchPRFiles(
 
     if (file.status !== "added") {
       try {
-        baseContent = await fetchFileContent(repoFullName, file.filename, baseRef);
+        baseContent = await fetchFileContent(repoFullName, file.filename, baseBranch);
       } catch {
         baseContent = "";
       }
@@ -369,7 +363,7 @@ export async function fetchPRFiles(
 
     if (file.status !== "removed") {
       try {
-        headContent = await fetchFileContent(repoFullName, file.filename, headRef);
+        headContent = await fetchFileContent(repoFullName, file.filename, headBranch);
       } catch {
         headContent = "";
       }
