@@ -35,6 +35,7 @@ export default function Home() {
     selectedPR,
     setSelectedPR,
     fileContent,
+    reloadNonce,
     loadingContent,
     loadingPRFiles,
     error,
@@ -238,6 +239,7 @@ export default function Home() {
                 repoFullName={currentRepo || undefined}
                 branch={selectedBranch}
                 onContentChange={() => {}}
+                reloadNonce={reloadNonce}
               />
             )
           ) : currentView === "html-viewer" && selectedFile ? (
