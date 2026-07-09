@@ -9,6 +9,7 @@ import { repoFiles as mockFiles, pullRequests as mockPRs, findFile, flattenFiles
 import { parseHash, buildFileHash, buildPRHash, buildRepoHash } from "./hash-router";
 import * as safeStorage from "./safe-storage";
 import { isHtmlFile } from "./file-types";
+import { isReloadShortcut, postReloadRequest, shouldApplyFileContent } from "./embed-reload";
 
 interface AppState {
   // Auth
@@ -63,6 +64,10 @@ interface AppState {
   addFileToPR: (pr: PullRequest) => void;
   openLocalFile: (name: string, content: string) => void;
   isEmbedded: boolean;
+  // Bumped each time the extension re-sends the current file's content
+  // (embed-mode reload). Editor includes it in its content-load effect
+  // deps so the same filePath re-renders with fresh content.
+  reloadNonce: number;
 
   // Unsaved-changes nav guard. The Editor reports its dirty state via
   // setEditorIsDirty; the navigation actions above check it before switching
@@ -145,6 +150,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [selectedFile, setSelectedFile] = useState<RepoFile | null>(null);
   const [selectedPR, setSelectedPR] = useState<PullRequest | null>(null);
   const [fileContent, setFileContent] = useState("");
+  const [reloadNonce, setReloadNonce] = useState(0);
 
   // PR detail state
   const [prFiles, setPRFiles] = useState<PRFile[]>([]);
@@ -311,6 +317,44 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     return () => window.removeEventListener("message", handleMessage);
+  }, [isEmbedded]);
+
+  // Embed-mode reload from disk (feature 040). Ctrl/Cmd+Shift+R asks the
+  // extension to re-read the current file; the fresh bytes come back as a
+  // `file:content` message. Capture phase for the same reason as the
+  // Cmd+C fix above — beat the parent shell's key handling. Outside embed
+  // mode the browser's native hard-reload shortcut is untouched.
+  useEffect(() => {
+    if (!isEmbedded) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!isReloadShortcut(e)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      guardNavigation("reload the file from disk", () => {
+        postReloadRequest();
+      });
+    };
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => document.removeEventListener("keydown", onKeyDown, true);
+  }, [isEmbedded, guardNavigation]);
+
+  // The `file:content` handler needs the current file path without
+  // re-subscribing the listener on every file switch.
+  const selectedFilePathRef = useRef<string | null>(null);
+  useEffect(() => {
+    selectedFilePathRef.current = selectedFile?.path ?? null;
+  }, [selectedFile]);
+
+  useEffect(() => {
+    if (!isEmbedded) return;
+    const handleFileContent = (event: MessageEvent) => {
+      const data = event.data;
+      if (!shouldApplyFileContent(data, selectedFilePathRef.current)) return;
+      setFileContent(data.fileContent);
+      setReloadNonce((n) => n + 1);
+    };
+    window.addEventListener("message", handleFileContent);
+    return () => window.removeEventListener("message", handleFileContent);
   }, [isEmbedded]);
 
 
@@ -815,6 +859,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         addFileToPR,
         openLocalFile,
         isEmbedded,
+        reloadNonce,
         editorIsDirty,
         setEditorIsDirty,
       }}

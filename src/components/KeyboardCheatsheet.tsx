@@ -6,7 +6,9 @@ import {
   ALL_SHORTCUTS,
   filterShortcuts,
   groupByCategory,
+  visibleShortcuts,
 } from "@/lib/keyboard-shortcuts";
+import { useApp } from "@/lib/app-context";
 
 interface KeyboardCheatsheetProps {
   open: boolean;
@@ -20,6 +22,7 @@ interface KeyboardCheatsheetProps {
  * registry so the data is unit-testable without mounting React.
  */
 export default function KeyboardCheatsheet({ open, onClose }: KeyboardCheatsheetProps) {
+  const { isEmbedded } = useApp();
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -49,8 +52,8 @@ export default function KeyboardCheatsheet({ open, onClose }: KeyboardCheatsheet
   }, [open, onClose]);
 
   const filtered = useMemo(
-    () => filterShortcuts(ALL_SHORTCUTS, query),
-    [query]
+    () => filterShortcuts(visibleShortcuts(ALL_SHORTCUTS, isEmbedded), query),
+    [query, isEmbedded]
   );
   const grouped = useMemo(() => groupByCategory(filtered), [filtered]);
   const categories = Object.keys(grouped);

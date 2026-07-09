@@ -155,6 +155,10 @@ interface EditorProps {
   filePath: string;
   repoFullName?: string;
   branch?: string;
+  // Embed-mode reload counter — bumps when the extension re-sends the
+  // current file, forcing the content-load effect to re-run for the
+  // same filePath. See feature 040.
+  reloadNonce?: number;
 }
 
 interface EditorComment {
@@ -494,7 +498,7 @@ function CommentSidePanel({
 
 // ─── Main Editor Component ──────────────────────────────────────────────
 
-export default function Editor({ content, onContentChange, filePath, repoFullName, branch }: EditorProps) {
+export default function Editor({ content, onContentChange, filePath, repoFullName, branch, reloadNonce = 0 }: EditorProps) {
   const editorContainerRef = useRef<HTMLDivElement>(null);
   // Separate ref for the positioned content wrapper inside the scroll
   // container. LinkImageBubble uses `position: absolute`, so its
@@ -877,7 +881,7 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
     setAddPopover(null);
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filePath, editor]);
+  }, [filePath, editor, reloadNonce]);
 
   const toggleCodeView = useCallback(async () => {
     if (!editor) return;
