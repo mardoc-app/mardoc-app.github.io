@@ -16,6 +16,8 @@ export interface Shortcut {
   keys: string[];
   description: string;
   category: ShortcutCategory;
+  /** Only active (and only listed) when running inside the VS Code embed. */
+  embedOnly?: boolean;
 }
 
 /**
@@ -40,10 +42,24 @@ export const ALL_SHORTCUTS: Shortcut[] = [
   { keys: ["Click", "Drag"], description: "Select text in diff to leave a comment", category: "Review" },
   { keys: ["↵"], description: "Submit comment / reply", category: "Review" },
 
+  // ─── Navigation ─────────────────────────────────────────────────────
+  { keys: ["⌘", "⇧", "R"], description: "Reload file from disk", category: "Navigation", embedOnly: true },
+
   // ─── Help ───────────────────────────────────────────────────────────
   { keys: ["?"], description: "Open keyboard cheatsheet", category: "Help" },
   { keys: ["⌘", "⇧", "P"], description: "Open command palette", category: "Help" },
 ];
+
+/**
+ * The shortcuts that apply in the current runtime — embed-only entries
+ * are hidden outside the VS Code webview.
+ */
+export function visibleShortcuts(
+  shortcuts: Shortcut[],
+  isEmbedded: boolean
+): Shortcut[] {
+  return isEmbedded ? shortcuts : shortcuts.filter((s) => !s.embedOnly);
+}
 
 /**
  * Group a list of shortcuts by their category, preserving input order
