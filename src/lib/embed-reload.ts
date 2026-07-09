@@ -48,6 +48,25 @@ export interface FileContentMessage {
   filePath?: string;
   fileName?: string;
   fileContent: string;
+  /**
+   * Why the extension sent this: "watch" = the file changed on disk and
+   * the watcher pushed it unprompted; "request" = the user explicitly
+   * asked (button / keystroke / command). Absent on older extensions —
+   * treated as "request".
+   */
+  reason?: "watch" | "request";
+}
+
+/**
+ * Watcher-pushed content must never clobber in-progress edits. Explicit
+ * requests already passed the discard-changes guard before the request
+ * was posted, so they apply even against a recently-dirty editor.
+ */
+export function isBlockedByDirtyEditor(
+  msg: Pick<FileContentMessage, "reason">,
+  editorIsDirty: boolean
+): boolean {
+  return msg.reason === "watch" && editorIsDirty;
 }
 
 /**
