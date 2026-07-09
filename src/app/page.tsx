@@ -25,6 +25,7 @@ import {
   AlertCircle,
   Keyboard,
   Menu,
+  RefreshCw,
 } from "lucide-react";
 
 export default function Home() {
@@ -45,6 +46,7 @@ export default function Home() {
     repoFiles,
     pullRequests,
     isEmbedded,
+    requestEmbedReload,
     createNewFile,
   } = useApp();
   const { toggleTheme } = useTheme();
@@ -104,8 +106,20 @@ export default function Home() {
         keywords: ["back", "welcome", "start"],
         handler: () => setCurrentView("editor"),
       },
+      ...(isEmbedded
+        ? [
+            {
+              id: "reload-from-disk",
+              label: "Reload file from disk",
+              category: "File",
+              keywords: ["refresh", "disk", "vscode", "sync"],
+              shortcut: ["⌘", "⇧", "R"],
+              handler: () => requestEmbedReload(),
+            },
+          ]
+        : []),
     ],
-    [toggleTheme, createNewFile, setCurrentView]
+    [toggleTheme, createNewFile, setCurrentView, isEmbedded, requestEmbedReload]
   );
 
   // Global keyboard handler for `?` (cheatsheet) and ⌘⇧P (command
@@ -179,6 +193,19 @@ export default function Home() {
               <AlertCircle size={12} />
               <span className="max-w-48 truncate">{error}</span>
             </div>
+          )}
+          {/* Embed mode: visible reload trigger. Keystrokes inside the
+              webview iframe are best-effort (VS Code and the wrapper can
+              consume them first) — the button is the reliable path. */}
+          {isEmbedded && selectedFile && (
+            <button
+              onClick={requestEmbedReload}
+              className="toolbar-btn"
+              title="Reload file from disk (⌘⇧R)"
+              aria-label="Reload file from disk"
+            >
+              <RefreshCw size={16} />
+            </button>
           )}
           {!isEmbedded && (
             <button

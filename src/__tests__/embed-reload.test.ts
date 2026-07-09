@@ -3,6 +3,7 @@ import {
   isReloadShortcut,
   postReloadRequest,
   shouldApplyFileContent,
+  isBlockedByDirtyEditor,
 } from "../lib/embed-reload";
 import { visibleShortcuts, ALL_SHORTCUTS } from "../lib/keyboard-shortcuts";
 
@@ -143,6 +144,24 @@ describe("shouldApplyFileContent", () => {
         "__local__/a.md"
       )
     ).toBe(false);
+  });
+});
+
+describe("isBlockedByDirtyEditor", () => {
+  it("blocks watcher-pushed content when the editor is dirty", () => {
+    expect(isBlockedByDirtyEditor({ reason: "watch" }, true)).toBe(true);
+  });
+
+  it("applies watcher-pushed content when the editor is clean", () => {
+    expect(isBlockedByDirtyEditor({ reason: "watch" }, false)).toBe(false);
+  });
+
+  it("never blocks explicit requests (guard already ran)", () => {
+    expect(isBlockedByDirtyEditor({ reason: "request" }, true)).toBe(false);
+  });
+
+  it("treats a missing reason (older extension) as a request", () => {
+    expect(isBlockedByDirtyEditor({}, true)).toBe(false);
   });
 });
 
