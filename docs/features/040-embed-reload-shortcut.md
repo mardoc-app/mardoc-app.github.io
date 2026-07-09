@@ -4,7 +4,7 @@
 
 When MarDoc runs inside the VS Code extension, the document shown is a snapshot: the extension read the file once at panel-open time and posted it via `init`. If the file changes on disk afterward — the dominant case being an AI agent iterating on a design doc while the human reads it in MarDoc — there is no way to see the new content short of closing and reopening the panel.
 
-This feature adds a **reload keystroke**: `Ctrl+Shift+R` (`Cmd+Shift+R` on macOS) re-reads the file from disk and re-renders it in place. No file watcher, no staleness banner, no auto-refresh — the user knows when the file changed and asks for the update. Deliberately the smallest version of "refresh" that delivers the value.
+The document follows the file, the way VS Code's built-in Markdown Preview and Live Preview do: the extension **watches the open file and pushes fresh content automatically** when it changes on disk (never clobbering unsaved MarDoc edits), and a **refresh icon on the panel title bar**, a **reload button in the app's top bar**, and a command-palette entry provide explicit reload. `Ctrl/Cmd+Shift+R` is layered on as a best-effort convenience — keystrokes inside the webview iframe are unreliable by construction (see `docs/webview-embed-model.md` in mardoc-vscode) and are never the primary trigger.
 
 ## Design
 
@@ -44,7 +44,7 @@ Handled next to the `init` handler in `app-context.tsx`:
 
 ## Explicitly out of scope
 
-- File watching / auto-reload / "source changed" banners (may return as a later story if the manual keystroke proves insufficient)
+- "Source changed" banners — auto-apply (clean editor) or silence (dirty editor) covers the cases without extra chrome
 - Reload for PR-mode views (PR content comes from the GitHub API, not disk)
 - Preserving scroll position or cursor across reload
 

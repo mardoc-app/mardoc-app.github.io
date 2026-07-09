@@ -9,7 +9,7 @@ import { repoFiles as mockFiles, pullRequests as mockPRs, findFile, flattenFiles
 import { parseHash, buildFileHash, buildPRHash, buildRepoHash } from "./hash-router";
 import * as safeStorage from "./safe-storage";
 import { isHtmlFile } from "./file-types";
-import { isReloadShortcut, postReloadRequest, shouldApplyFileContent } from "./embed-reload";
+import { isReloadShortcut, postReloadRequest, shouldApplyFileContent, isBlockedByDirtyEditor } from "./embed-reload";
 
 interface AppState {
   // Auth
@@ -68,6 +68,9 @@ interface AppState {
   // (embed-mode reload). Editor includes it in its content-load effect
   // deps so the same filePath re-renders with fresh content.
   reloadNonce: number;
+  // Ask the extension to re-read the current file from disk (embed mode).
+  // Respects the unsaved-changes guard. No-op outside an embedding frame.
+  requestEmbedReload: () => void;
 
   // Unsaved-changes nav guard. The Editor reports its dirty state via
   // setEditorIsDirty; the navigation actions above check it before switching
@@ -319,24 +322,41 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("message", handleMessage);
   }, [isEmbedded]);
 
-  // Embed-mode reload from disk (feature 040). Ctrl/Cmd+Shift+R asks the
+  // Embed-mode reload from disk (feature 040). Shared entry point for
+  // every trigger — keystroke, top-bar button, command palette. Asks the
   // extension to re-read the current file; the fresh bytes come back as a
-  // `file:content` message. Capture phase for the same reason as the
-  // Cmd+C fix above — beat the parent shell's key handling. Outside embed
-  // mode the browser's native hard-reload shortcut is untouched.
+  // `file:content` message. Every decision point logs so a failed reload
+  // can be traced in the webview devtools console.
+  const requestEmbedReload = useCallback(() => {
+    if (editorIsDirtyRef.current) {
+      console.log("[MarDoc reload] unsaved edits — showing discard confirmation");
+    }
+    guardNavigation("reload the file from disk", () => {
+      const posted = postReloadRequest();
+      console.log(
+        posted
+          ? "[MarDoc reload] posted file:reload to extension"
+          : "[MarDoc reload] NOT posted — no parent frame (not embedded?)"
+      );
+    });
+  }, [guardNavigation]);
+
+  // Keystroke trigger: Ctrl/Cmd+Shift+R. Capture phase for the same
+  // reason as the Cmd+C fix above — beat the parent shell's key
+  // handling. Outside embed mode the browser's native hard-reload
+  // shortcut is untouched.
   useEffect(() => {
     if (!isEmbedded) return;
     const onKeyDown = (e: KeyboardEvent) => {
       if (!isReloadShortcut(e)) return;
+      console.log("[MarDoc reload] Ctrl/Cmd+Shift+R captured in iframe");
       e.preventDefault();
       e.stopPropagation();
-      guardNavigation("reload the file from disk", () => {
-        postReloadRequest();
-      });
+      requestEmbedReload();
     };
     document.addEventListener("keydown", onKeyDown, true);
     return () => document.removeEventListener("keydown", onKeyDown, true);
-  }, [isEmbedded, guardNavigation]);
+  }, [isEmbedded, requestEmbedReload]);
 
   // The `file:content` handler needs the current file path without
   // re-subscribing the listener on every file switch.
@@ -349,7 +369,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!isEmbedded) return;
     const handleFileContent = (event: MessageEvent) => {
       const data = event.data;
-      if (!shouldApplyFileContent(data, selectedFilePathRef.current)) return;
+      if (!data || data.type !== "file:content") return;
+      if (!shouldApplyFileContent(data, selectedFilePathRef.current)) {
+        console.log(
+          `[MarDoc reload] rejected file:content for "${data.filePath}" — current file is "${selectedFilePathRef.current}"`
+        );
+        return;
+      }
+      if (isBlockedByDirtyEditor(data, editorIsDirtyRef.current)) {
+        console.log(
+          "[MarDoc reload] file changed on disk but editor has unsaved edits — not auto-applying (use the reload button to overwrite)"
+        );
+        return;
+      }
+      console.log(
+        `[MarDoc reload] applying ${data.reason === "watch" ? "watched" : "requested"} content for "${data.filePath}" (${data.fileContent.length} chars)`
+      );
       setFileContent(data.fileContent);
       setReloadNonce((n) => n + 1);
     };
@@ -860,6 +895,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         openLocalFile,
         isEmbedded,
         reloadNonce,
+        requestEmbedReload,
         editorIsDirty,
         setEditorIsDirty,
       }}
