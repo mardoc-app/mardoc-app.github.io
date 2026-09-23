@@ -152,3 +152,50 @@ describe("PR demand loading", () => {
     expect(state.selectedPRFileIdx).toBe(1);
   });
 });
+
+
+describe("sidebar metadata demand", () => {
+  it("makes no list/count requests for a direct document and deduplicates requested lists", async () => {
+    const branches = deferred<any[]>();
+    const counts = deferred<Map<number, number>>();
+    vi.mocked(api.fetchBranches).mockReturnValue(branches.promise);
+    vi.mocked(api.fetchPullRequests).mockResolvedValue([{number:12}] as any);
+    vi.mocked(api.fetchPRMarkdownCounts).mockReturnValue(counts.promise);
+    await start("#/acme/docs/blob/topic/notes.md");
+    await waitFor(() => expect(state.fileRevision).toBe(FEATURE));
+    expect(api.fetchBranches).not.toHaveBeenCalled();
+    expect(api.fetchPullRequests).not.toHaveBeenCalled();
+    expect(api.fetchPRMarkdownCounts).not.toHaveBeenCalled();
+    await act(async () => { state.loadSidebarMetadata("prs"); state.loadSidebarMetadata("prs"); });
+    expect(api.fetchPullRequests).toHaveBeenCalledTimes(1);
+    expect(state.pullRequests).toHaveLength(1);
+    expect(state.loadingPRs).toBe(false);
+    await act(async () => { state.loadSidebarMetadata("branches"); state.loadSidebarMetadata("branches"); });
+    expect(api.fetchBranches).toHaveBeenCalledTimes(1);
+    expect(state.loadingBranches).toBe(true);
+    await act(async () => branches.resolve([{name:"topic",isDefault:true}]));
+    await act(async () => counts.resolve(new Map([[12, 3]])));
+    expect(state.availableBranches[0].name).toBe("topic");
+    expect(state.pullRequests[0].mdFileCount).toBe(3);
+    expect(state.loadingBranches).toBe(false);
+    await act(async () => { state.loadSidebarMetadata("branches"); state.loadSidebarMetadata("prs"); });
+    expect(api.fetchBranches).toHaveBeenCalledTimes(1);
+    expect(api.fetchPullRequests).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops old metadata on repository switches and retries failed branch loads", async () => {
+    const old = deferred<any[]>();
+    vi.mocked(api.fetchBranches).mockReturnValueOnce(old.promise).mockRejectedValueOnce(new Error("offline")).mockResolvedValue([{name:"new",isDefault:true}]);
+    await start("#/acme/docs/blob/topic/notes.md");
+    await waitFor(() => expect(state.fileRevision).toBe(FEATURE));
+    await act(async () => state.loadSidebarMetadata("branches"));
+    await navigate("#/other/docs/blob/new/notes.md");
+    await act(async () => old.resolve([{name:"old",isDefault:true}]));
+    expect(state.availableBranches).toEqual([]);
+    await act(async () => state.loadSidebarMetadata("branches"));
+    expect(state.loadingBranches).toBe(false);
+    await act(async () => state.loadSidebarMetadata("branches"));
+    expect(state.availableBranches[0].name).toBe("new");
+    expect(api.fetchBranches).toHaveBeenCalledTimes(3);
+  });
+});

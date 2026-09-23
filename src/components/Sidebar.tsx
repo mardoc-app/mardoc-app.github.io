@@ -276,6 +276,8 @@ export default function Sidebar() {
     loadingPRFiles,
     selectedBranch,
     availableBranches,
+    loadSidebarMetadata,
+    loadingBranches,
     setSelectedBranch,
     isEmbedded,
   } = useApp();
@@ -291,6 +293,13 @@ export default function Sidebar() {
   const [branchDropdownOpen, setBranchDropdownOpen] = useState(false);
   const [branchFilter, setBranchFilter] = useState("");
   const branchDropdownRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (activeTab === "prs") loadSidebarMetadata("prs");
+  }, [activeTab, currentRepo, loadSidebarMetadata]);
+  useEffect(() => {
+    if (branchDropdownOpen) loadSidebarMetadata("branches");
+  }, [branchDropdownOpen, currentRepo, loadSidebarMetadata]);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleLocalFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -396,7 +405,7 @@ export default function Sidebar() {
       </div>
 
       {/* Branch selector — visible on Files tab when browsing repo (not PR) */}
-      {activeTab === "files" && !isViewingPR && availableBranches.length > 0 && (
+      {activeTab === "files" && !isViewingPR && (availableBranches.length > 0 || (!isDemoMode && currentRepo)) && (
         <div ref={branchDropdownRef} className="relative px-2 py-1.5 border-b border-[var(--border)]">
           <button
             onClick={() => {
@@ -425,6 +434,8 @@ export default function Sidebar() {
                 </div>
               )}
               <div className="overflow-y-auto">
+                {loadingBranches && <p className="p-2 text-xs" role="status">Loading branches…</p>}
+                {!loadingBranches && availableBranches.length === 0 && <p className="p-2 text-xs">No branches available. Reopen to retry.</p>}
                 {availableBranches
                   .filter((b) => !branchFilter || b.name.toLowerCase().includes(branchFilter.toLowerCase()))
                   .map((branch) => (

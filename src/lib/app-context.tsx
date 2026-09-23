@@ -22,6 +22,8 @@ interface AppState {
   currentRepo: string | null;
   defaultBranch: string;
   selectedBranch: string;
+  loadSidebarMetadata: (kind: "branches" | "prs") => void;
+  loadingBranches: boolean;
   availableBranches: { name: string; isDefault: boolean }[];
   setSelectedBranch: (branch: string) => void;
   setCurrentRepo: (repo: string) => void;
@@ -151,6 +153,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [prList, setPRList] = useState<PullRequest[]>(mockPRs);
   const [prStateFilter, setPRStateFilterState] = useState<"open" | "closed" | "all">("open");
 
+  const [loadingBranches, setLoadingBranches] = useState(false);
+  const metadataRequests = useRef<{ branches?: string; prs?: string }>({});
+
   // Navigation
   const [currentView, setCurrentView] = useState<ViewMode>("editor");
   const [selectedFile, setSelectedFile] = useState<RepoFile | null>(null);
@@ -266,6 +271,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const setGithubToken = useCallback((token: string | null) => {
     invalidateNavigation();
     repoLoadGuard.invalidate(); listLoadGuard.invalidate();
+    metadataRequests.current = {}; setLoadingBranches(false); setLoadingPRs(false);
     locationRef.current = { repo: null, branch: "main" };
     setCurrentRepoState(null); setSelectedFile(null); setSelectedPR(null);
     setFileContent(""); setAvailableBranches([]); setPRFiles([]); setPRComments([]);
@@ -429,30 +435,53 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const loadPRs = useCallback(async (repo: string, filter: "open" | "closed" | "all") => {
     if (!githubToken) return;
     const isCurrent = listLoadGuard.begin();
+    metadataRequests.current.prs = JSON.stringify([repo, filter]);
     setLoadingPRs(true);
     try {
       const prs = await fetchPullRequests(repo, filter);
       if (!isCurrent()) return;
       setPRList(prs);
+      setLoadingPRs(false);
       if (prs.length) {
         const counts = await fetchPRMarkdownCounts(repo, prs.map(p => p.number));
         if (isCurrent()) setPRList(prs.map(p => ({ ...p, mdFileCount: counts.get(p.number) ?? 0 })));
       }
     } catch (err) {
-      if (isCurrent()) setError(formatApiError(err, "Failed to load pull requests"));
+      if (isCurrent()) { delete metadataRequests.current.prs; setError(formatApiError(err, "Failed to load pull requests")); }
     } finally { if (isCurrent()) setLoadingPRs(false); }
   }, [githubToken, listLoadGuard]);
 
-  const loadMetadata = useCallback((repo: string) => {
+  const loadBranches = useCallback((repo: string) => {
     const isCurrent = repoLoadGuard.begin();
-    void loadPRs(repo, prStateFilter);
+    metadataRequests.current.branches = repo;
+    setLoadingBranches(true);
     void fetchBranches(repo).then(branches => {
       if (!isCurrent()) return;
       setAvailableBranches(branches);
       const primary = branches.find(b => b.isDefault);
       if (primary) setDefaultBranch(primary.name);
-    }).catch(() => {}); // The document can still load if enumeration is unavailable.
-  }, [loadPRs, prStateFilter, repoLoadGuard]);
+    }).catch(err => {
+      if (isCurrent()) {
+        delete metadataRequests.current.branches;
+        setError(formatApiError(err, "Failed to load branches. Reopen the branch menu to retry."));
+      }
+    }).finally(() => { if (isCurrent()) setLoadingBranches(false); });
+  }, [repoLoadGuard]);
+
+  const loadSidebarMetadata = useCallback((kind: "branches" | "prs") => {
+    const repo = locationRef.current.repo;
+    if (!repo || !githubToken) return;
+    if (kind === "branches" && metadataRequests.current.branches !== repo) loadBranches(repo);
+    if (kind === "prs" && metadataRequests.current.prs !== JSON.stringify([repo, prStateFilter])) {
+      void loadPRs(repo, prStateFilter);
+    }
+  }, [githubToken, loadBranches, loadPRs, prStateFilter]);
+
+  const loadMetadata = useCallback((repo: string) => {
+    // Explicit refresh updates only lists the user has already requested.
+    if (metadataRequests.current.prs) void loadPRs(repo, prStateFilter);
+    if (metadataRequests.current.branches) loadBranches(repo);
+  }, [loadPRs, loadBranches, prStateFilter]);
 
   const activateRepo = useCallback((repo: string, branch: string) => {
     const changed = locationRef.current.repo !== repo;
@@ -461,9 +490,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     safeStorage.setItem(REPO_KEY, repo);
     if (changed) {
       setRepoFiles([]); setPRList([]); setAvailableBranches([]);
-      if (githubToken) loadMetadata(repo);
+      repoLoadGuard.invalidate(); listLoadGuard.invalidate();
+      metadataRequests.current = {};
+      setLoadingBranches(false); setLoadingPRs(false);
     }
-  }, [githubToken, loadMetadata]);
+  }, [repoLoadGuard, listLoadGuard]);
 
   const loadTree = useCallback(async (repo: string, revision: Promise<string>) => {
     const isCurrent = treeLoadGuard.begin();
@@ -490,6 +521,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const ref = branch || await fetchDefaultBranch(repo);
       if (!isCurrent()) return;
       locationRef.current.branch = ref;
+      if (!branch) setDefaultBranch(ref);
       setSelectedBranchState(ref);
       await loadTree(repo, fetchRevision(repo, ref));
     } catch (err) { if (isCurrent()) setError(formatApiError(err, "Failed to load repository")); }
@@ -735,6 +767,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         defaultBranch,
         selectedBranch,
         availableBranches,
+        loadSidebarMetadata,
+        loadingBranches,
         setSelectedBranch,
         setCurrentRepo,
         repoFiles: repoFilesList,
