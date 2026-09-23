@@ -36,6 +36,7 @@ import { useWideFormat } from "@/lib/use-wide-format";
 import { isHtmlFile } from "@/lib/file-types";
 import { rewriteHtmlAssetUrls } from "@/lib/html-assets";
 import { injectSourceLineAttributes } from "@/lib/html-source-lines";
+import { buildIframeResizeScript } from "@/lib/iframe-resize";
 import { buildIframeSelectionScript } from "@/lib/html-selection";
 import { useIsMobile } from "@/lib/use-viewport";
 import BottomSheet from "./BottomSheet";
@@ -430,7 +431,7 @@ export default function DiffViewer({
     // (new) view — we don't need comment-target lines on the base
     // since comments always target the head revision.
     const tagged = htmlShowBase ? raw : injectSourceLineAttributes(raw);
-    const resizeScript = `<script>(function(){function p(){window.parent.postMessage({type:'mardoc-iframe-resize',height:document.documentElement.scrollHeight},'*')}window.addEventListener('load',function(){setTimeout(p,100)});new MutationObserver(p).observe(document.body,{childList:true,subtree:true,attributes:true});setTimeout(p,500);setTimeout(p,2000)})()</script>`;
+    const resizeScript = `<script>${buildIframeResizeScript()}</script>`;
     // Only attach the selection listener in head view — base is
     // reference-only and shouldn't accept comments.
     const selectionScript = htmlShowBase

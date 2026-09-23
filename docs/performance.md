@@ -77,3 +77,27 @@ and cancellation of obsolete requests. The current changes do not establish
 that every performance issue is solved. Track slow real-world cases with a
 revision and timing report so each additional optimization has a reproducible
 baseline and a regression test.
+
+## HTML iframe resize batching
+
+Standalone HTML and PR HTML viewers share `src/lib/iframe-resize.ts`. DOM mutation
+callbacks, resource loads, font completion and the existing delayed checks request
+one measurement on the next animation frame. The helper reads
+`document.documentElement.scrollHeight` at most once per scheduled frame and posts
+only when that measured value changes. Text-node changes are also observed.
+
+The parent still uses the existing height plus 20-pixel padding; this is not a
+new sizing algorithm. In particular, this change does not solve all shrink-to-fit,
+viewport-dependent deck layout, or slide-history compatibility issues. No window
+resize or ResizeObserver feedback loop is introduced.
+
+The synthetic browser fixture delivers 50 mutation callbacks before a paint and
+asserts one scrollHeight read in both viewers, on desktop and mobile. Tests also
+check expanding/collapsing notes, delayed image growth, unclipped end content and
+settled iframe height. Unit tests cover unchanged-height suppression and font
+completion. This measures resize work, not end-to-end page-load speed.
+
+Run `npm run e2e -- e2e/iframe-resize.spec.ts` against a built static export in CI,
+or the development server locally. When reviewing a real deck, test slide changes,
+notes, resource loading and narrow layouts before merging. Private deck fixtures
+must remain outside the public repository.

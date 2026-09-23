@@ -5,6 +5,7 @@ import { Braces, Maximize2, Minimize2, MessageSquare, X, GitPullRequest, Loader2
 import { useIsMobile } from "@/lib/use-viewport";
 import { useApp } from "@/lib/app-context";
 import { injectSourceLineAttributes } from "@/lib/html-source-lines";
+import { buildIframeResizeScript } from "@/lib/iframe-resize";
 import { buildIframeSelectionScript } from "@/lib/html-selection";
 import { createReviewPR, createInlineComment } from "@/lib/github-api";
 import { rewriteHtmlAssetUrls } from "@/lib/html-assets";
@@ -89,7 +90,7 @@ export default function HtmlViewer({ content, filePath, repoFullName, branch }: 
     if (!processedContent) return "";
     const tagged = injectSourceLineAttributes(processedContent);
 
-    const resizeScript = `<script>(function(){function p(){window.parent.postMessage({type:'mardoc-iframe-resize',height:document.documentElement.scrollHeight},'*')}window.addEventListener('load',function(){setTimeout(p,100)});new MutationObserver(p).observe(document.body,{childList:true,subtree:true,attributes:true});setTimeout(p,500);setTimeout(p,2000)})()</script>`;
+    const resizeScript = `<script>${buildIframeResizeScript()}</script>`;
     const selectionScript = `<script>${buildIframeSelectionScript()}</script>`;
     const injected = resizeScript + selectionScript;
 
