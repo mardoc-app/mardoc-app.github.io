@@ -662,10 +662,10 @@ export default function DiffViewer({
   }, [editingBlockIndex]);
 
   const diffBlocks = useMemo(() => {
-    const bBlocks = parseBlocks(file.baseContent);
-    const hBlocks = parseBlocks(file.headContent);
-    const bRanges = computeBlockLineRanges(file.baseContent, bBlocks);
-    const hRanges = computeBlockLineRanges(file.headContent, hBlocks);
+    const bBlocks = baseBlocks;
+    const hBlocks = headBlocks;
+    const bRanges = baseBlockRanges;
+    const hRanges = headBlockRanges;
     const result: DiffBlock[] = [];
     let bi = 0;
     let hi = 0;
@@ -742,7 +742,7 @@ export default function DiffViewer({
       }
     }
     return result;
-  }, [file]);
+  }, [baseBlocks, headBlocks, baseBlockRanges, headBlockRanges]);
 
   // Handle text selection → comment
   const handleSelectionComment = useCallback((text: string) => {
