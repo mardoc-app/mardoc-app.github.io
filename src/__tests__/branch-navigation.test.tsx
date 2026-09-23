@@ -111,3 +111,44 @@ describe("authenticated branch links",()=>{
     expect(location.hash).toBe("#/acme/docs/blob/topic/spec.md");
   });
 });
+
+
+describe("PR demand loading", () => {
+  it("loads only the linked document while comments remain pending and caches visited files", async () => {
+    const comments = deferred<any[]>();
+    const pr = { number: 12, headBranch: "topic", files: [], comments: [] } as any;
+    const files = ["one.md", "two.html", "three.md"].map(path => ({path, baseContent:"", headContent:"", status:"added", loadState:"pending"})) as any;
+    vi.mocked(api.fetchPullRequest).mockResolvedValue(pr);
+    vi.mocked(api.fetchPRFileManifest).mockResolvedValue(files);
+    vi.mocked(api.fetchPRComments).mockReturnValue(comments.promise);
+    vi.mocked(api.fetchPRFile).mockImplementation(async file => ({...file,headContent:"loaded",loadState:"ready"}));
+    await start("#/acme/docs/pull/12/files/1");
+    await waitFor(() => expect(state.prFiles[1]?.headContent).toBe("loaded"));
+    expect(state.loadingPRFiles).toBe(false);
+    expect(state.prComments).toEqual([]);
+    expect(api.fetchPRFile).toHaveBeenCalledTimes(1);
+    expect(api.fetchPRFile).toHaveBeenCalledWith(files[1]);
+    await act(async () => state.setSelectedPRFileIdx(0));
+    await waitFor(() => expect(state.prFiles[0]?.loadState).toBe("ready"));
+    await act(async () => state.setSelectedPRFileIdx(1));
+    expect(api.fetchPRFile).toHaveBeenCalledTimes(2);
+    await act(async () => comments.resolve([]));
+  });
+
+  it("ignores an old selected-file completion and isolates a failed file", async () => {
+    const old = deferred<any>();
+    const pr = { number: 12, headBranch: "topic", files: [], comments: [] } as any;
+    const files = ["one.md", "two.md"].map(path => ({path, baseContent:"", headContent:"", status:"added", loadState:"pending"})) as any;
+    vi.mocked(api.fetchPullRequest).mockResolvedValue(pr);
+    vi.mocked(api.fetchPRFileManifest).mockResolvedValue(files);
+    vi.mocked(api.fetchPRComments).mockResolvedValue([]);
+    vi.mocked(api.fetchPRFile).mockImplementation(file => file.path === "one.md" ? old.promise : Promise.reject(new Error("unavailable")));
+    await start("#/acme/docs/pull/12");
+    await waitFor(() => expect(api.fetchPRFile).toHaveBeenCalled());
+    await act(async () => state.setSelectedPRFileIdx(1));
+    await waitFor(() => expect(state.prFiles[1]?.loadState).toBe("error"));
+    await act(async () => old.resolve({...files[0],headContent:"old",loadState:"ready"}));
+    expect(state.prFiles[0].headContent).toBe("");
+    expect(state.selectedPRFileIdx).toBe(1);
+  });
+});
