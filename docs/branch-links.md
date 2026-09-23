@@ -39,8 +39,9 @@ for settings, credentials and drafts is separate from these caches.
 
 Document links do not wait for repository or PR enumeration. PR links fetch the
 specified PR directly, even when it is absent from the current sidebar list.
-PR document reads run with bounded concurrency; the PR view still waits for
-its document contents and comments.
+PR document contents load on selection after the changed-file manifest arrives.
+Only the selected document’s base/head are fetched; visited documents are reused.
+Comments load independently, and a failed file does not block other files.
 
 Large files whose Contents API response has `encoding: "none"` are fetched
 through the Git Blobs API using the returned blob SHA. Fetch errors are surfaced

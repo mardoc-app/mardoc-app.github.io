@@ -355,39 +355,40 @@ export async function fetchPRMarkdownCounts(
   }
 }
 
-export async function fetchPRFiles(
-  repoFullName: string,
-  prNumber: number
-): Promise<PRFile[]> {
+/** Metadata only: opening one document must not download every PR document. */
+export async function fetchPRFileManifest(repoFullName: string, prNumber: number): Promise<PRFile[]> {
   const octokit = getOctokit();
   if (!octokit) throw new Error("Not authenticated");
-
   const { owner, repo } = parseOwnerRepo(repoFullName);
-
-  const [files, prDetail] = await Promise.all([
+  const [files, { data: pr }] = await Promise.all([
     octokit.paginate(octokit.pulls.listFiles, { owner, repo, pull_number: prNumber, per_page: 100 }),
     octokit.pulls.get({ owner, repo, pull_number: prNumber }),
   ]);
-  const documents = files.filter(f => isDocumentFile(f.filename));
-  const baseRef = prDetail.data.base.sha;
-  const headRef = prDetail.data.head.sha;
-  const baseRepo = prDetail.data.base.repo.full_name;
-  const headRepo = prDetail.data.head.repo?.full_name || repoFullName;
-  const result: PRFile[] = new Array(documents.length);
+  return files.filter(f => isDocumentFile(f.filename)).map(file => ({
+    path: file.filename, basePath: file.previous_filename || file.filename,
+    baseRef: pr.base.sha, headRef: pr.head.sha,
+    baseRepo: pr.base.repo.full_name, headRepo: pr.head.repo?.full_name || repoFullName,
+    baseContent: "", headContent: "", loadState: "pending",
+    status: file.status === "added" ? "added" : file.status === "removed" ? "deleted" : "modified",
+  }));
+}
+
+export async function fetchPRFile(file: PRFile): Promise<PRFile> {
+  const [baseContent, headContent] = await Promise.all([
+    file.status === "added" ? "" : fetchFileContent(file.baseRepo!, file.basePath || file.path, file.baseRef),
+    file.status === "deleted" ? "" : fetchFileContent(file.headRepo!, file.path, file.headRef),
+  ]);
+  return { ...file, baseContent, headContent, loadState: "ready", loadError: undefined };
+}
+
+/** Batch helper for callers that explicitly need all content. */
+export async function fetchPRFiles(repoFullName: string, prNumber: number): Promise<PRFile[]> {
+  const result = await fetchPRFileManifest(repoFullName, prNumber);
   let next = 0;
-  // Four files at a time, at most eight content requests. Preserve list order.
-  await Promise.all(Array.from({ length: Math.min(4, documents.length) }, async () => {
-    while (next < documents.length) {
+  await Promise.all(Array.from({ length: Math.min(4, result.length) }, async () => {
+    while (next < result.length) {
       const i = next++;
-      const file = documents[i];
-      const basePath = file.previous_filename || file.filename;
-      const [baseContent, headContent] = await Promise.all([
-        file.status === "added" ? "" : fetchFileContent(baseRepo, basePath, baseRef),
-        file.status === "removed" ? "" : fetchFileContent(headRepo, file.filename, headRef),
-      ]);
-      result[i] = { path: file.filename, basePath, baseRef, headRef, baseRepo, headRepo,
-        baseContent, headContent,
-        status: file.status === "added" ? "added" : file.status === "removed" ? "deleted" : "modified" };
+      result[i] = await fetchPRFile(result[i]);
     }
   }));
   return result;

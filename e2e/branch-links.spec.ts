@@ -69,7 +69,7 @@ test("shared branch link renders once, refreshes text and image together, and sh
 });
 
 test("a large HTML PR deep link loads the requested HTML file without relying on the PR list",async({page})=>{
-  await mockGitHub(page);
+  const fixture = await mockGitHub(page);
   const pr={number:381,title:"Training deck",state:"open",created_at:"2026-09-23T00:00:00Z",body:"Training",
     user:{login:"reviewer"},base:{ref:"main",sha:A,repo:{full_name:"acme/docs"}},head:{ref:branch,sha:B,repo:{full_name:"acme/docs"}}};
   await page.route("https://api.github.com/repos/acme/docs/pulls/381**", async route=>{
@@ -85,4 +85,5 @@ test("a large HTML PR deep link loads the requested HTML file without relying on
   await page.goto("/#/acme/docs/pull/381/files/2");
   await expect(page.frameLocator("iframe").locator("h1")).toHaveText("Training slide one");
   await expect(page).toHaveURL(/#\/acme\/docs\/pull\/381\/files\/2$/);
+  expect(fixture.reads).toEqual([]); // Unselected Markdown bodies were never requested.
 });
