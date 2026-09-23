@@ -9,6 +9,7 @@ async function mockGitHub(page: Page) {
   let revision = A;
   const reads: {path:string;ref:string|null}[] = [];
   const commits: string[] = [];
+  const metadata: string[] = [];
   await page.addInitScript(() => {
     localStorage.setItem("mardoc_github_token", "fake-test-token");
     Object.defineProperty(navigator, "clipboard", { configurable: true,
@@ -18,6 +19,7 @@ async function mockGitHub(page: Page) {
   await page.route("https://api.github.com/**", async route => {
     const url = new URL(route.request().url());
     const path = decodeURIComponent(url.pathname);
+    if (path.endsWith("/branches") || path.endsWith("/pulls") || path === "/graphql") metadata.push(path);
     let data: unknown;
     if (path.includes("/commits/")) {
       commits.push(path); data = {sha:revision};
@@ -41,7 +43,7 @@ async function mockGitHub(page: Page) {
     }
     await route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(data)});
   });
-  return {reads,commits,advance:()=>{revision=B;}};
+  return {reads,commits,metadata,advance:()=>{revision=B;}};
 }
 
 test("shared branch link renders once, refreshes text and image together, and shares a pinned revision", async ({page}) => {
@@ -57,6 +59,7 @@ test("shared branch link renders once, refreshes text and image together, and sh
     .map(entry => ({name:entry.name, duration:entry.duration})));
   expect(timings.some(entry => entry.name === "mardoc:document-fetch")).toBe(true);
   console.log("Synthetic cold branch timings (ms)", timings);
+  expect(fixture.metadata).toEqual([]);
   await expect(page).toHaveURL(new RegExp("feature%2Freport/docs/spec.md$"));
   await page.getByRole("button",{name:"Copy branch link"}).click();
   expect(await page.evaluate(()=>(window as any).__copiedLink)).toContain("feature%2Freport/docs/spec.md");
@@ -92,4 +95,19 @@ test("a large HTML PR deep link loads the requested HTML file without relying on
   await expect(page.frameLocator("iframe").locator("h1")).toHaveText("Training slide one");
   await expect(page).toHaveURL(/#\/acme\/docs\/pull\/381\/files\/2$/);
   expect(fixture.reads).toEqual([]); // Unselected Markdown bodies were never requested.
+});
+
+
+test("sidebar requests lists only when their controls are opened", async ({page, isMobile}) => {
+  const fixture = await mockGitHub(page);
+  await page.goto(shared);
+  await expect(page.locator(".ProseMirror h1")).toHaveText("First branch report");
+  expect(fixture.metadata).toEqual([]);
+  if (isMobile) await page.getByRole("button", {name:"Open navigation"}).click();
+  await page.getByRole("button", {name:branch, exact:true}).click();
+  await expect(page.getByRole("button", {name:"main", exact:false})).toBeVisible();
+  expect(fixture.metadata).toEqual(["/repos/acme/docs/branches"]);
+  await page.getByRole("button", {name:"PRs", exact:true}).click();
+  await expect(page.getByText("No pull requests found.")).toBeVisible();
+  expect(fixture.metadata).toEqual(["/repos/acme/docs/branches", "/repos/acme/docs/pulls"]);
 });
