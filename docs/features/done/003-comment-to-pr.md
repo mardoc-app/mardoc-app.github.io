@@ -1,5 +1,13 @@
 # 003: Open PR from Comments on Any Branch
 
+**Status: Partial.** Reviewed against `4abb8f5` on 2026-09-23.
+
+createReviewPR starts a fresh branch from the default branch with a whitespace change; selected-branch review and existing-PR reuse criteria are not implemented.
+
+See the [feature index](../README.md) for current status and reference documentation. The original story below is retained as a historical design record; its checkboxes and future-tense instructions are not a current completion report.
+
+## Original story (historical)
+
 ## Value
 Users can comment on markdown files in any branch (non-PR context) and submit those comments as a new PR. Enables a review workflow without requiring a PR to exist first — the act of commenting creates one.
 

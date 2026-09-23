@@ -1,5 +1,13 @@
 # 040 — Reload From Disk (VS Code Embed Mode)
 
+**Status: App side implemented; extension unverified.** Reviewed against `4abb8f5` on 2026-09-23.
+
+Reload helpers, UI actions, message handling, nonce, and tests exist. Extension commands/watchers are not verified here. Local-file dirty tracking limits the intended unsaved-edit guard; see DATA-01.
+
+See the [feature index](README.md) for current status and reference documentation. The original story below is retained as a historical design record; its checkboxes and future-tense instructions are not a current completion report.
+
+## Original story (historical)
+
 ## Value
 
 When MarDoc runs inside the VS Code extension, the document shown is a snapshot: the extension read the file once at panel-open time and posted it via `init`. If the file changes on disk afterward — the dominant case being an AI agent iterating on a design doc while the human reads it in MarDoc — there is no way to see the new content short of closing and reopening the panel.

@@ -1,5 +1,13 @@
 # 024 — GitHub API Error Handling and Resilience
 
+**Status: Partial.** Reviewed against `4abb8f5` on 2026-09-23.
+
+Retry/backoff, rate-limit tracking, and error formatting exist. Individual PR content failures still become empty strings; see REVIEW-01.
+
+See the [feature index](../README.md) for current status and reference documentation. The original story below is retained as a historical design record; its checkboxes and future-tense instructions are not a current completion report.
+
+## Original story (historical)
+
 ## Value
 
 GitHub API calls have no retry logic, no rate limit handling, and swallow errors silently. Transient network blips break the app. Expired tokens fail without feedback. Rate limiting (429) causes cascading failures with no recovery path.
@@ -11,7 +19,7 @@ GitHub API calls have no retry logic, no rate limit handling, and swallow errors
 - [x] Auth failures (401) surface a clear message prompting re-authentication via formatApiError
 - [x] `atob()` base64 decoding is wrapped in try-catch with a clear error message and whitespace stripping
 - [x] GraphQL queries use proper variable substitution — owner/repo are passed as typed variables, PR numbers validated as safe integers
-- [x] PR file load errors (`fetchPRFiles`) are surfaced to the user via setError, not swallowed
+- [ ] All PR file load errors surface to the user — outer failures surface, but individual base/head content failures are still swallowed
 - [x] `loadAuthenticatedImages` failures show a broken-image indicator (mardoc-image-failed class with dashed red border and alt text)
 
 ## Dependencies

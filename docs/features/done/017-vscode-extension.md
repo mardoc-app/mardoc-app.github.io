@@ -1,5 +1,13 @@
 # 017: VS Code Extension
 
+**Status: App side implemented; extension unverified.** Reviewed against `4abb8f5` on 2026-09-23.
+
+Embed UI and message handlers exist in this repository. Verify extension commands, filesystem operations, and packaging in the separate extension repository.
+
+See the [feature index](../README.md) for current status and reference documentation. The original story below is retained as a historical design record; its checkboxes and future-tense instructions are not a current completion report.
+
+## Original story (historical)
+
 ## Value
 
 MarDoc as a rich document editor and PR reviewer inside VS Code. The extension loads mardoc.app in a WebView, passes workspace context, and provides an "Edit with MarDoc" right-click action on document files (markdown and HTML). Git operations (commit, branch, push) stay in VS Code where they belong — MarDoc handles rendering, editing, and PR review.

@@ -1,5 +1,13 @@
 # 039 — Per-File Comment Filtering & Highlight Accuracy
 
+**Status: Implemented core.** Reviewed against `4abb8f5` on 2026-09-23.
+
+Per-file filtering and path metadata are present, with unit/component and E2E coverage files. The bug diagnosis and implementation plan below describe the pre-fix state.
+
+See the [feature index](README.md) for current status and reference documentation. The original story below is retained as a historical design record; its checkboxes and future-tense instructions are not a current completion report.
+
+## Original story (historical)
+
 ## Value
 
 When viewing a file in a PR, the comment panel and inline highlights show comments from **all files in the PR**, not just the current file. This creates noise (irrelevant comments cluttering the sidebar), false highlights (text matches from other files' comments lighting up in the current file), and broken click-to-go (clicking a cross-file highlight selects a comment whose context doesn't exist here). The result is a confusing review experience that gets worse as PR size grows.
@@ -45,7 +53,7 @@ Fixing this makes the per-file review feel focused and trustworthy — comments 
 - [x] `renderBlockHtml()` only injects highlights for the current file's comments
 - [x] Clicking a highlight opens the correct comment in the panel
 - [x] Clicking a comment in the panel scrolls to the correct mark in the diff
-- [x] All five markdown view modes work: Inline Diff, Split, Suggest, Preview
+- [x] All four markdown view modes work: Inline Diff, Split, Suggest, Preview
 - [x] Both HTML view modes work: Rendered, Source Diff
 - [x] Mobile bottom sheet shows per-file comments (same filtering)
 - [x] Switching files updates the comment panel immediately

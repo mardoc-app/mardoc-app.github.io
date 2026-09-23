@@ -1,5 +1,13 @@
 # 006: Code Block Syntax Highlighting
 
+**Status: Implemented core.** Reviewed against `4abb8f5` on 2026-09-23.
+
+Lowlight and CodeBlockLowlight are used in rendering/editor paths; dependency versions below are historical notes.
+
+See the [feature index](../README.md) for current status and reference documentation. The original story below is retained as a historical design record; its checkboxes and future-tense instructions are not a current completion report.
+
+## Original story (historical)
+
 ## Value
 Code blocks in markdown files render with syntax colorization instead of plain monospace text. Makes technical documentation with code samples significantly more readable.
 
