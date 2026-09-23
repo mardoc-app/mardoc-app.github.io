@@ -27,6 +27,7 @@ import {
   type PendingInlineComment,
   type ReviewEvent,
 } from "@/lib/github-api";
+import { createBackgroundRefresh } from "@/lib/background-refresh";
 import { mergeFreshComments } from "@/lib/comment-merge";
 import { buildSuggestionBody, parseSuggestionBody } from "@/lib/suggestion-body";
 import { transformGitHubAlerts } from "@/lib/github-alerts";
@@ -77,12 +78,12 @@ export default function PRDetail({ pr, onBack }: PRDetailProps) {
   // Refetch comments from GitHub and merge into local state. Used by the 30s
   // poll and the post-write propagation retries. The merge helper is extracted
   // to @/lib/comment-merge and covered by comment-merge.test.ts.
-  const refreshFromGitHub = useCallback(async () => {
+  const refreshFromGitHub = useCallback(async (isActive: () => boolean) => {
     if (isDemoMode || !currentRepo || !pr.number) return;
     if (isRateLimited()) return;
     try {
       const fresh = await fetchPRComments(currentRepo, pr.number);
-      setComments((prev) => mergeFreshComments(prev, fresh));
+      if (isActive()) setComments((prev) => mergeFreshComments(prev, fresh));
     } catch (err) {
       if (isRateLimitError(err)) {
         markRateLimited(extractResetFromError(err));
@@ -90,25 +91,19 @@ export default function PRDetail({ pr, onBack }: PRDetailProps) {
     }
   }, [isDemoMode, currentRepo, pr.number]);
 
-  // GitHub's read APIs lag its write APIs by 1–5 seconds in practice. After
-  // any write (review submit, reply, add-general-comment), schedule a handful
-  // of refetches at increasing delays to ride out propagation without waiting
-  // 30s for the background poll.
+  const refreshController = useRef<ReturnType<typeof createBackgroundRefresh> | null>(null);
   const scheduleRefreshHedge = useCallback(() => {
-    for (const delay of [1500, 4000, 8000]) {
-      setTimeout(() => {
-        if (!isRateLimited()) void refreshFromGitHub();
-      }, delay);
-    }
-  }, [refreshFromGitHub]);
+    refreshController.current?.afterWrite();
+  }, []);
 
-  // Poll for new comments every 30s when authenticated.
   useEffect(() => {
     if (isDemoMode || !currentRepo || !pr.number) return;
-    const poll = setInterval(() => {
-      void refreshFromGitHub();
-    }, 30_000);
-    return () => clearInterval(poll);
+    const controller = createBackgroundRefresh(refreshFromGitHub);
+    refreshController.current = controller;
+    return () => {
+      controller.dispose();
+      refreshController.current = null;
+    };
   }, [isDemoMode, currentRepo, pr.number, refreshFromGitHub]);
 
   const selectedFile = prFiles[selectedPRFileIdx];
@@ -255,7 +250,7 @@ export default function PRDetail({ pr, onBack }: PRDetailProps) {
       // Refetch once now for the happy path, then hedge with additional
       // refetches at increasing delays so the new comments reliably appear
       // even when GitHub's read API lags the write API.
-      await refreshFromGitHub();
+      await refreshController.current?.refresh();
       scheduleRefreshHedge();
     } catch (err) {
       console.error("Failed to submit review:", err);
