@@ -55,6 +55,7 @@ export default function PRDetail({ pr, onBack }: PRDetailProps) {
     prFiles,
     prComments,
     selectedPRFileIdx,
+    setSelectedPRFileIdx,
   } = useApp();
 
   const [comments, setComments] = useState<PRComment[]>(prComments);
@@ -70,10 +71,8 @@ export default function PRDetail({ pr, onBack }: PRDetailProps) {
 
   // Sync comments from context when they load
   React.useEffect(() => {
-    if (prComments.length > 0 && comments.length === 0) {
-      setComments(prComments);
-    }
-  }, [prComments, comments.length]);
+    setComments(previous => mergeFreshComments(previous, prComments));
+  }, [prComments]);
 
   // Refetch comments from GitHub and merge into local state. Used by the 30s
   // poll and the post-write propagation retries. The merge helper is extracted
@@ -575,6 +574,12 @@ export default function PRDetail({ pr, onBack }: PRDetailProps) {
             <p className="text-sm text-[var(--text-muted)]">
               No markdown files changed in this PR.
             </p>
+          </div>
+        ) : selectedFile?.loadState === "pending" ? (
+          <div className="h-full flex items-center justify-center" role="status">Loading document…</div>
+        ) : selectedFile?.loadState === "error" ? (
+          <div className="p-6" role="alert">{selectedFile.loadError}
+            <button className="toolbar-btn" onClick={() => setSelectedPRFileIdx(selectedPRFileIdx)}>Retry document</button>
           </div>
         ) : selectedFile ? (
           <DiffViewer
