@@ -111,3 +111,81 @@ test("sidebar requests lists only when their controls are opened", async ({page,
   await expect(page.getByText("No pull requests found.")).toBeVisible();
   expect(fixture.metadata).toEqual(["/repos/acme/docs/branches", "/repos/acme/docs/pulls"]);
 });
+
+
+test("presenter links open PR documents and pinned references, and Back preserves the deck", async ({page}) => {
+  await mockGitHub(page);
+  const pr={number:381,title:"Training",state:"open",created_at:"2026-09-23T00:00:00Z",body:"",
+    user:{login:"reviewer"},base:{ref:"main",sha:A,repo:{full_name:"acme/docs"}},head:{ref:branch,sha:B,repo:{full_name:"acme/docs"}}};
+  const deck = `<html><body><h1>Slide <span id="slide">1</span></h1>
+    <button onclick="document.getElementById('slide').textContent='2'">Next slide</button>
+    <button onclick="document.getElementById('notes').hidden=false">Presenter notes</button>
+    <section id="notes" hidden><a href="workshop.md#workshop-outcomes">Workshop outcomes</a>
+    <a href="../reference.md#reference-heading">Supporting reference</a><a href="missing.md">Missing reference</a>
+    <a href="https://example.com/training">External resource</a></section></body></html>`;
+  let manifestReads = 0;
+  await page.route("https://api.github.com/repos/acme/docs/pulls/381**",async route=>{
+    const path=new URL(route.request().url()).pathname;
+    if (path.endsWith("/files")) manifestReads++;
+    const data=path.endsWith("/files")?[
+      {filename:"docs/support/workshop.md",status:"added"},
+      {filename:"docs/support/architecture.html",status:"added"}
+    ]:path.endsWith("/comments")?[]:pr;
+    await route.fulfill({contentType:"application/json",body:JSON.stringify(data)});
+  });
+  await page.route("https://api.github.com/repos/acme/docs/issues/381/comments**",route=>route.fulfill({contentType:"application/json",body:"[]"}));
+  await page.route("https://api.github.com/graphql",route=>route.fulfill({contentType:"application/json",body:JSON.stringify({data:{repository:{pullRequest:{reviewThreads:{nodes:[]}}}}})}));
+  const reads: {path:string;ref:string|null}[]=[];
+  await page.route("https://api.github.com/repos/acme/docs/contents/**",async route=>{
+    const url=new URL(route.request().url());
+    const path=decodeURIComponent(url.pathname.split("/contents/")[1]);
+    reads.push({path,ref:url.searchParams.get("ref")});
+    if(path.endsWith("missing.md")) {await route.fulfill({status:404,contentType:"application/json",body:'{"message":"Not Found"}'});return;}
+    const content=path.endsWith("architecture.html")?deck:path.endsWith("workshop.md")?
+      "# Workshop intro\n\n" + Array.from({length:45}, (_,i) => `Context paragraph ${i}.`).join("\n\n") + "\n\n# Workshop outcomes\n\nReview this workshop.":"# Reference heading\n\nPinned supporting material.";
+    await route.fulfill({contentType:"application/json",body:JSON.stringify({encoding:"base64",content:Buffer.from(content).toString("base64")})});
+  });
+  await page.goto("/#/acme/docs/pull/381/files/1");
+  const frame=page.frameLocator('iframe[title="docs/support/architecture.html"]');
+  await frame.getByRole("button",{name:"Next slide"}).click();
+  await frame.getByRole("button",{name:"Presenter notes"}).click();
+  await frame.getByRole("link",{name:"Workshop outcomes"}).hover();
+  await expect(frame.getByRole("link",{name:"Workshop outcomes"})).toHaveAttribute("href", /#\/acme\/docs\/pull\/381\?anchor=workshop-outcomes$/);
+  await frame.getByRole("link",{name:"Workshop outcomes"}).click();
+  await expect(page.getByRole("heading",{name:"Workshop outcomes",exact:true}).first()).toBeInViewport();
+  await expect(page).toHaveURL(/pull\/381\?anchor=workshop-outcomes$/);
+  await page.goBack();
+  await expect(frame.locator("#slide")).toHaveText("2");
+  await expect(frame.locator("#notes")).toBeVisible();
+  await frame.getByRole("link",{name:"Supporting reference"}).click();
+  await expect(page.getByText(/Not changed in this PR/)).toBeVisible();
+  await expect(page.frameLocator('iframe[title="Read-only repository document"]').getByRole("heading",{name:"Reference heading"})).toBeVisible();
+  expect(reads).toContainEqual({path:"docs/reference.md",ref:B});
+  await page.getByRole("button",{name:"Back to review",exact:true}).click();
+  await expect(frame.locator("#slide")).toHaveText("2");
+  await page.context().route("https://example.com/**", route => route.fulfill({contentType:"text/html", body:"<h1>External training</h1>"}));
+  const popupPromise = page.waitForEvent("popup");
+  await frame.getByRole("link",{name:"External resource"}).click();
+  const popup = await popupPromise;
+  await expect(popup).toHaveURL("https://example.com/training");
+  await popup.close();
+  await expect(frame.locator("#slide")).toHaveText("2");
+  await frame.getByRole("link",{name:"Missing reference"}).click();
+  await expect(page.getByRole("alert").filter({hasText:"Not Found"})).toBeVisible();
+  await page.goBack();
+  await expect(frame.locator("#notes")).toBeVisible();
+  expect(manifestReads).toBe(1);
+});
+
+test("standalone HTML links open a repository reference without replacing the source iframe", async ({page}) => {
+  const fixture=await mockGitHub(page);
+  await page.route("https://api.github.com/repos/acme/docs/contents/docs*architecture.html**", route =>
+    route.fulfill({contentType:"application/json",body:JSON.stringify({encoding:"base64",content:Buffer.from('<h1>Standalone deck</h1><a href="workshop.md">Workshop</a>').toString("base64")})}));
+  await page.goto("/#/acme/docs/blob/feature%2Freport/docs/support/architecture.html");
+  const source=page.frameLocator('iframe[title="architecture.html"]');
+  await source.getByRole("link",{name:"Workshop",exact:true}).click();
+  await expect(page.frameLocator('iframe[title="Read-only repository document"]').getByRole("heading",{name:"First branch report"})).toBeVisible();
+  expect(fixture.reads).toContainEqual({path:"docs/support/workshop.md",ref:A});
+  await page.getByRole("button",{name:"Back to review",exact:true}).click();
+  await expect(source.getByRole("heading",{name:"Standalone deck"})).toBeVisible();
+});

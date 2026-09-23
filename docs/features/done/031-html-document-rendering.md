@@ -50,3 +50,7 @@ None — builds on existing infrastructure.
 **Routing** (`src/lib/app-context.tsx`, `src/app/page.tsx`):
 - New `ViewMode: "html-viewer"` routes HTML files to HtmlViewer instead of Editor
 - All file-opening paths (openFile, openLocalFile, VS Code embed) detect HTML
+
+## Repository link navigation update
+
+HTML links now resolve against the repository document path rather than the app host. Changed PR documents open in the review view; other repository documents use a read-only reference preview. See [review links](../../review-links.md) for heading navigation, deck retention and limitations.
