@@ -107,11 +107,11 @@ export default function PRDetail({ pr, onBack }: PRDetailProps) {
   // Refetch comments from GitHub and merge into local state. Used by the 30s
   // poll and the post-write propagation retries. The merge helper is extracted
   // to @/lib/comment-merge and covered by comment-merge.test.ts.
-  const refreshFromGitHub = useCallback(async (isActive: () => boolean) => {
+  const refreshFromGitHub = useCallback(async (isActive: () => boolean, signal: AbortSignal) => {
     if (isDemoMode || !currentRepo || !pr.number) return;
     if (isRateLimited()) return;
     try {
-      const fresh = await fetchPRComments(currentRepo, pr.number);
+      const fresh = await fetchPRComments(currentRepo, pr.number, signal);
       if (isActive()) setComments((prev) => mergeFreshComments(prev, fresh));
     } catch (err) {
       if (isRateLimitError(err)) {
