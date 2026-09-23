@@ -1,5 +1,13 @@
 # 015: Create New File in Repo
 
+**Status: Partial.** Reviewed against `4abb8f5` on 2026-09-23.
+
+New-file-to-PR flow exists. Existing-path conflict handling lacks the proposed overwrite-choice flow; see EDIT-02.
+
+See the [feature index](../README.md) for current status and reference documentation. The original story below is retained as a historical design record; its checkboxes and future-tense instructions are not a current completion report.
+
+## Original story (historical)
+
 ## Value
 Users can create a new markdown file directly in a GitHub repo through mardoc. Write new content in the editor, choose where it lives in the repo, and submit as a PR — all without leaving the app. Lowers the barrier to contributing new docs or pages.
 

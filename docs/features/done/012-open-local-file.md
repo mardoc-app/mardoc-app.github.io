@@ -1,5 +1,13 @@
 # 012: Open Local File in Editor
 
+**Status: Implemented core.** Reviewed against `4abb8f5` on 2026-09-23.
+
+Local file loading supports Markdown and HTML. Browser file-picker loading does not give filesystem write-back or neighboring-asset access.
+
+See the [feature index](../README.md) for current status and reference documentation. The original story below is retained as a historical design record; its checkboxes and future-tense instructions are not a current completion report.
+
+## Original story (historical)
+
 ## Value
 Users can open a markdown file from their local filesystem and preview/edit it in the TipTap editor — no GitHub connection required. Standalone local preview and editing.
 

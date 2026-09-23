@@ -1,5 +1,13 @@
 # 030 — Local Image Rendering in Embed Mode
 
+**Status: App side implemented; extension unverified.** Reviewed against `4abb8f5` on 2026-09-23.
+
+Image request/reply bridge and authenticated/local image paths exist. Extension-side filesystem and forwarding support must be checked separately.
+
+See the [feature index](../README.md) for current status and reference documentation. The original story below is retained as a historical design record; its checkboxes and future-tense instructions are not a current completion report.
+
+## Original story (historical)
+
 ## Value
 
 When editing markdown in VS Code embed mode, relative image references (e.g., `![diagram](./images/arch.png)`) don't render because the app can't access the local filesystem. Users see broken images for any document that references local assets. This is a core requirement for making MarDoc useful as a VS Code markdown editor.
@@ -35,7 +43,7 @@ When editing markdown in VS Code embed mode, relative image references (e.g., `!
 **Extension side (`mardoc-vscode/`):**
 - Add handler for `file:read-image` message type
 - Use `vscode.workspace.fs.readFile()` to read the image from the workspace
-- Respond with `{ type: "file:image-data", path, data: base64, mimeType }` 
+- Respond with `{ type: "file:image-data", path, data: base64, mimeType }`
 - Detect MIME type from file extension (png, jpg, gif, svg, webp)
 
 **Image resolution:**

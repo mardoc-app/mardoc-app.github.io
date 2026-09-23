@@ -2,112 +2,70 @@
 
 **Markdown is the AI era's lingua franca. MarDoc makes it accessible to everyone on your team.**
 
-Every major LLM — ChatGPT, Claude, Gemini — emits markdown by default. Reports, specs, research, analyses, strategy memos, onboarding guides, documentation of every kind: AI-generated content is increasingly written in markdown and HTML, and increasingly lives in GitHub repos next to the code and pipelines that produced it. That's the right architecture — version-controlled, branch-reviewable, linkable from the systems that use it, a single source of truth, and close to the source so the docs don't rot while the code moves on without them.
+AI-generated reports, specs, research, and documentation increasingly live in GitHub alongside the work that produced them. MarDoc brings a document-oriented reading and review experience to those repositories: rendered Markdown and HTML, comments on selected passages, and Markdown editing that can become a real pull request.
 
-But reviewing those files still requires knowing git, decoding diffs, and navigating tooling designed for engineers. In an era where AI is dissolving the *you need to be technical* gate across every other kind of work — writing, research, analysis, design, even coding — one specific barrier remains. And it's the barrier that keeps most of your team out of reviewing the content AI is generating for the organization.
+Product managers, designers, writers, engineers, and other reviewers can work with the same version-controlled documents without making raw diffs their primary reading surface.
 
-MarDoc is the bridge. Same GitHub repo, same files, same commits — rendered as documents, commented like Google Docs, edited in a WYSIWYG editor, committed back as real pull requests. Anyone on your team — PM, designer, writer, marketer, legal reviewer, exec sponsor — can review and edit AI-generated markdown and HTML without ever learning the word "diff."
-
-> **No backend. No signup. No data leaves your browser.** Your GitHub token is stored locally and every API call goes directly from you to GitHub.
+MarDoc is a browser-only application, built as a static site and hosted on GitHub Pages. There is no MarDoc authentication server or database. GitHub requests go directly from your browser to GitHub; your PAT is saved in browser localStorage. Documents can also load external assets. See [data storage and security](docs/data-and-security.md) for the exact boundaries and the known HTML isolation gap.
 
 ![MarDoc screenshot](docs/assets/screenshot.png)
 
-## The problem
+## Start using MarDoc
 
-Your engineering team put the docs in source control for good reasons. Your AI pipelines put their outputs there for the same reasons: version history, branch workflows, PR review, a single source of truth that lives next to the code and workflows that use it. That decision is correct — and it's exactly why the content is now *stuck* there.
+1. Open [mardoc.app](https://mardoc.app) to explore the built-in demo documents and PRs.
+2. To work with a repository, open Settings → **GitHub Connection** and enter a personal access token using the [setup guide](docs/setup-github-pat.md).
+3. Open the **Repository** tab, choose a repository, then browse files or open a pull request.
 
-Non-engineers on your team open GitHub's pull-request UI and see a wall of `+` and `-` lines wrapped in backticks and asterisks. Markdown they could read just fine as a rendered document is suddenly unreadable as source. So the review either doesn't happen, or it happens in Notion or Google Docs, and someone on eng has to copy the feedback back into the repo by hand. Meanwhile the volume of AI-generated markdown keeps going up.
-
-The docs that define your strategy, your brand voice, your API contracts, your onboarding, your incident response, your compliance posture, the reports your executives read — those documents are only as good as the people who can review them. When review is gated on reading git syntax, most of your team can't participate, and every AI-generated document becomes a bottleneck at the engineer who has to translate it for everyone else.
-
-MarDoc removes the gate. Same GitHub repo, same files, same commits — wrapped in a layer anyone can use: rendered documents, inline comments, WYSIWYG editing, paste-to-upload images, real pull requests going back to the repo when they're done. Your docs stay in source control. Your team — *all* of it — finally gets to review them.
-
-## For everyone on the team
-
-- **Product managers** reviewing specs, RFCs, and ADRs
-- **Designers** editing UX writing and marketing copy
-- **Technical writers** polishing documentation without touching the command line
-- **Executives and legal reviewers** approving policy, brand, and compliance docs
-- **Engineers** shipping documentation PRs that actually get reviewed
-- **Teams using AI-generated content** — anyone whose LLM outputs land in git-tracked markdown files needs a human-review UX that isn't a unified diff
-- **Open-source maintainers** drowning in documentation contributions from community members who don't know git
-
-If it's a markdown or HTML file and it lives in a GitHub repo, MarDoc makes it reviewable and editable by everyone, not just the people on the codebase.
+Demo mode supports exploring rendering, editing, and review interactions. It does not write to GitHub, and image uploads are disabled.
 
 ## What you can do
 
-**Read the document, not the diff.**
-Open any `.md` or `.html` file in a pull request and see it rendered — headings, tables, images, lists, footnotes, code samples, mermaid diagrams, GitHub alerts. Four view modes (inline diff, side-by-side, suggestion, preview) for different review styles. Word-level change highlighting, not plus-minus lines. Scroll-spy outline for long docs.
+- **Read Markdown as a document.** Render headings, tables, images, code blocks, Mermaid diagrams, footnotes, and GitHub alerts. Review Markdown PR changes in Inline Diff, Split, Suggest, or Preview mode.
+- **Review HTML reports.** View rendered HTML or source, compare base/head versions in a PR, and select passages to comment. HTML does not yet have the Markdown editor's WYSIWYG, word-diff, or suggestion parity.
+- **Discuss a pull request.** Queue inline comments, finish a review, approve or request changes, reply to threads, and resolve conversations. The usual submission batches comments into one review; invalid line mappings can require separate fallback comments.
+- **Edit Markdown and propose changes.** Use the rich editor or code view, create a new document, or add a file to an existing PR. The edit-to-PR action for existing files has a [known save-path issue](docs/known-issues.md#edit-02-existing-file-edit-to-pr-save-path). Accepting an individual suggestion commits to the PR branch.
+- **Work with images.** Paste or drop supported images and configure their repository folder. For an existing document, upload commits immediately to the selected branch. Images in a new-file draft are deferred until save.
+- **Navigate long documents.** Use the outline, find/replace, wide layout, dark mode, keyboard cheatsheet (`?`), and command palette (`Cmd/Ctrl+Shift+P`). Mobile layouts provide a navigation drawer and review comment sheet.
 
-**Highlight a sentence and leave a comment — like you would in Google Docs.**
-Select any text in the rendered view and type a comment. Your comments queue as a single pending review and go to GitHub as **one** inline review comment notification, not N emails to the author. Approve, request changes, reply to threads, resolve them. Comments are tied to the exact line in the source file, so when the engineer on the team reads them, they land in the right place.
+Draft recovery applies to existing repository Markdown files. New/local files and pending review comments do not have the same persistence. Markdown conversion also has known fidelity limits, including HTML comments and complex tables. Read the [capability matrix and workflows](docs/capabilities.md) before relying on these behaviors for a particular document.
 
-**Edit the document in a WYSIWYG editor.**
-No markdown syntax required. Type headings the way you'd type them in a word processor, bold with `Cmd+B`, insert links with `Cmd+K`, make a list by pressing bullet. Toggle to raw markdown if you want — the same document, two views. MarDoc converts back and forth without losing formatting.
+## Documentation
 
-**Propose changes as suggestions.**
-Click any paragraph, edit it, and your edit becomes a GitHub "suggestion" — the reviewer (or you) can accept it with one click and it lands as a real commit on the PR branch. No manual copy-paste, no "can you change line 47 to say…" comments.
+Start with the [documentation index](docs/README.md). Key references:
 
-**Paste images. They just work.**
-Screenshot something, paste it into the editor, and MarDoc uploads the image to your repo automatically — at whatever folder you configured (`docs/images`, `docs/assets`, wherever your team keeps them). Drag-drop works too. Click the image to resize it, tick a box to center it. When you save the document, every image is already there.
-
-**Write the way you review.**
-Cmd+F finds and replaces in both the rich and code views. A command palette (`Cmd+Shift+P`) opens everything the app can do. `?` shows every keyboard shortcut in a filterable list. Autosave protects your work in the browser across refreshes. A word count and reading time tick along in the toolbar. Dark mode.
-
-**Try it before you connect anything.**
-Demo mode ships with sample repositories and sample pull requests. Every feature above works against the built-in data — no GitHub token required. You find out if MarDoc fits before you give it any credentials.
-
-**Verified.**
-560+ unit tests cover the review pipeline, the markdown parsing, the comment submission, the image upload, the suggestion round-trip — every contract the product depends on. `npm test` is clean on every merge.
-
-## Why not…
-
-- **…ask engineers to paste docs into Notion / Google Docs so non-technical reviewers can comment, then paste the feedback back?** That's the status quo for most teams, and it breaks every link between the document and its repo. No version history. No review-by-PR. No single source of truth. Feedback gets lost in translation and engineering ends up transcribing comments by hand. MarDoc keeps the document in git and brings the non-technical reviewer to it — same tab, same GitHub repo, no synchronization problem.
-- **…use the native GitHub PR UI?** It shows a diff with raw markdown syntax. For code that's fine; for prose it's unreadable. A product manager opening a spec PR on github.com sees ``+## Background`` and `-## Context` and has no idea which version reads better. Half your reviewers bounce. MarDoc fixes the exact thing that kept them out.
-- **…use github.dev (the `.` keyboard shortcut on any repo page)?** It's a code editor — great for developers editing source, useless for non-developers reviewing docs. No rendered view during review, no inline review comments on rendered blocks, no word-level prose diff, no WYSIWYG.
-- **…use Notion / Confluence / Google Docs as the doc system?** Then the docs stop being version-controlled, reviewable-by-PR, and linkable from code. Every change requires a separate workflow that doesn't sync back to the codebase. Docs and code drift. MarDoc lets docs live in the repo and still be editable by people who don't know what a repo is.
-- **…use Obsidian / HackMD / Typora as the editor?** Those are single-user writing tools. They're great at local editing but they aren't review tools — no inline GitHub review comments, no batched review submission, no suggestion-as-commit workflow, no commit-back to the branch.
-- **…build a GitHub App?** MarDoc is client-only on purpose. A GitHub App requires a server you have to trust with your users' tokens. MarDoc's trust story is "the code runs in your browser, your token stays local, every API call is direct from you to GitHub." Self-hosting is `git clone && npm run build` and you have your own copy — no infrastructure, no subscription, no vendor in the middle.
-
-## Quick start
-
-1. Go to [mardoc.app](https://mardoc.app)
-2. Click the settings gear → **GitHub Connection** tab
-3. Follow the in-app instructions to create a **classic** personal access token (one `repo` scope — one click on GitHub)
-4. Paste the `ghp_...` token
-5. Open the **Repository** tab, pick a repo, and start reviewing
-
-No install. No signup. Your token is stored in `localStorage`, used directly against GitHub's REST API, and never sent anywhere else.
-
-### Try it without a token
-
-Visit [mardoc.app](https://mardoc.app) in demo mode and explore sample repos and pull requests. Every feature above works against the built-in mock data — the only difference from real mode is that commits don't post to GitHub.
+- [Capabilities and workflows](docs/capabilities.md)
+- [GitHub token setup](docs/setup-github-pat.md)
+- [Architecture and data flow](docs/architecture.md)
+- [Data storage and security](docs/data-and-security.md)
+- [Development, testing, and static deployment](docs/development.md)
+- [Feature status](docs/features/README.md) and [known issues](docs/known-issues.md)
 
 ## Run locally
+
+Use Node.js 22, matching CI:
 
 ```bash
 git clone https://github.com/mardoc-app/mardoc-app.github.io.git
 cd mardoc-app.github.io
-npm install
+npm ci
 npm run dev
 ```
 
-Open http://localhost:3000. The build target is a static export to GitHub Pages — `npm run build` produces the exact deployment artifact.
+Open http://localhost:3000. No environment variables are required for demo mode or PAT authentication. To preview the production static export:
+
+```bash
+npm run build
+npx --yes serve out -l 3000 --no-clipboard
+```
+
+The current `npm start` script uses `next start`, which is incompatible with this project's static export. Use the static server command above. See the [development guide](docs/development.md) for tests and deployment details.
 
 ## Architecture
 
-MarDoc is deliberately minimal infrastructure:
-
-- **Next.js 14** with static export. No server-side rendering, no API routes, no database.
-- **GitHub Pages** hosting via the project's own GitHub repo. Same trust surface as any other `github.io` site.
-- **Octokit** for every GitHub interaction. Calls happen from the browser directly to `api.github.com`, authenticated with your PAT.
-- **TipTap** (ProseMirror) for the rich editor. **Showdown** for markdown → HTML rendering in the diff view. **Turndown** for HTML → markdown on save. All client-side.
-- **Tailwind CSS** + a Tailwind Typography setup tuned for the dark/light theme variables.
-- **Zero auth backend.** No Auth0, no Firebase, no Clerk — the Personal Access Token IS the identity layer.
-
-Everything that could be a server isn't. If the project ever grows a backend, it'll be for features that genuinely require one (e.g., AI-generated content, shared workspaces) — the core review flow will stay client-only.
+Next.js 14 exports a static React application. Browser-side Octokit uses GitHub REST and GraphQL. Showdown, TipTap, and Turndown handle Markdown rendering/editing; HTML reports use an iframe. Tailwind provides styling. The core hosting model requires no application backend.
 
 ## License
+
 
 [Elastic License 2.0](./LICENSE) (ELv2).
 
@@ -119,6 +77,6 @@ See [elastic.co/licensing/elastic-license](https://www.elastic.co/licensing/elas
 
 ## Contributing
 
-Pull requests are welcome. The project uses the feature-sliced delivery style in `docs/features/` — one markdown file per story, moved to `docs/features/done/` on ship. Tests are non-negotiable: every new behavior gets unit-test coverage alongside the code. `npm test` and `npm run build` must both be clean before a PR merges.
+Use the [development guide](docs/development.md) and [feature documentation conventions](docs/features/README.md). New behavior needs appropriate unit or component coverage; use browser tests for integration behavior. Before proposing application changes, run the relevant tests, the complete unit suite, and the static build. Update the current reference docs and feature status in the same change.
 
 Bug reports and feature requests: [open an issue](https://github.com/mardoc-app/mardoc-app.github.io/issues).

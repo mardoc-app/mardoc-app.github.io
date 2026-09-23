@@ -1,5 +1,13 @@
 # 020 — VS Code WebView Compatibility
 
+**Status: App side implemented; extension unverified.** Reviewed against `4abb8f5` on 2026-09-23.
+
+openExternal uses the message type open-external in embed mode and window.open in the normal browser. The original blanket ban on browser APIs is not the current contract.
+
+See the [feature index](../README.md) for current status and reference documentation. The original story below is retained as a historical design record; its checkboxes and future-tense instructions are not a current completion report.
+
+## Original story (historical)
+
 ## Value
 
 Links and popups that rely on browser-only APIs (`window.open`) fail silently in VS Code's WebView embed mode. Users click "Follow link" and nothing happens. This story fixes all browser-API assumptions so the embed experience works fully.

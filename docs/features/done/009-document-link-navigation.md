@@ -1,5 +1,13 @@
 # 009: Document Link Navigation
 
+**Status: Implemented core.** Reviewed against `4abb8f5` on 2026-09-23.
+
+Link classification and navigation helpers exist. Historical acceptance criteria are not a certification of every view/file-type combination.
+
+See the [feature index](../README.md) for current status and reference documentation. The original story below is retained as a historical design record; its checkboxes and future-tense instructions are not a current completion report.
+
+## Original story (historical)
+
 ## Value
 Clicking links in rendered markdown does something useful instead of breaking or going nowhere. Relative links navigate within MarDoc, anchor links jump to headings, and external links open in a new tab. Makes the rendered view behave like a real document reader.
 

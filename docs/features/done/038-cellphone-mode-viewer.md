@@ -1,5 +1,13 @@
 # 038 — Cellphone Mode Viewer
 
+**Status: Partial.** Reviewed against `4abb8f5` on 2026-09-23.
+
+Responsive navigation and review sheets exist. Swipe-file navigation and tablet override are unfinished; pending reviews do not synchronize across devices.
+
+See the [feature index](../README.md) for current status and reference documentation. The original story below is retained as a historical design record; its checkboxes and future-tense instructions are not a current completion report.
+
+## Original story (historical)
+
 ## Value
 
 MarDoc today is a desktop-first tool: sidebars, multi-column diff views, WYSIWYG toolbars, comment panels. Opening it on a phone produces a usable but not comfortable experience — reviewers tapping through a PR on the train to their 9am standup get shrunken desktop chrome instead of a mobile-native read. For the AI-era market we're targeting (PMs, execs, designers, legal reviewers on the go), cellphone mode isn't a nice-to-have — it's where half the reviews will happen.
@@ -82,7 +90,7 @@ WYSIWYG editing on a phone is real but secondary. For v1, the Editor in cellphon
 - Offline mode / PWA install (we're not a PWA yet — that's a separate story)
 - Push notifications for PR updates
 - Native app wrappers (Capacitor, React Native) — cellphone mode is a responsive web layer, not a native app
-- Cross-device sync (review started on phone, continued on desktop) — already works, since the review queue lives in GitHub
+- Cross-device pending-review sync — not implemented; unsubmitted comments live in local React state. Submitted reviews persist in GitHub
 
 ## Open questions
 
@@ -95,4 +103,4 @@ WYSIWYG editing on a phone is real but secondary. For v1, the Editor in cellphon
 ## Related
 
 - **033 — Inline comments on HTML** — must work in cellphone mode (taps inside the iframe must surface a floating action button on the parent)
-- **039 — PWA infrastructure** (follow-on: manifest, service worker, install prompt, offline read-only for previously-viewed PRs)
+- **Unnumbered proposal — PWA infrastructure** (follow-on: manifest, service worker, install prompt, offline read-only for previously-viewed PRs)

@@ -1,5 +1,13 @@
 # 033 — Inline Comments on HTML Files
 
+**Status: Partial; isolation gap open.** Reviewed against `4abb8f5` on 2026-09-23.
+
+HTML selection and source-line commenting paths exist. Actual viewers include allow-same-origin contrary to the original plan; remaining pin/highlight parity needs browser verification. See SEC-01.
+
+See the [feature index](../README.md) for current status and reference documentation. The original story below is retained as a historical design record; its checkboxes and future-tense instructions are not a current completion report.
+
+## Original story (historical)
+
 ## Value
 
 The README pitches "markdown **and HTML**" as first-class review surfaces, but today only markdown supports the select-a-passage / leave-a-comment / post-back-to-GitHub flow. HTML files render beautifully in the DiffViewer iframe (shipped in feature 031), but reviewers can't highlight a sentence and leave feedback on it. That breaks the core promise of the product for the entire class of AI-generated HTML documents — research reports, cost analyses, architecture write-ups — that teams want to review.

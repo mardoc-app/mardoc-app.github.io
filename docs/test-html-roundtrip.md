@@ -1,6 +1,6 @@
 # HTML in Markdown — Round-Trip Test Document
 
-This file contains every HTML element type that MarDoc should preserve through the edit/save cycle. Open it in MarDoc, make a small edit, and verify the HTML survives.
+This is a manual test fixture containing representative HTML elements, not a guarantee that they survive editing. Open a copy in MarDoc, make a small edit, inspect the resulting source, and record what survives. Compare the full Showdown → TipTap → Turndown path; converter-only tests omit TipTap. See [current conversion limits](capabilities.md#edit-or-create-markdown).
 
 ---
 
@@ -174,7 +174,7 @@ Nested content inside two divs with attributes.
 
 <!-- This comment will be stripped by Showdown before Turndown sees it -->
 
-If you see nothing between "HTML Comments" and this paragraph, the comment was stripped (expected).
+HTML comments are invisible when rendered even if preserved. Inspect the saved source to determine whether the comment survived; the converter test currently records this as a known failure.
 
 ### Table with colspan
 
