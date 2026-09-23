@@ -55,7 +55,7 @@ describe("loadAuthenticatedImages — cache + idempotency", () => {
     container.innerHTML = rewriteImageUrls(
       '<img src="./diagram.png" alt="arch">',
       "acme/repo",
-      "main",
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "docs/readme.md"
     );
     document.body.appendChild(container);
@@ -82,7 +82,7 @@ describe("loadAuthenticatedImages — cache + idempotency", () => {
     container.innerHTML = rewriteImageUrls(
       '<img src="./diagram.png" alt="arch">',
       "acme/repo",
-      "main",
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "docs/readme.md"
     );
     document.body.appendChild(container);
@@ -94,7 +94,7 @@ describe("loadAuthenticatedImages — cache + idempotency", () => {
     const reRendered = rewriteImageUrls(
       '<img src="./diagram.png" alt="arch">',
       "acme/repo",
-      "main",
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "docs/readme.md"
     );
 
@@ -112,7 +112,7 @@ describe("loadAuthenticatedImages — cache + idempotency", () => {
     container.innerHTML = rewriteImageUrls(
       '<img src="./diagram.png" alt="arch">',
       "acme/repo",
-      "main",
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "docs/readme.md"
     );
     document.body.appendChild(container);
@@ -122,13 +122,13 @@ describe("loadAuthenticatedImages — cache + idempotency", () => {
     const a = rewriteImageUrls(
       '<img src="./diagram.png" alt="arch">',
       "acme/repo",
-      "main",
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "docs/readme.md"
     );
     const b = rewriteImageUrls(
       '<img src="./diagram.png" alt="arch">',
       "acme/repo",
-      "main",
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "docs/readme.md"
     );
     expect(a).toBe(b);

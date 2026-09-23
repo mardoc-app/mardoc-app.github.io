@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { buildFileHash } from "@/lib/hash-router";
+import { isCommitSha } from "@/lib/request-cache";
 import { useApp } from "@/lib/app-context";
 import { useTheme } from "@/lib/theme-context";
 import Sidebar from "@/components/Sidebar";
@@ -36,6 +38,8 @@ export default function Home() {
     selectedPR,
     setSelectedPR,
     fileContent,
+    fileRevision,
+    refreshDocument,
     reloadNonce,
     loadingContent,
     loadingPRFiles,
@@ -56,6 +60,15 @@ export default function Home() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const isMobile = useIsMobile();
+  const [shareMessage, setShareMessage] = useState("");
+  const copyDocumentLink = async (ref: string) => {
+    if (!currentRepo || !selectedFile) return;
+    const url = new URL(window.location.href);
+    url.hash = buildFileHash(currentRepo, ref, selectedFile.path);
+    try { await navigator.clipboard.writeText(url.href); setShareMessage("Link copied"); }
+    catch { setShareMessage("Could not copy link. Copy the address from your browser."); }
+  };
+  useEffect(() => { setShareMessage(""); }, [selectedFile, selectedBranch, fileRevision]);
 
   // Auto-close the mobile drawer when the selection changes (file picked,
   // PR opened) so the user isn't left staring at the drawer after
@@ -194,6 +207,23 @@ export default function Home() {
               <span className="max-w-48 truncate">{error}</span>
             </div>
           )}
+          {!isEmbedded && !isDemoMode && selectedFile && !selectedFile.path.startsWith("__") && (
+            <div className="flex items-center gap-1">
+              {fileRevision && (
+                <>
+                  <span className="text-xs font-mono hidden sm:inline" title={`Loaded commit ${fileRevision}`}>
+                    {isCommitSha(selectedBranch) ? "Pinned" : "Revision"} {fileRevision.slice(0, 7)}
+                  </span>
+                  {!isCommitSha(selectedBranch) && <button className="toolbar-btn text-xs" onClick={() => copyDocumentLink(selectedBranch)} title="Copy a link that follows the branch" aria-label="Copy branch link">Share branch</button>}
+                  <button className="toolbar-btn text-xs" onClick={() => copyDocumentLink(fileRevision)} title="Copy a link to exactly this revision" aria-label="Copy revision link">Share revision</button>
+                </>
+              )}
+              <button onClick={refreshDocument} disabled={loadingContent} className="toolbar-btn" title="Refresh document from GitHub" aria-label="Refresh document">
+                <RefreshCw size={16} className={loadingContent ? "animate-spin" : ""} />
+              </button>
+              <span role="status" className="text-xs">{shareMessage}</span>
+            </div>
+          )}
           {/* Embed mode: visible reload trigger. Keystrokes inside the
               webview iframe are best-effort (VS Code and the wrapper can
               consume them first) — the button is the reliable path. */}
@@ -265,6 +295,7 @@ export default function Home() {
                 filePath={selectedFile.path}
                 repoFullName={currentRepo || undefined}
                 branch={selectedBranch}
+                assetRef={fileRevision || undefined}
                 onContentChange={() => {}}
                 reloadNonce={reloadNonce}
               />
@@ -282,7 +313,7 @@ export default function Home() {
                 content={fileContent}
                 filePath={selectedFile.path}
                 repoFullName={currentRepo || undefined}
-                branch={selectedBranch}
+                branch={fileRevision || selectedBranch}
               />
             )
           ) : currentView === "pr-diff" && selectedPR ? (

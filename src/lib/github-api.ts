@@ -16,9 +16,25 @@ import { computeBackoff } from "@/lib/fetch-retry";
 import { requestEmbedImage } from "@/lib/embed-image-bridge";
 import { resolvePath, classifyLink } from "@/lib/link-handler";
 
+import { RequestCache, isCommitSha } from "./request-cache";
+
 let octokitInstance: Octokit | null = null;
 
+const contentCache = new RequestCache<{ content: string; encoding: string }>();
+const revisionRequests = new RequestCache<string>();
+const treeCache = new RequestCache<RepoFile[]>(32, 8 * 1024 * 1024);
+
+export function resetGitHubSession(): void {
+  octokitInstance = null;
+  contentCache.clear();
+  revisionRequests.clear();
+  treeCache.clear();
+  imageMetaMap.clear();
+  imageDataUriCache.clear();
+}
+
 export function initOctokit(token: string) {
+  resetGitHubSession();
   octokitInstance = new Octokit({ auth: token });
 
   // Track rate-limit headers on every response so the circuit
@@ -114,7 +130,12 @@ export async function fetchBranches(
 
 // ─── Repository Files ──────────────────────────────────────────────────────
 
-export async function fetchRepoTree(
+export function fetchRepoTree(repoFullName: string, ref = "main"): Promise<RepoFile[]> {
+  return treeCache.load(JSON.stringify([repoFullName, ref]),
+    () => fetchRepoTreeUncached(repoFullName, ref), isCommitSha(ref));
+}
+
+async function fetchRepoTreeUncached(
   repoFullName: string,
   branch: string = "main"
 ): Promise<RepoFile[]> {
@@ -196,35 +217,42 @@ export async function fetchRepoTree(
   }
 }
 
-export async function fetchFileContent(
-  repoFullName: string,
-  path: string,
-  ref?: string
-): Promise<string> {
+/** Resolve moving refs on every navigation; only concurrent resolutions are shared. */
+export async function fetchRevision(repoFullName: string, ref: string): Promise<string> {
+  if (isCommitSha(ref)) return ref;
   const octokit = getOctokit();
   if (!octokit) throw new Error("Not authenticated");
-
-  const { owner, repo } = parseOwnerRepo(repoFullName);
-
-  try {
-    const { data } = await octokit.repos.getContent({
-      owner,
-      repo,
-      path,
-      ref,
+  return revisionRequests.load(JSON.stringify([repoFullName, ref]), async () => {
+    const { data } = await octokit.repos.getCommit({ ...parseOwnerRepo(repoFullName), ref,
+      request: { fetch: (url: RequestInfo | URL, options?: RequestInit) =>
+        fetch(url, { ...options, cache: "no-store" }) },
     });
-
-    if ("content" in data && data.encoding === "base64") {
-      return base64ToUtf8(data.content);
-    }
-
-    throw new Error("Unexpected response format");
-  } catch (error: any) {
-    throw error;
-  }
+    return data.sha;
+  }, false);
 }
 
-// ─── Pull Requests ─────────────────────────────────────────────────────────
+async function fetchContentData(repoFullName: string, path: string, ref?: string) {
+  const octokit = getOctokit();
+  if (!octokit) throw new Error("Not authenticated");
+  return contentCache.load(JSON.stringify([repoFullName, ref, path]), async () => {
+    const { data } = await octokit.repos.getContent({ ...parseOwnerRepo(repoFullName), path, ref });
+    // The Contents API omits bodies above 1 MB. Retrieve the exact blob,
+    // preserving the revision already selected for this document.
+    if (!Array.isArray(data) && data.type === "file" && data.encoding === "none") {
+      const { data: blob } = await octokit.git.getBlob({
+        ...parseOwnerRepo(repoFullName), file_sha: data.sha,
+      });
+      if (blob.encoding !== "base64") throw new Error(`Unexpected blob format for ${path}`);
+      return { content: blob.content, encoding: blob.encoding };
+    }
+    if (!("content" in data) || data.encoding !== "base64") throw new Error(`Unexpected response format for ${path}`);
+    return { content: data.content, encoding: data.encoding };
+  }, isCommitSha(ref));
+}
+
+export async function fetchFileContent(repoFullName: string, path: string, ref?: string): Promise<string> {
+  return base64ToUtf8((await fetchContentData(repoFullName, path, ref)).content);
+}
 
 export async function fetchPullRequests(
   repoFullName: string,
@@ -257,6 +285,16 @@ export async function fetchPullRequests(
     files: [], // loaded separately
     comments: [], // loaded separately
   }));
+}
+
+export async function fetchPullRequest(repoFullName: string, number: number): Promise<PullRequest> {
+  const octokit = getOctokit();
+  if (!octokit) throw new Error("Not authenticated");
+  const { data: pr } = await octokit.pulls.get({ ...parseOwnerRepo(repoFullName), pull_number: number });
+  return { id: `pr-${pr.number}`, number: pr.number, title: pr.title,
+    author: pr.user?.login || "unknown", status: pr.merged_at ? "merged" : pr.state === "closed" ? "closed" : "open",
+    createdAt: pr.created_at, baseBranch: pr.base.ref, headBranch: pr.head.ref,
+    description: pr.body || "", files: [], comments: [] };
 }
 
 /**
@@ -326,67 +364,32 @@ export async function fetchPRFiles(
 
   const { owner, repo } = parseOwnerRepo(repoFullName);
 
-  const { data: files } = await octokit.pulls.listFiles({
-    owner,
-    repo,
-    pull_number: prNumber,
-    per_page: 100,
-  });
-
-  // Filter to document files only (markdown + HTML)
-  const mdFiles = files.filter(
-    (f) => isDocumentFile(f.filename)
-  );
-
-  const prDetail = await octokit.pulls.get({
-    owner,
-    repo,
-    pull_number: prNumber,
-  });
-
-  // Use the SHAs the PR was created against, not the branch names.
-  // Branch names move: a merged PR's base branch (e.g. `main`) now
-  // contains the post-merge state, which would give baseContent ==
-  // headContent and render the whole diff as "unchanged." The base/
-  // head commit SHAs are pinned to the PR and always yield the
-  // correct pre- and post-change contents.
+  const [files, prDetail] = await Promise.all([
+    octokit.paginate(octokit.pulls.listFiles, { owner, repo, pull_number: prNumber, per_page: 100 }),
+    octokit.pulls.get({ owner, repo, pull_number: prNumber }),
+  ]);
+  const documents = files.filter(f => isDocumentFile(f.filename));
   const baseRef = prDetail.data.base.sha;
   const headRef = prDetail.data.head.sha;
-
-  const result: PRFile[] = [];
-
-  for (const file of mdFiles) {
-    let baseContent = "";
-    let headContent = "";
-
-    if (file.status !== "added") {
-      try {
-        baseContent = await fetchFileContent(repoFullName, file.filename, baseRef);
-      } catch {
-        baseContent = "";
-      }
+  const baseRepo = prDetail.data.base.repo.full_name;
+  const headRepo = prDetail.data.head.repo?.full_name || repoFullName;
+  const result: PRFile[] = new Array(documents.length);
+  let next = 0;
+  // Four files at a time, at most eight content requests. Preserve list order.
+  await Promise.all(Array.from({ length: Math.min(4, documents.length) }, async () => {
+    while (next < documents.length) {
+      const i = next++;
+      const file = documents[i];
+      const basePath = file.previous_filename || file.filename;
+      const [baseContent, headContent] = await Promise.all([
+        file.status === "added" ? "" : fetchFileContent(baseRepo, basePath, baseRef),
+        file.status === "removed" ? "" : fetchFileContent(headRepo, file.filename, headRef),
+      ]);
+      result[i] = { path: file.filename, basePath, baseRef, headRef, baseRepo, headRepo,
+        baseContent, headContent,
+        status: file.status === "added" ? "added" : file.status === "removed" ? "deleted" : "modified" };
     }
-
-    if (file.status !== "removed") {
-      try {
-        headContent = await fetchFileContent(repoFullName, file.filename, headRef);
-      } catch {
-        headContent = "";
-      }
-    }
-
-    result.push({
-      path: file.filename,
-      baseContent,
-      headContent,
-      status: file.status === "added"
-        ? "added"
-        : file.status === "removed"
-        ? "deleted"
-        : "modified",
-    });
-  }
-
+  }));
   return result;
 }
 
@@ -1062,7 +1065,7 @@ export async function commitBase64FileToBranch(
  * raw.githubusercontent.com so images from the repo render correctly.
  */
 // Lookup map for image metadata — survives TipTap stripping data attributes
-const imageMetaMap = new Map<string, { owner: string; repo: string; ref: string; path: string }>();
+const imageMetaMap = new RequestCache<{ owner: string; repo: string; ref: string; path: string }>(512, 1024 * 1024);
 
 // Cache of raw.githubusercontent.com URL → data: URI for images already
 // fetched via loadAuthenticatedImages. When rewriteImageUrls runs on a
@@ -1071,10 +1074,11 @@ const imageMetaMap = new Map<string, { owner: string; repo: string; ref: string;
 // render, React's dangerouslySetInnerHTML diff skips DOM replacement, and
 // the browser doesn't re-decode the image. Without this cache, every
 // comment state change flashed the image: raw URL → brief blank → refetch.
-const imageDataUriCache = new Map<string, string>();
+const imageDataUriCache = new RequestCache<string>(128, 16 * 1024 * 1024);
 
 /** Test helper: reset caches so unit tests don't leak state between cases. */
 export function __resetImageCachesForTests(): void {
+  contentCache.clear();
   imageMetaMap.clear();
   imageDataUriCache.clear();
 }
@@ -1113,14 +1117,15 @@ export function rewriteImageUrls(
         resolvedPath = resolved.join("/");
       }
 
-      const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${resolvedPath}`;
+      const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${encodeURIComponent(ref)}/${resolvedPath.split("/").map(encodeURIComponent).join("/")}`;
       imageMetaMap.set(rawUrl, { owner, repo, ref, path: resolvedPath });
       // Use cached data URI on re-renders so the emitted HTML is stable;
       // data-gh-* attributes stay attached so the loader can still find
       // the image on a cache miss.
-      const cachedUri = imageDataUriCache.get(rawUrl);
+      const cachedUri = isCommitSha(ref) ? imageDataUriCache.get(rawUrl) : undefined;
       const emittedSrc = cachedUri ?? rawUrl;
-      return `${before}${emittedSrc}" data-gh-owner="${owner}" data-gh-repo="${repo}" data-gh-ref="${ref}" data-gh-path="${resolvedPath}${after}`;
+      const original = /data-original-src=/.test(before + after) ? "" : ` data-original-src="${src}"`;
+      return `${before}${emittedSrc}"${original} data-gh-owner="${owner}" data-gh-repo="${repo}" data-gh-ref="${ref}" data-gh-path="${resolvedPath}${after}`;
     }
   );
 }
@@ -1175,10 +1180,9 @@ export async function loadAuthenticatedImages(
       // mutated below, so capture it before the swap.
       const rawUrl = img.src;
 
-      const { data } = await octokit.repos.getContent({
-        owner, repo, path, ref,
-      });
+      const data = await fetchContentData(`${owner}/${repo}`, path, ref);
 
+      if (octokit !== getOctokit()) return;
       if ("content" in data && data.encoding === "base64") {
         const ext = path.split(".").pop()?.toLowerCase() || "png";
         const mime = mimeTypes[ext] || "application/octet-stream";
@@ -1192,7 +1196,7 @@ export async function loadAuthenticatedImages(
         // when we reached this branch via the data-gh-path selector).
         // Caching on a non-raw key would leak arbitrary srcs as cache
         // keys without a matching rewriter check.
-        if (rawUrl.includes("raw.githubusercontent.com")) {
+        if (isCommitSha(ref) && octokit === getOctokit() && rawUrl.includes("raw.githubusercontent.com")) {
           imageDataUriCache.set(rawUrl, dataUri);
         }
       }

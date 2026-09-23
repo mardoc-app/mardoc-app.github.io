@@ -20,47 +20,39 @@ export interface HashRoute {
 }
 
 export function parseHash(hash: string): HashRoute {
-  // Strip leading "#/" or "#"
-  const path = hash.replace(/^#\/?/, "");
-  if (!path) return { type: "none" };
-
-  const parts = path.split("/");
-  if (parts.length < 2) return { type: "none" };
-
-  const owner = parts[0];
-  const repo = parts[1];
-  const repoFullName = `${owner}/${repo}`;
-
-  // /{owner}/{repo}/blob/{branch}/{path...}
-  if (parts[2] === "blob" && parts.length >= 5) {
-    const branch = decodeURIComponent(parts[3]);
-    const filePath = parts.slice(4).map(decodeURIComponent).join("/");
-    return { type: "file", owner, repo, repoFullName, branch, filePath };
-  }
-
-  // /{owner}/{repo}/pull/{number}/files/{idx}
-  if (parts[2] === "pull" && parts[3] && parts[4] === "files" && parts[5]) {
-    const prNumber = parseInt(parts[3], 10);
-    const prFileIdx = parseInt(parts[5], 10);
-    if (!isNaN(prNumber) && !isNaN(prFileIdx)) {
-      return { type: "pr", owner, repo, repoFullName, prNumber, prFileIdx };
+  try {
+    const parts = hash.replace(/^#\/?/, "").split("/");
+    if (parts.length < 2 || !parts[0] || !parts[1]) return { type: "none" };
+    const [owner, repo] = parts.slice(0, 2).map(decodeURIComponent);
+    const common = { owner, repo, repoFullName: `${owner}/${repo}` };
+    if (parts.length === 2) return { type: "repo", ...common };
+    if (parts[2] === "tree" && parts.length === 4 && parts[3]) {
+      return { type: "repo", ...common, branch: decodeURIComponent(parts[3]) };
     }
-  }
-
-  // /{owner}/{repo}/pull/{number}
-  if (parts[2] === "pull" && parts[3]) {
-    const prNumber = parseInt(parts[3], 10);
-    if (!isNaN(prNumber)) {
-      return { type: "pr", owner, repo, repoFullName, prNumber };
+    if (parts[2] === "blob" && parts.length >= 5 && parts[3] && parts.slice(4).every(Boolean)) {
+      return { type: "file", ...common, branch: decodeURIComponent(parts[3]),
+        filePath: parts.slice(4).map(decodeURIComponent).join("/") };
     }
+    const positive = (s: string) => /^[1-9]\d*$/.test(s) && Number.isSafeInteger(Number(s));
+    const index = (s: string) => /^(0|[1-9]\d*)$/.test(s) && Number.isSafeInteger(Number(s));
+    if (parts[2] === "pull" && positive(parts[3] || "")) {
+      if (parts.length === 4) return { type: "pr", ...common, prNumber: Number(parts[3]) };
+      if (parts.length === 6 && parts[4] === "files" && index(parts[5])) {
+        return { type: "pr", ...common, prNumber: Number(parts[3]), prFileIdx: Number(parts[5]) };
+      }
+    }
+    return { type: "none" };
+  } catch {
+    return { type: "none" }; // Malformed percent escapes are invalid links, not render crashes.
   }
+}
 
-  // /{owner}/{repo}
-  return { type: "repo", owner, repo, repoFullName };
+export function buildBranchHash(repoFullName: string, branch: string): string {
+  return `${buildRepoHash(repoFullName)}/tree/${encodeURIComponent(branch)}`;
 }
 
 export function buildFileHash(repoFullName: string, branch: string, filePath: string): string {
-  return `#/${repoFullName}/blob/${branch}/${filePath}`;
+  return `${buildRepoHash(repoFullName)}/blob/${encodeURIComponent(branch)}/${filePath.split("/").map(encodeURIComponent).join("/")}`;
 }
 
 export function buildPRHash(repoFullName: string, prNumber: number, fileIdx?: number): string {

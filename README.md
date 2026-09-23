@@ -94,6 +94,8 @@ npm run dev
 
 Open http://localhost:3000. The build target is a static export to GitHub Pages — `npm run build` produces the exact deployment artifact.
 
+See [Sharing and refreshing repository documents](docs/branch-links.md) for link formats, cache behavior, and a review checklist.
+
 ## Architecture
 
 MarDoc is deliberately minimal infrastructure:

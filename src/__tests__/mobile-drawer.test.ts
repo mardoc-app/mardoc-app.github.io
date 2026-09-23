@@ -88,7 +88,7 @@ describe("MobileDrawer", () => {
     rerender(
       e(
         MobileDrawer,
-        { open: true, onClose: () => {} },
+        { open: true, onClose: () => {}, children: null },
         e("div", null, "drawer content")
       )
     );
@@ -101,7 +101,7 @@ describe("MobileDrawer", () => {
     rerender(
       e(
         MobileDrawer,
-        { open: false, onClose: () => {} },
+        { open: false, onClose: () => {}, children: null },
         e("div", null, "drawer content")
       )
     );

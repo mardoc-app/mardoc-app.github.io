@@ -3,13 +3,15 @@ import { defineConfig, devices } from "@playwright/test";
 /**
  * Playwright config for MarDoc e2e tests.
  *
- * Tests run against a locally-booted Next.js dev server (or `next start`
+ * Tests run against a locally-booted Next.js dev server (or the static export
  * in CI). MarDoc is a fully client-side static export, so there's no
  * backend to mock — demo mode provides fixture data for every flow.
  *
  * Two projects are defined so the same test file can run on desktop
  * and mobile viewports without duplication.
  */
+const port = process.env.PLAYWRIGHT_PORT || "3000";
+
 export default defineConfig({
   testDir: "./e2e",
   timeout: 30_000,
@@ -21,7 +23,7 @@ export default defineConfig({
   reporter: process.env.CI ? [["github"], ["list"]] : "list",
 
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: `http://localhost:${port}`,
     trace: "on-first-retry",
     screenshot: "only-on-failure",
   },
@@ -47,9 +49,9 @@ export default defineConfig({
     // handles client-side hash routing correctly because the shell
     // lives at `out/index.html` and everything else is a hash route.
     command: process.env.CI
-      ? "npx --yes serve out -l 3000 --no-clipboard"
-      : "npm run dev",
-    url: "http://localhost:3000",
+      ? `npx --yes serve out -l ${port} --no-clipboard`
+      : `npm run dev -- --port ${port}`,
+    url: `http://localhost:${port}`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },

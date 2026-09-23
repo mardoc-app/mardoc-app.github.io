@@ -78,7 +78,7 @@ describe("BottomSheet", () => {
     rerender(
       e(
         BottomSheet,
-        { open: true, onClose: () => {} },
+        { open: true, onClose: () => {}, children: null },
         e("div", null, "sheet body")
       )
     );
@@ -93,6 +93,7 @@ describe("BottomSheet", () => {
           open: true,
           onClose: () => {},
           header: e("div", null, "custom header"),
+          children: null,
         } as React.ComponentProps<typeof BottomSheet>,
         e("div", null, "sheet body")
       )

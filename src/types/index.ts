@@ -56,6 +56,11 @@ export interface PullRequest {
 }
 
 export interface PRFile {
+  baseRef?: string;
+  headRef?: string;
+  baseRepo?: string;
+  headRepo?: string;
+  basePath?: string;
   path: string;
   baseContent: string;  // content on base branch
   headContent: string;  // content on PR branch
