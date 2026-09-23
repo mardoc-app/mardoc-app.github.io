@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
 import { RepoFile, PullRequest, PRFile, PRComment, ViewMode } from "@/types";
-import { initOctokit, fetchRepoTree, fetchPullRequests, fetchFileContent, fetchPRFiles, fetchPRComments, fetchDefaultBranch, fetchBranches, fetchPRMarkdownCounts, fetchRevision, fetchPullRequest, resetGitHubSession } from "./github-api";
+import { initOctokit, fetchRepoTree, fetchPullRequests, fetchFileContent, fetchPRFileManifest, fetchPRFile, fetchPRComments, fetchDefaultBranch, fetchBranches, fetchPRMarkdownCounts, fetchRevision, fetchPullRequest, resetGitHubSession } from "./github-api";
 import { formatApiError } from "./rate-limit";
 import { createStalenessGuard } from "./staleness-guard";
 import { repoFiles as mockFiles, pullRequests as mockPRs, findFile, flattenFiles } from "./mock-data";
@@ -626,15 +626,34 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!repo || !githubToken) return;
     activateRepo(repo, pr.headBranch);
     setLoadingPRFiles(true);
+    void fetchPRComments(repo, pr.number).then(comments => {
+      if (isCurrent()) setPRComments(comments);
+    }).catch(err => {
+      if (isCurrent()) setError(formatApiError(err, "Failed to load PR comments"));
+    });
     try {
-      const [files, comments] = await Promise.all([fetchPRFiles(repo, pr.number), fetchPRComments(repo, pr.number)]);
+      const files = await fetchPRFileManifest(repo, pr.number);
       if (!isCurrent()) return;
       if (fileIdx >= files.length && files.length) throw new Error("The linked PR file no longer exists. Open the PR to select a file.");
-      setPRFiles(files); setPRComments(comments);
+      setPRFiles(files);
     } catch (err) {
       if (isCurrent()) setError(formatApiError(err, `Failed to load PR #${pr.number}`));
     } finally { if (isCurrent()) setLoadingPRFiles(false); }
   }, [invalidateNavigation, prLoadGuard, setHash, isDemoMode, githubToken, activateRepo]);
+
+  const selectedPRFile = prFiles[selectedPRFileIdx];
+  useEffect(() => {
+    if (currentView !== "pr-diff" || !selectedPR || !githubToken || !selectedPRFile || selectedPRFile.loadState !== "pending") return;
+    let cancelled = false;
+    const index = selectedPRFileIdx;
+    void fetchPRFile(selectedPRFile).then(file => {
+      if (!cancelled) setPRFiles(files => files.map((old, i) => i === index ? file : old));
+    }).catch(err => {
+      if (!cancelled) setPRFiles(files => files.map((old, i) => i === index
+        ? { ...old, loadState: "error", loadError: formatApiError(err, "Failed to load document") } : old));
+    });
+    return () => { cancelled = true; };
+  }, [selectedPRFile, selectedPRFileIdx, currentView, selectedPR, githubToken]);
 
   const openPR = useCallback((pr: PullRequest) => {
     guardNavigation(`open PR #${pr.number}`, () => { void _openPRInternal(pr); });
@@ -642,6 +661,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const setSelectedPRFileIdxWithHash = useCallback((idx: number) => {
     setSelectedPRFileIdx(idx);
+    setPRFiles(files => files.map((file, i) => i === idx && file.loadState === "error"
+      ? { ...file, loadState: "pending", loadError: undefined } : file));
     if (currentRepo && selectedPR) setHash(buildPRHash(currentRepo, selectedPR.number, idx));
   }, [currentRepo, selectedPR, setHash]);
 

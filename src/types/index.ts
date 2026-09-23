@@ -56,6 +56,8 @@ export interface PullRequest {
 }
 
 export interface PRFile {
+  loadState?: "pending" | "ready" | "error";
+  loadError?: string;
   baseRef?: string;
   headRef?: string;
   baseRepo?: string;
