@@ -155,6 +155,7 @@ interface EditorProps {
   filePath: string;
   repoFullName?: string;
   branch?: string;
+  assetRef?: string;
   // Embed-mode reload counter — bumps when the extension re-sends the
   // current file, forcing the content-load effect to re-run for the
   // same filePath. See feature 040.
@@ -498,7 +499,7 @@ function CommentSidePanel({
 
 // ─── Main Editor Component ──────────────────────────────────────────────
 
-export default function Editor({ content, onContentChange, filePath, repoFullName, branch, reloadNonce = 0 }: EditorProps) {
+export default function Editor({ content, onContentChange, filePath, repoFullName, branch, assetRef = branch, reloadNonce = 0 }: EditorProps) {
   const editorContainerRef = useRef<HTMLDivElement>(null);
   // Separate ref for the positioned content wrapper inside the scroll
   // container. LinkImageBubble uses `position: absolute`, so its
@@ -762,7 +763,7 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
       TableHeader,
       MardocSearchExtension,
     ],
-    content: markdownToHtml(content, repoFullName, branch, filePath),
+    content: markdownToHtml(content, repoFullName, assetRef, filePath),
     onUpdate: ({ editor }) => {
       onContentChange?.(editor.getHTML());
       // Debounce the Turndown comparison to avoid running on every keystroke.
@@ -826,7 +827,7 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
     if (editor) {
       if (content) {
         upstreamMarkdownRef.current = content;
-        const rawHtml = markdownToHtml(content, repoFullName, branch, filePath);
+        const rawHtml = markdownToHtml(content, repoFullName, assetRef, filePath);
         preRenderMermaid(rawHtml).then((html) => {
           if (cancelled) return;
           editor.commands.setContent(html);
@@ -881,7 +882,7 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
     setAddPopover(null);
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filePath, editor, reloadNonce]);
+  }, [filePath, repoFullName, branch, assetRef, content, editor, reloadNonce]);
 
   const toggleCodeView = useCallback(async () => {
     if (!editor) return;
@@ -897,7 +898,7 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
         transformGitHubAlerts(showdownConverter.makeHtml(transformFootnotes(codeContent)))
       );
       if (repoFullName && branch && filePath && !filePath.startsWith("__local__/")) {
-        rawHtml = rewriteImageUrls(rawHtml, repoFullName, branch, filePath);
+        rawHtml = rewriteImageUrls(rawHtml, repoFullName, assetRef || branch, filePath);
       }
       const html = await preRenderMermaid(rawHtml);
       editor.commands.setContent(html);
@@ -913,7 +914,7 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
         }
       }, 50);
     }
-  }, [editor, codeView, codeContent, repoFullName, branch, filePath]);
+  }, [editor, codeView, codeContent, repoFullName, branch, assetRef, filePath]);
 
   // Inline add link/image popover (replaces window.prompt for VS Code compat)
   const [addPopover, setAddPopover] = useState<{ type: "link" | "image"; url: string; alt: string } | null>(null);
@@ -1791,7 +1792,7 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
                   <button
                     onClick={async () => {
                       const md = draftPrompt.markdown;
-                      const rawHtml = markdownToHtml(md, repoFullName, branch, filePath);
+                      const rawHtml = markdownToHtml(md, repoFullName, assetRef, filePath);
                       const html = await preRenderMermaid(rawHtml);
                       editor.commands.setContent(html);
                       // Re-derive isDirty against original
