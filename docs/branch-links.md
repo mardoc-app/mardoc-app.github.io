@@ -75,3 +75,5 @@ Automated coverage lives in `branch-navigation.test.tsx`,
 `snapshot-cache.test.ts`, `hash-router.test.ts` and `e2e/branch-links.spec.ts`.
 Use `PLAYWRIGHT_PORT=3107 npm run e2e -- e2e/branch-links.spec.ts` when the
 default test port is occupied.
+
+See [Performance measurement](performance.md) for browser-local diagnostics and remaining investigations.
