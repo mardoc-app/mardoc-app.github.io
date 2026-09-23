@@ -1,0 +1,40 @@
+import { beforeEach, afterEach, it, expect, vi } from "vitest";
+import { createBackgroundRefresh } from "@/lib/background-refresh";
+beforeEach(() => vi.useFakeTimers());
+afterEach(() => vi.useRealTimers());
+it("does no hidden-tab polling and refreshes once on return", async () => {
+  let visible = false;
+  const refresh = vi.fn().mockResolvedValue(undefined);
+  const controller = createBackgroundRefresh(refresh, () => visible);
+  await vi.advanceTimersByTimeAsync(300_000);
+  expect(refresh).not.toHaveBeenCalled();
+  visible = true;
+  document.dispatchEvent(new Event("visibilitychange"));
+  await Promise.resolve();
+  expect(refresh).toHaveBeenCalledTimes(1);
+  controller.dispose();
+});
+it("coalesces overlapping polls and cancels post-write retries on disposal", async () => {
+  let release!: () => void;
+  let isActive!: () => boolean;
+  const refresh = vi.fn((active: () => boolean) => { isActive = active; return new Promise<void>(r => { release = r; }); });
+  const controller = createBackgroundRefresh(refresh, () => true);
+  controller.afterWrite();
+  controller.afterWrite();
+  await vi.advanceTimersByTimeAsync(60_000);
+  expect(refresh).toHaveBeenCalledTimes(1);
+  expect(isActive()).toBe(true);
+  controller.dispose();
+  expect(isActive()).toBe(false);
+  release();
+  await vi.advanceTimersByTimeAsync(120_000);
+  document.dispatchEvent(new Event("visibilitychange"));
+  expect(refresh).toHaveBeenCalledTimes(1);
+});
+it("retries a failed refresh at the next visible interval", async () => {
+  const refresh = vi.fn().mockRejectedValueOnce(new Error("offline")).mockResolvedValue(undefined);
+  const controller = createBackgroundRefresh(refresh, () => true);
+  await vi.advanceTimersByTimeAsync(60_000);
+  expect(refresh).toHaveBeenCalledTimes(2);
+  controller.dispose();
+});
