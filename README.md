@@ -60,6 +60,8 @@ npx --yes serve out -l 3000 --no-clipboard
 
 The current `npm start` script uses `next start`, which is incompatible with this project's static export. Use the static server command above. See the [development guide](docs/development.md) for tests and deployment details.
 
+See [Sharing and refreshing repository documents](docs/branch-links.md) for link formats, cache behavior, and a review checklist.
+
 ## Architecture
 
 Next.js 14 exports a static React application. Browser-side Octokit uses GitHub REST and GraphQL. Showdown, TipTap, and Turndown handle Markdown rendering/editing; HTML reports use an iframe. Tailwind provides styling. The core hosting model requires no application backend.

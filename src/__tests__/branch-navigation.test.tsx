@@ -1,0 +1,113 @@
+import React from "react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, act, cleanup, waitFor, screen, fireEvent } from "@testing-library/react";
+import { AppProvider, useApp } from "@/lib/app-context";
+import * as api from "@/lib/github-api";
+vi.mock("@/lib/github-api");
+const MAIN = "a".repeat(40), FEATURE = "b".repeat(40), NEW = "c".repeat(40);
+let state: ReturnType<typeof useApp>;
+function Probe() { state = useApp(); return null; }
+function deferred<T>() { let resolve!: (v:T)=>void; const promise=new Promise<T>(r=>{resolve=r;}); return {promise,resolve}; }
+const file = (path: string) => ({ id:path, name:path.split("/").pop()!, path, type:"file" as const });
+beforeEach(() => {
+  vi.resetAllMocks(); localStorage.clear(); window.history.replaceState(null,"","/");
+  vi.mocked(api.fetchDefaultBranch).mockResolvedValue("main");
+  vi.mocked(api.fetchBranches).mockResolvedValue([]);
+  vi.mocked(api.fetchPullRequests).mockResolvedValue([]);
+  vi.mocked(api.fetchPRMarkdownCounts).mockResolvedValue(new Map());
+  vi.mocked(api.fetchRevision).mockImplementation(async (_repo,ref)=>ref==="main" ? MAIN : FEATURE);
+  vi.mocked(api.fetchRepoTree).mockResolvedValue([]);
+  vi.mocked(api.fetchFileContent).mockImplementation(async(repo,path,ref)=>`${repo}:${ref}:${path}`);
+});
+afterEach(()=>{cleanup();window.history.replaceState(null,"","/");});
+async function start(hash="") {
+  localStorage.setItem("mardoc_github_token","fake-test-token");
+  window.history.replaceState(null,"","/"+hash);
+  render(<React.StrictMode><AppProvider><Probe/></AppProvider></React.StrictMode>);
+  await waitFor(()=>expect(state.isAuthenticated).toBe(true));
+}
+async function navigate(hash:string) {
+  await act(async()=>{window.history.replaceState(null,"","/"+hash);window.dispatchEvent(new HashChangeEvent("hashchange"));});
+}
+describe("authenticated branch links",()=>{
+  it("loads a cold slash-branch link before slow repository enumeration completes",async()=>{
+    const slow=deferred<any[]>();
+    vi.mocked(api.fetchBranches).mockReturnValue(slow.promise);
+    vi.mocked(api.fetchPullRequests).mockReturnValue(slow.promise);
+    const hash="#/acme/docs/blob/feature%2Freport/docs/spec.md";
+    await start(hash);
+    await waitFor(()=>expect(state.fileRevision).toBe(FEATURE));
+    expect(api.fetchFileContent).toHaveBeenCalledTimes(1);
+    expect(api.fetchFileContent).toHaveBeenCalledWith("acme/docs","docs/spec.md",FEATURE);
+    expect(state.selectedBranch).toBe("feature/report");
+    expect(location.hash).toBe(hash);
+    expect(api.fetchDefaultBranch).not.toHaveBeenCalled();
+  });
+  it("switches a warm link without reading the old branch or replaying on list updates",async()=>{
+    await start("#/acme/docs/blob/main/same.md");
+    await waitFor(()=>expect(state.fileRevision).toBe(MAIN));
+    vi.mocked(api.fetchFileContent).mockClear();
+    await navigate("#/acme/docs/blob/feature-x/same.md");
+    await waitFor(()=>expect(state.fileRevision).toBe(FEATURE));
+    expect(api.fetchFileContent).toHaveBeenCalledExactlyOnceWith("acme/docs","same.md",FEATURE);
+    expect(location.hash).toBe("#/acme/docs/blob/feature-x/same.md");
+    expect(state.selectedBranch).toBe("feature-x");
+  });
+  it("uses the link repository rather than the previously selected repository",async()=>{
+    await start("#/acme/one/blob/main/same.md");
+    await waitFor(()=>expect(state.fileRevision).toBe(MAIN));
+    await navigate("#/acme/two/blob/topic/same.md");
+    await waitFor(()=>expect(state.fileContent).toBe(`acme/two:${FEATURE}:same.md`));
+    expect(state.currentRepo).toBe("acme/two");
+  });
+  it("discards late tree and file results after a branch switch",async()=>{
+    await start("#/acme/docs/tree/main");
+    await waitFor(()=>expect(api.fetchRepoTree).toHaveBeenCalled());
+    const oldTree=deferred<any[]>(), oldFile=deferred<string>();
+    vi.mocked(api.fetchRepoTree).mockImplementation(async(_repo,ref)=>ref===MAIN?oldTree.promise:[file("feature.md")]);
+    vi.mocked(api.fetchFileContent).mockReturnValue(oldFile.promise);
+    act(()=>{void state.openFile(file("old.md"));});
+    await waitFor(()=>expect(api.fetchFileContent).toHaveBeenCalled());
+    act(()=>state.setSelectedBranch("feature-x"));
+    await waitFor(()=>expect(state.repoFiles[0]?.path).toBe("feature.md"));
+    await act(async()=>{oldTree.resolve([file("old.md")]);oldFile.resolve("STALE");});
+    expect(state.selectedBranch).toBe("feature-x");
+    expect(state.repoFiles[0].path).toBe("feature.md");
+    expect(state.fileContent).toBe("");
+    expect(state.selectedFile).toBeNull();
+  });
+  it("refreshes a moving branch, preserving its URL and using the new snapshot",async()=>{
+    await start("#/acme/docs/blob/feature-x/spec.md");
+    await waitFor(()=>expect(state.fileRevision).toBe(FEATURE));
+    vi.mocked(api.fetchRevision).mockResolvedValue(NEW);
+    act(()=>state.refreshDocument());
+    await waitFor(()=>expect(state.fileRevision).toBe(NEW));
+    expect(api.fetchFileContent).toHaveBeenLastCalledWith("acme/docs","spec.md",NEW);
+    expect(location.hash).toBe("#/acme/docs/blob/feature-x/spec.md");
+  });
+  it("keeps dirty content and its route when a history navigation is canceled",async()=>{
+    await start("#/acme/docs/blob/main/spec.md");
+    await waitFor(()=>expect(state.fileRevision).toBe(MAIN));
+    act(()=>state.setEditorIsDirty(true));
+    await navigate("#/acme/docs/blob/feature-x/spec.md");
+    expect(screen.getByText("Discard unsaved changes?")).toBeTruthy();
+    fireEvent.click(screen.getByText("Keep editing"));
+    expect(state.fileRevision).toBe(MAIN);
+    expect(location.hash).toBe("#/acme/docs/blob/main/spec.md");
+    expect(api.fetchFileContent).toHaveBeenCalledTimes(1);
+  });
+  it("resumes the original shared link after connecting",async()=>{
+    window.history.replaceState(null,"","/#/acme/docs/blob/topic/unique.md");
+    render(<AppProvider><Probe/></AppProvider>);
+    await act(async()=>{state.setGithubToken("fake-test-token");});
+    await waitFor(()=>expect(state.fileRevision).toBe(FEATURE));
+    expect(api.fetchFileContent).toHaveBeenCalledWith("acme/docs","unique.md",FEATURE);
+  });
+  it("does not reload the editor when sidebar metadata is refreshed after a write",async()=>{
+    await start("#/acme/docs/blob/topic/spec.md");
+    await waitFor(()=>expect(state.fileRevision).toBe(FEATURE));
+    await act(async()=>{await state.refreshRepo();});
+    expect(api.fetchFileContent).toHaveBeenCalledTimes(1);
+    expect(location.hash).toBe("#/acme/docs/blob/topic/spec.md");
+  });
+});

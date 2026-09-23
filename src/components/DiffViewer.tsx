@@ -32,6 +32,7 @@ import { renderMermaidBlocks } from "@/lib/mermaid";
 import { highlightCodeBlocks } from "@/lib/highlight";
 import { useWideFormat } from "@/lib/use-wide-format";
 import { isHtmlFile } from "@/lib/file-types";
+import { rewriteHtmlAssetUrls } from "@/lib/html-assets";
 import { injectSourceLineAttributes } from "@/lib/html-source-lines";
 import { buildIframeSelectionScript } from "@/lib/html-selection";
 import { useIsMobile } from "@/lib/use-viewport";
@@ -394,7 +395,11 @@ export default function DiffViewer({
   // up to find the source line and postMessage it to the parent.
   const htmlSrcdoc = useMemo(() => {
     if (!fileIsHtml) return "";
-    const raw = htmlShowBase ? file.baseContent : file.headContent;
+    const content = htmlShowBase ? file.baseContent : file.headContent;
+    const assetRepo = (htmlShowBase ? file.baseRepo : file.headRepo) || repoFullName;
+    const assetRef = htmlShowBase ? file.baseRef || baseBranch : file.headRef || headBranch;
+    const raw = assetRepo ? rewriteHtmlAssetUrls(content, assetRepo, assetRef,
+      htmlShowBase ? file.basePath || file.path : file.path) : content;
     // Inject per-element source line attributes. Only on the head
     // (new) view — we don't need comment-target lines on the base
     // since comments always target the head revision.
@@ -408,7 +413,7 @@ export default function DiffViewer({
     const injected = resizeScript + selectionScript;
     if (tagged.includes("</body>")) return tagged.replace("</body>", `${injected}</body>`);
     return tagged + injected;
-  }, [fileIsHtml, file.baseContent, file.headContent, htmlShowBase]);
+  }, [fileIsHtml, file, htmlShowBase, repoFullName, baseBranch, headBranch]);
 
   // Simple source diff for HTML files
   const htmlSourceDiff = useMemo(() => {
@@ -532,17 +537,17 @@ export default function DiffViewer({
   const baseBlockToHtml = useCallback(
     (block: string) =>
       repoFullName
-        ? rewriteImageUrls(blockToHtml(block), repoFullName, baseBranch, file.path)
+        ? rewriteImageUrls(blockToHtml(block), file.baseRepo || repoFullName, file.baseRef || baseBranch, file.basePath || file.path)
         : blockToHtml(block),
-    [repoFullName, baseBranch, file.path]
+    [repoFullName, baseBranch, file.path, file.baseRef, file.baseRepo, file.basePath]
   );
 
   const headBlockToHtml = useCallback(
     (block: string) =>
       repoFullName
-        ? rewriteImageUrls(blockToHtml(block), repoFullName, headBranch, file.path)
+        ? rewriteImageUrls(blockToHtml(block), file.headRepo || repoFullName, file.headRef || headBranch, file.path)
         : blockToHtml(block),
-    [repoFullName, headBranch, file.path]
+    [repoFullName, headBranch, file.path, file.headRef, file.headRepo]
   );
 
   // Parsed blocks with line ranges
