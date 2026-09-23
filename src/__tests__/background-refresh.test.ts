@@ -17,7 +17,8 @@ it("does no hidden-tab polling and refreshes once on return", async () => {
 it("coalesces overlapping polls and cancels post-write retries on disposal", async () => {
   let release!: () => void;
   let isActive!: () => boolean;
-  const refresh = vi.fn((active: () => boolean) => { isActive = active; return new Promise<void>(r => { release = r; }); });
+  let signal!: AbortSignal;
+  const refresh = vi.fn((active: () => boolean, requestSignal: AbortSignal) => { signal = requestSignal; isActive = active; return new Promise<void>(r => { release = r; }); });
   const controller = createBackgroundRefresh(refresh, () => true);
   controller.afterWrite();
   controller.afterWrite();
@@ -26,6 +27,7 @@ it("coalesces overlapping polls and cancels post-write retries on disposal", asy
   expect(isActive()).toBe(true);
   controller.dispose();
   expect(isActive()).toBe(false);
+  expect(signal.aborted).toBe(true);
   release();
   await vi.advanceTimersByTimeAsync(120_000);
   document.dispatchEvent(new Event("visibilitychange"));
