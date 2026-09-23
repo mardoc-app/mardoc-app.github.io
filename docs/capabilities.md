@@ -46,6 +46,8 @@ The Markdown editor accepts PNG, JPEG, GIF, WebP, and SVG uploads up to 5 MiB. T
 
 For existing documents, paste/drop commits the image immediately to the selected branch, before the document's edit-to-PR action. Abandoning the document edit does not undo that upload. New-file images use temporary blob URLs and are committed during the save flow. Demo mode and local-only files reject uploads.
 
+HTML presenter-note links and Markdown PR-review links can open changed documents in their PR review view, including heading anchors. Other repository documents open in a commit-pinned read-only reference preview. Returning to the originating deck preserves its slide and notes within the current PR session. See [review links](review-links.md) for behavior and limitations.
+
 Repository Markdown images use URL rewriting and authenticated loading. HTML asset rewriting is a separate path; do not assume private-repository assets or relative assets in HTML PR views have identical support. The browser cannot read neighboring local files merely because one document was opened with its file picker.
 
 ## Runtime modes

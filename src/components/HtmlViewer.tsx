@@ -8,6 +8,11 @@ import { injectSourceLineAttributes } from "@/lib/html-source-lines";
 import { buildIframeSelectionScript } from "@/lib/html-selection";
 import { createReviewPR, createInlineComment } from "@/lib/github-api";
 import { rewriteHtmlAssetUrls } from "@/lib/html-assets";
+import RepositoryReference, { type ReferenceTarget } from "./RepositoryReference";
+import { useHtmlReviewLinks } from "@/lib/use-html-review-links";
+import { resolveReviewLink } from "@/lib/review-links";
+import { buildFileHash } from "@/lib/hash-router";
+import { openExternal } from "@/lib/open-external";
 import { analyzeHtml } from "@/lib/word-count";
 
 interface HtmlViewerProps {
@@ -48,7 +53,20 @@ export default function HtmlViewer({ content, filePath, repoFullName, branch }: 
   const [submittedPR, setSubmittedPR] = useState<{ number: number; url: string } | null>(null);
 
   const isMobile = useIsMobile();
-  const { isDemoMode } = useApp();
+  const { isDemoMode, isEmbedded } = useApp();
+  const [reference, setReference] = useState<ReferenceTarget | null>(null);
+  const onHtmlLoad = useHtmlReviewLinks(iframeRef, href => {
+    const link = resolveReviewLink(filePath, href);
+    if (link.type === "external") openExternal(link.href, isEmbedded);
+    if (link.type === "document" && repoFullName && branch) setReference({
+      repo:repoFullName,ref:branch,path:link.path,anchor:link.anchor,label:"Repository reference",
+    });
+  }, href => {
+    const link = resolveReviewLink(filePath, href);
+    return link.type === "document" && repoFullName && branch
+      ? new URL(buildFileHash(repoFullName, branch, link.path), window.location.href).href : undefined;
+  });
+  useEffect(() => { setReference(null); }, [filePath, repoFullName, branch]);
 
   const fileName = filePath.split("/").pop() || filePath;
 
@@ -90,7 +108,7 @@ export default function HtmlViewer({ content, filePath, repoFullName, branch }: 
 
       const iframe = iframeRef.current;
 
-      if (data.type === "mardoc-iframe-resize" && typeof data.height === "number" && iframe) {
+      if (data.type === "mardoc-iframe-resize" && typeof data.height === "number" && iframe && event.source === iframe.contentWindow) {
         iframe.style.height = `${data.height + 20}px`;
         return;
       }
@@ -195,7 +213,7 @@ export default function HtmlViewer({ content, filePath, repoFullName, branch }: 
   const unresolvedCount = comments.filter((c) => !c.resolved).length;
 
   return (
-    <div ref={containerRef} className="h-full flex flex-col bg-[var(--surface)]">
+    <div ref={containerRef} className="relative h-full flex flex-col bg-[var(--surface)]">
       {/* Toolbar. Button order matches the markdown Editor's toolbar
           so the two surfaces feel like the same app. Right-side order:
           word count → Code/Rich toggle → Fullscreen toggle → Comments
@@ -334,6 +352,7 @@ export default function HtmlViewer({ content, filePath, repoFullName, branch }: 
           ) : (
             <iframe
               ref={iframeRef}
+              onLoad={onHtmlLoad}
               srcDoc={srcdoc}
               sandbox="allow-scripts allow-same-origin"
               title={fileName}
@@ -419,6 +438,7 @@ export default function HtmlViewer({ content, filePath, repoFullName, branch }: 
           </aside>
         )}
       </div>
+      {reference && <RepositoryReference target={reference} onClose={() => setReference(null)}/>}
     </div>
   );
 }
