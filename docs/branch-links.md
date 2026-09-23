@@ -37,6 +37,13 @@ requests from repopulating the new session. Navigation guards prevent late
 responses from overwriting a newer document or tree. Existing browser storage
 for settings, credentials and drafts is separate from these caches.
 
+Document links do not start branch enumeration or PR-list/count queries.
+The branch menu loads its list on first open; the PRs tab loads PRs and then
+optional document counts. The PR list is usable before counts finish. Reopening
+these controls reuses the current repository/filter results; switching repository
+or authentication clears them. Explicit repository refresh updates requested lists.
+Failed branch loads can be retried by closing and reopening the menu.
+
 Document links do not wait for repository or PR enumeration. PR links fetch the
 specified PR directly, even when it is absent from the current sidebar list.
 PR document contents load on selection after the changed-file manifest arrives.
