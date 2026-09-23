@@ -13,7 +13,7 @@ import {
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
-import { PullRequest, PRComment, PendingSuggestion } from "@/types";
+import { PullRequest, PRComment, PendingSuggestion, PRFile } from "@/types";
 import { useApp } from "@/lib/app-context";
 import { isRateLimited, isRateLimitError, markRateLimited, extractResetFromError } from "@/lib/rate-limit";
 import {
@@ -32,6 +32,9 @@ import { mergeFreshComments } from "@/lib/comment-merge";
 import { buildSuggestionBody, parseSuggestionBody } from "@/lib/suggestion-body";
 import { transformGitHubAlerts } from "@/lib/github-alerts";
 import { transformFootnotes } from "@/lib/footnotes";
+import RepositoryReference, { type ReferenceTarget } from "./RepositoryReference";
+import { resolveReviewLink } from "@/lib/review-links";
+import { isHtmlFile } from "@/lib/file-types";
 import DiffViewer from "./DiffViewer";
 import Showdown from "showdown";
 
@@ -56,8 +59,34 @@ export default function PRDetail({ pr, onBack }: PRDetailProps) {
     prFiles,
     prComments,
     selectedPRFileIdx,
+    documentAnchor,
     setSelectedPRFileIdx,
   } = useApp();
+
+  const [returnFileIdx, setReturnFileIdx] = useState<number | null>(null);
+  const [reference, setReference] = useState<ReferenceTarget | null>(null);
+  useEffect(() => { setReference(null); }, [selectedPRFileIdx]);
+  useEffect(() => {
+    const close = () => setReference(null);
+    window.addEventListener("popstate", close);
+    return () => window.removeEventListener("popstate", close);
+  }, []);
+  const navigateReviewLink = useCallback((href: string, source: PRFile, side: "base" | "head") => {
+    const link = resolveReviewLink(side === "base" ? source.basePath || source.path : source.path, href);
+    if (link.type !== "document") return;
+    const idx = side === "head" ? prFiles.findIndex(file => file.path === link.path) : -1;
+    if (idx >= 0) {
+      if (isHtmlFile(source.path) && idx !== selectedPRFileIdx) setReturnFileIdx(old => old ?? selectedPRFileIdx);
+      setSelectedPRFileIdx(idx, link.anchor);
+    } else {
+      const repo = (side === "base" ? source.baseRepo : source.headRepo) || currentRepo;
+      const ref = side === "base" ? source.baseRef : source.headRef;
+      if (!repo || !ref) { setReviewError("Repository revision is unavailable for this reference."); return; }
+      window.history.pushState({...window.history.state, mardocReference: true}, "");
+      setReference({repo,ref,path:link.path,anchor:link.anchor,
+        label:side === "base" ? "Base revision reference" : "Not changed in this PR"});
+    }
+  }, [prFiles, selectedPRFileIdx, setSelectedPRFileIdx, currentRepo]);
 
   const [comments, setComments] = useState<PRComment[]>(prComments);
   const [descriptionOpen, setDescriptionOpen] = useState(true);
@@ -562,35 +591,29 @@ export default function PRDetail({ pr, onBack }: PRDetailProps) {
         </div>
       </div>
 
-      {/* Diff viewer */}
-      <div className="flex-1 overflow-hidden">
-        {prFiles.length === 0 ? (
-          <div className="h-full flex items-center justify-center">
-            <p className="text-sm text-[var(--text-muted)]">
-              No markdown files changed in this PR.
-            </p>
-          </div>
-        ) : selectedFile?.loadState === "pending" ? (
-          <div className="h-full flex items-center justify-center" role="status">Loading document…</div>
-        ) : selectedFile?.loadState === "error" ? (
-          <div className="p-6" role="alert">{selectedFile.loadError}
-            <button className="toolbar-btn" onClick={() => setSelectedPRFileIdx(selectedPRFileIdx)}>Retry document</button>
-          </div>
-        ) : selectedFile ? (
-          <DiffViewer
-            file={selectedFile}
-            repoFullName={currentRepo || ""}
-            baseBranch={pr.baseBranch}
-            headBranch={pr.headBranch}
-            comments={comments}
-            onAddComment={handleAddComment}
-            onResolveComment={handleResolveComment}
-            onReplyComment={handleReplyComment}
-            onSubmitSuggestions={handleSubmitSuggestions}
-            onAcceptSuggestion={handleAcceptSuggestion}
-            onDiscardPendingComment={handleDiscardPending}
-          />
-        ) : null}
+      {!reference && returnFileIdx !== null && returnFileIdx !== selectedPRFileIdx && (
+        <button className="toolbar-btn self-start" onClick={() => setSelectedPRFileIdx(returnFileIdx)}>Back to review</button>
+      )}
+      {/* Keep the originating deck mounted while reviewing a linked file. */}
+      <div className="flex-1 overflow-hidden relative">
+        {prFiles.length === 0 && <p className="p-6">No document files changed in this PR.</p>}
+        {Array.from(new Set([...(returnFileIdx === null ? [] : [returnFileIdx]), selectedPRFileIdx])).map(idx => {
+          const file = prFiles[idx];
+          if (!file) return null;
+          const active = idx === selectedPRFileIdx;
+          return <div key={idx} className="absolute inset-0" style={{visibility:active ? "visible" : "hidden"}} aria-hidden={!active}>
+            {file.loadState === "pending" ? <p role="status" className="p-6">Loading document…</p>
+              : file.loadState === "error" ? <div role="alert" className="p-6">{file.loadError}
+                <button className="toolbar-btn" onClick={() => setSelectedPRFileIdx(idx)}>Retry document</button></div>
+              : <DiffViewer file={file} repoFullName={currentRepo || ""} baseBranch={pr.baseBranch} headBranch={pr.headBranch}
+                anchor={active ? documentAnchor : undefined} onNavigateLink={navigateReviewLink}
+                comments={comments} onAddComment={handleAddComment} onResolveComment={handleResolveComment}
+                onReplyComment={handleReplyComment} onSubmitSuggestions={handleSubmitSuggestions}
+                onAcceptSuggestion={handleAcceptSuggestion} onDiscardPendingComment={handleDiscardPending}/>
+            }
+          </div>;
+        })}
+        {reference && <RepositoryReference target={reference} onClose={() => window.history.back()}/>}
       </div>
 
       {reviewModalOpen && (

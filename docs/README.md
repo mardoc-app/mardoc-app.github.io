@@ -5,6 +5,7 @@ Current reference documentation was checked against application source at `4abb8
 | Need | Read |
 | --- | --- |
 | Understand what the product does | [Capabilities and workflows](capabilities.md) |
+| Follow repository links during review | [Review links and reference previews](review-links.md) |
 | Connect a GitHub repository | [PAT setup](setup-github-pat.md) |
 | Understand components and request flows | [Architecture](architecture.md) |
 | Understand credentials, drafts, and document isolation | [Data storage and security](data-and-security.md) |

@@ -17,14 +17,17 @@ export interface HashRoute {
   filePath?: string;
   prNumber?: number;
   prFileIdx?: number;
+  anchor?: string;
 }
 
 export function parseHash(hash: string): HashRoute {
   try {
-    const parts = hash.replace(/^#\/?/, "").split("/");
+    const [route, query] = hash.split("?");
+    const anchor = new URLSearchParams(query || "").get("anchor") || undefined;
+    const parts = route.replace(/^#\/?/, "").split("/");
     if (parts.length < 2 || !parts[0] || !parts[1]) return { type: "none" };
     const [owner, repo] = parts.slice(0, 2).map(decodeURIComponent);
-    const common = { owner, repo, repoFullName: `${owner}/${repo}` };
+    const common = { anchor, owner, repo, repoFullName: `${owner}/${repo}` };
     if (parts.length === 2) return { type: "repo", ...common };
     if (parts[2] === "tree" && parts.length === 4 && parts[3]) {
       return { type: "repo", ...common, branch: decodeURIComponent(parts[3]) };
@@ -55,9 +58,10 @@ export function buildFileHash(repoFullName: string, branch: string, filePath: st
   return `${buildRepoHash(repoFullName)}/blob/${encodeURIComponent(branch)}/${filePath.split("/").map(encodeURIComponent).join("/")}`;
 }
 
-export function buildPRHash(repoFullName: string, prNumber: number, fileIdx?: number): string {
+export function buildPRHash(repoFullName: string, prNumber: number, fileIdx?: number, anchor?: string): string {
   const base = `#/${repoFullName}/pull/${prNumber}`;
-  return fileIdx !== undefined && fileIdx > 0 ? `${base}/files/${fileIdx}` : base;
+  const route = fileIdx !== undefined && fileIdx > 0 ? `${base}/files/${fileIdx}` : base;
+  return anchor ? `${route}?anchor=${encodeURIComponent(anchor)}` : route;
 }
 
 export function buildRepoHash(repoFullName: string): string {

@@ -47,7 +47,8 @@ interface AppState {
   prFiles: PRFile[];
   prComments: PRComment[];
   selectedPRFileIdx: number;
-  setSelectedPRFileIdx: (idx: number) => void;
+  setSelectedPRFileIdx: (idx: number, anchor?: string) => void;
+  documentAnchor: string;
   loadingPRFiles: boolean;
 
   // Loading states
@@ -169,6 +170,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [prFiles, setPRFiles] = useState<PRFile[]>([]);
   const [prComments, setPRComments] = useState<PRComment[]>([]);
   const [selectedPRFileIdx, setSelectedPRFileIdx] = useState(0);
+  const [documentAnchor, setDocumentAnchor] = useState("");
   const [loadingPRFiles, setLoadingPRFiles] = useState(false);
 
   // Loading
@@ -648,12 +650,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
 
   const _openPRInternal = useCallback(async (pr: PullRequest,
-    repo = locationRef.current.repo, fileIdx = 0) => {
+    repo = locationRef.current.repo, fileIdx = 0, anchor = "") => {
     invalidateNavigation();
     const isCurrent = prLoadGuard.begin();
     setSelectedPR(pr); setSelectedFile(null); setCurrentView("pr-diff");
     setSelectedPRFileIdx(fileIdx); setError(null); setPRFiles([]); setPRComments([]);
-    if (repo) setHash(buildPRHash(repo, pr.number, fileIdx));
+    if (repo) setHash(buildPRHash(repo, pr.number, fileIdx, anchor));
     if (isDemoMode) { setPRFiles(pr.files); setPRComments(pr.comments); return; }
     if (!repo || !githubToken) return;
     activateRepo(repo, pr.headBranch);
@@ -688,14 +690,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [selectedPRFile, selectedPRFileIdx, currentView, selectedPR, githubToken]);
 
   const openPR = useCallback((pr: PullRequest) => {
+    setDocumentAnchor("");
     guardNavigation(`open PR #${pr.number}`, () => { void _openPRInternal(pr); });
   }, [guardNavigation, _openPRInternal]);
 
-  const setSelectedPRFileIdxWithHash = useCallback((idx: number) => {
+  const setSelectedPRFileIdxWithHash = useCallback((idx: number, anchor = "") => {
+    setDocumentAnchor(anchor);
     setSelectedPRFileIdx(idx);
     setPRFiles(files => files.map((file, i) => i === idx && file.loadState === "error"
       ? { ...file, loadState: "pending", loadError: undefined } : file));
-    if (currentRepo && selectedPR) setHash(buildPRHash(currentRepo, selectedPR.number, idx));
+    if (currentRepo && selectedPR) setHash(buildPRHash(currentRepo, selectedPR.number, idx, anchor));
   }, [currentRepo, selectedPR, setHash]);
 
   const navigateToHash = useCallback(async (hash: string) => {
@@ -705,9 +709,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       await _openFileInternal({ id: `hash-${route.filePath}`, name: route.filePath.split("/").pop()!,
         path: route.filePath, type: "file" }, route.repoFullName, route.branch);
     } else if (route.type === "pr" && route.prNumber) {
+      setDocumentAnchor(route.anchor || "");
+      if (selectedPR?.number === route.prNumber && currentRepo === route.repoFullName && prFiles.length) {
+        if ((route.prFileIdx || 0) >= prFiles.length) { setError("The linked PR file no longer exists. Open the PR to select a file."); return; }
+        setSelectedPRFileIdxWithHash(route.prFileIdx || 0, route.anchor || "");
+        setCurrentView("pr-diff");
+        return;
+      }
       if (isDemoMode) {
         const pr = mockPRs.find(p => p.number === route.prNumber);
-        if (pr) await _openPRInternal(pr, null, route.prFileIdx);
+        if (pr) await _openPRInternal(pr, null, route.prFileIdx, route.anchor);
         return;
       }
       invalidateNavigation();
@@ -715,14 +726,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setError(null); setSelectedFile(null); setSelectedPR(null); setLoadingPRFiles(true);
       try {
         const pr = await fetchPullRequest(route.repoFullName!, route.prNumber);
-        if (isCurrent()) await _openPRInternal(pr, route.repoFullName, route.prFileIdx);
+        if (isCurrent()) await _openPRInternal(pr, route.repoFullName, route.prFileIdx, route.anchor);
       } catch (err) {
         if (isCurrent()) { setError(formatApiError(err, "Failed to open linked PR")); setLoadingPRFiles(false); }
       }
     } else if (route.repoFullName && !isDemoMode) {
       await loadRepoRoot(route.repoFullName, route.branch);
     }
-  }, [_openFileInternal, _openPRInternal, isDemoMode, invalidateNavigation, navigationGuard, loadRepoRoot]);
+  }, [_openFileInternal, _openPRInternal, isDemoMode, invalidateNavigation, navigationGuard, loadRepoRoot, selectedPR, currentRepo, prFiles.length, setSelectedPRFileIdxWithHash]);
 
   // Read the latest callback without replaying navigation on every state update.
   const navigateRef = useRef(navigateToHash);
@@ -787,6 +798,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         prFiles,
         prComments,
         selectedPRFileIdx,
+        documentAnchor,
         setSelectedPRFileIdx: setSelectedPRFileIdxWithHash,
         loadingPRFiles,
         loadingFiles,
