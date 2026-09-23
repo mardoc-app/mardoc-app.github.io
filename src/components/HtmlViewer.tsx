@@ -7,6 +7,7 @@ import { useApp } from "@/lib/app-context";
 import { injectSourceLineAttributes } from "@/lib/html-source-lines";
 import { buildIframeSelectionScript } from "@/lib/html-selection";
 import { createReviewPR, createInlineComment } from "@/lib/github-api";
+import { rewriteHtmlAssetUrls } from "@/lib/html-assets";
 import { analyzeHtml } from "@/lib/word-count";
 
 interface HtmlViewerProps {
@@ -25,48 +26,6 @@ interface HtmlComment {
   author: string;
   createdAt: string;
   resolved: boolean;
-}
-
-/**
- * Rewrite relative asset URLs (images, links) in HTML content so they
- * resolve against the GitHub raw content CDN.
- */
-function rewriteHtmlAssetUrls(
-  html: string,
-  repoFullName: string,
-  ref: string,
-  filePath: string
-): string {
-  const [owner, repo] = repoFullName.split("/");
-  const fileDir = filePath.split("/").slice(0, -1).join("/");
-
-  function resolveRelative(src: string): string | null {
-    if (/^(https?:\/\/|data:|#|mailto:|javascript:)/i.test(src)) return null;
-
-    let resolvedPath: string;
-    if (src.startsWith("/")) {
-      resolvedPath = src.slice(1);
-    } else {
-      const parts = [...fileDir.split("/").filter(Boolean), ...src.split("/")];
-      const resolved: string[] = [];
-      for (const p of parts) {
-        if (p === ".." && resolved.length) resolved.pop();
-        else if (p !== "." && p !== "") resolved.push(p);
-      }
-      resolvedPath = resolved.join("/");
-    }
-
-    return `https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${resolvedPath}`;
-  }
-
-  // Rewrite src and href attributes on img, link, script, a, source, video, audio
-  return html.replace(
-    /(<(?:img|link|script|source|video|audio)\s[^>]*?(?:src|href)=")([^"]+)("[^>]*?>)/gi,
-    (_match, before, url, after) => {
-      const resolved = resolveRelative(url);
-      return resolved ? `${before}${resolved}${after}` : _match;
-    }
-  );
 }
 
 export default function HtmlViewer({ content, filePath, repoFullName, branch }: HtmlViewerProps) {

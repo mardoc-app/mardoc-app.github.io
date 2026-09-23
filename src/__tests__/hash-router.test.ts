@@ -79,17 +79,14 @@ describe("parseHash", () => {
 
   // ─── Malformed routes ──────────────────────────────────────────────
 
-  it("falls back to repo for non-numeric PR number", () => {
+  it("rejects a non-numeric PR number", () => {
     const route = parseHash("#/acme/widgets/pull/abc");
-    expect(route.type).toBe("repo");
+    expect(route.type).toBe("none");
   });
 
-  it("falls back to repo for non-numeric file index", () => {
+  it("rejects to repo for non-numeric file index", () => {
     const route = parseHash("#/acme/widgets/pull/42/files/abc");
-    // Non-numeric fileIdx fails the isNaN check, falls through to PR route
-    expect(route.type).toBe("pr");
-    expect(route.prNumber).toBe(42);
-    expect(route.prFileIdx).toBeUndefined();
+    expect(route.type).toBe("none");
   });
 });
 
@@ -117,5 +114,16 @@ describe("buildPRHash", () => {
 describe("buildRepoHash", () => {
   it("builds a repo hash", () => {
     expect(buildRepoHash("acme/widgets")).toBe("#/acme/widgets");
+  });
+});
+
+
+describe("shared-link identity", () => {
+  it.each(["feature/report", "agent/task/deep", "topic#1", "unicode/中文"])("round-trips branch %s and an encoded path", branch => {
+    const path = "docs/a # % 中文.md";
+    expect(parseHash(buildFileHash("acme/widgets", branch, path))).toMatchObject({ branch, filePath: path });
+  });
+  it.each(["#/acme/widgets/blob/%ZZ/a.md", "#/acme/widgets/pull/12junk", "#/acme/widgets/pull/-1", "#/acme/widgets/pull/1/files/2junk", "#/acme/widgets/pull/1/extra"])("rejects malformed %s", hash => {
+    expect(parseHash(hash).type).toBe("none");
   });
 });
