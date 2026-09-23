@@ -1,5 +1,6 @@
 "use client";
 
+import { abortableDelay } from "./abort";
 import { measureOperation } from "./performance";
 
 import { Octokit } from "@octokit/rest";
@@ -50,12 +51,16 @@ export function initOctokit(token: string) {
   //   1. rate-limit errors mark the circuit breaker
   //   2. transient errors (5xx, network) retry with backoff
   octokitInstance.hook.wrap("request", async (request, options) => {
+    const signal = options.request?.signal as AbortSignal | undefined;
     const MAX_ATTEMPTS = 3;
     let lastErr: unknown;
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       try {
+        signal?.throwIfAborted();
         return await request(options);
       } catch (err) {
+        signal?.throwIfAborted();
+        if (err instanceof Error && err.name === "AbortError") throw err;
         lastErr = err;
         if (isRateLimitError(err)) {
           markRateLimited(extractResetFromError(err));
@@ -63,7 +68,7 @@ export function initOctokit(token: string) {
         }
         if (attempt === MAX_ATTEMPTS || !isTransientError(err)) throw err;
         const delay = computeBackoff(attempt, 500, 4000);
-        await new Promise((resolve) => setTimeout(resolve, delay));
+        await abortableDelay(delay, signal);
       }
     }
     throw lastErr;
@@ -88,12 +93,12 @@ function parseOwnerRepo(repo: string): { owner: string; repo: string } {
 
 // ─── Repository Metadata ──────────────────────────────────────────────────
 
-export async function fetchDefaultBranch(repoFullName: string): Promise<string> {
+export async function fetchDefaultBranch(repoFullName: string, signal?: AbortSignal): Promise<string> {
   const octokit = getOctokit();
   if (!octokit) throw new Error("Not authenticated");
 
   const { owner, repo } = parseOwnerRepo(repoFullName);
-  const { data } = await octokit.repos.get({ owner, repo });
+  const { data } = await octokit.repos.get({ owner, repo, request: { signal } });
   return data.default_branch;
 }
 
@@ -132,14 +137,15 @@ export async function fetchBranches(
 
 // ─── Repository Files ──────────────────────────────────────────────────────
 
-export function fetchRepoTree(repoFullName: string, ref = "main"): Promise<RepoFile[]> {
+export function fetchRepoTree(repoFullName: string, ref = "main", signal?: AbortSignal): Promise<RepoFile[]> {
   return treeCache.load(JSON.stringify([repoFullName, ref]),
-    () => fetchRepoTreeUncached(repoFullName, ref), isCommitSha(ref));
+    (sharedSignal) => fetchRepoTreeUncached(repoFullName, ref, sharedSignal), isCommitSha(ref), signal);
 }
 
 async function fetchRepoTreeUncached(
   repoFullName: string,
-  branch: string = "main"
+  branch: string = "main",
+  signal?: AbortSignal
 ): Promise<RepoFile[]> {
   const octokit = getOctokit();
   if (!octokit) throw new Error("Not authenticated");
@@ -153,6 +159,7 @@ async function fetchRepoTreeUncached(
       repo,
       tree_sha: branch,
       recursive: "1",
+      request: { signal },
     });
 
     // Build a tree structure from flat list
@@ -214,46 +221,47 @@ async function fetchRepoTreeUncached(
 
     return pruneEmptyDirs(roots);
   } catch (error: any) {
-    console.error("Failed to fetch repo tree:", error);
+    if (!signal?.aborted) console.error("Failed to fetch repo tree:", error);
     throw error;
   }
 }
 
 /** Resolve moving refs on every navigation; only concurrent resolutions are shared. */
-export async function fetchRevision(repoFullName: string, ref: string): Promise<string> {
+export async function fetchRevision(repoFullName: string, ref: string, signal?: AbortSignal): Promise<string> {
+  signal?.throwIfAborted();
   if (isCommitSha(ref)) return ref;
   const octokit = getOctokit();
   if (!octokit) throw new Error("Not authenticated");
-  return revisionRequests.load(JSON.stringify([repoFullName, ref]), async () => {
+  return revisionRequests.load(JSON.stringify([repoFullName, ref]), async (sharedSignal) => {
     const { data } = await octokit.repos.getCommit({ ...parseOwnerRepo(repoFullName), ref,
-      request: { fetch: (url: RequestInfo | URL, options?: RequestInit) =>
+      request: { signal: sharedSignal, fetch: (url: RequestInfo | URL, options?: RequestInit) =>
         fetch(url, { ...options, cache: "no-store" }) },
     });
     return data.sha;
-  }, false);
+  }, false, signal);
 }
 
-async function fetchContentData(repoFullName: string, path: string, ref?: string) {
+async function fetchContentData(repoFullName: string, path: string, ref?: string, signal?: AbortSignal) {
   const octokit = getOctokit();
   if (!octokit) throw new Error("Not authenticated");
-  return contentCache.load(JSON.stringify([repoFullName, ref, path]), async () => {
-    const { data } = await octokit.repos.getContent({ ...parseOwnerRepo(repoFullName), path, ref });
+  return contentCache.load(JSON.stringify([repoFullName, ref, path]), async (sharedSignal) => {
+    const { data } = await octokit.repos.getContent({ ...parseOwnerRepo(repoFullName), path, ref, request: { signal: sharedSignal } });
     // The Contents API omits bodies above 1 MB. Retrieve the exact blob,
     // preserving the revision already selected for this document.
     if (!Array.isArray(data) && data.type === "file" && data.encoding === "none") {
       const { data: blob } = await octokit.git.getBlob({
-        ...parseOwnerRepo(repoFullName), file_sha: data.sha,
+        ...parseOwnerRepo(repoFullName), file_sha: data.sha, request: { signal: sharedSignal },
       });
       if (blob.encoding !== "base64") throw new Error(`Unexpected blob format for ${path}`);
       return { content: blob.content, encoding: blob.encoding };
     }
     if (!("content" in data) || data.encoding !== "base64") throw new Error(`Unexpected response format for ${path}`);
     return { content: data.content, encoding: data.encoding };
-  }, isCommitSha(ref));
+  }, isCommitSha(ref), signal);
 }
 
-export async function fetchFileContent(repoFullName: string, path: string, ref?: string): Promise<string> {
-  return measureOperation("document-fetch", async () => base64ToUtf8((await fetchContentData(repoFullName, path, ref)).content));
+export async function fetchFileContent(repoFullName: string, path: string, ref?: string, signal?: AbortSignal): Promise<string> {
+  return measureOperation("document-fetch", async () => base64ToUtf8((await fetchContentData(repoFullName, path, ref, signal)).content));
 }
 
 export async function fetchPullRequests(
@@ -289,10 +297,10 @@ export async function fetchPullRequests(
   }));
 }
 
-export async function fetchPullRequest(repoFullName: string, number: number): Promise<PullRequest> {
+export async function fetchPullRequest(repoFullName: string, number: number, signal?: AbortSignal): Promise<PullRequest> {
   const octokit = getOctokit();
   if (!octokit) throw new Error("Not authenticated");
-  const { data: pr } = await octokit.pulls.get({ ...parseOwnerRepo(repoFullName), pull_number: number });
+  const { data: pr } = await octokit.pulls.get({ ...parseOwnerRepo(repoFullName), pull_number: number, request: { signal } });
   return { id: `pr-${pr.number}`, number: pr.number, title: pr.title,
     author: pr.user?.login || "unknown", status: pr.merged_at ? "merged" : pr.state === "closed" ? "closed" : "open",
     createdAt: pr.created_at, baseBranch: pr.base.ref, headBranch: pr.head.ref,
@@ -358,17 +366,17 @@ export async function fetchPRMarkdownCounts(
 }
 
 /** Metadata only: opening one document must not download every PR document. */
-export function fetchPRFileManifest(repoFullName: string, prNumber: number): Promise<PRFile[]> {
-  return measureOperation("pr-manifest", () => fetchPRFileManifestUnmeasured(repoFullName, prNumber));
+export function fetchPRFileManifest(repoFullName: string, prNumber: number, signal?: AbortSignal): Promise<PRFile[]> {
+  return measureOperation("pr-manifest", () => fetchPRFileManifestUnmeasured(repoFullName, prNumber, signal));
 }
 
-async function fetchPRFileManifestUnmeasured(repoFullName: string, prNumber: number): Promise<PRFile[]> {
+async function fetchPRFileManifestUnmeasured(repoFullName: string, prNumber: number, signal?: AbortSignal): Promise<PRFile[]> {
   const octokit = getOctokit();
   if (!octokit) throw new Error("Not authenticated");
   const { owner, repo } = parseOwnerRepo(repoFullName);
   const [files, { data: pr }] = await Promise.all([
-    octokit.paginate(octokit.pulls.listFiles, { owner, repo, pull_number: prNumber, per_page: 100 }),
-    octokit.pulls.get({ owner, repo, pull_number: prNumber }),
+    octokit.paginate(octokit.pulls.listFiles, { owner, repo, pull_number: prNumber, per_page: 100, request: { signal } }),
+    octokit.pulls.get({ owner, repo, pull_number: prNumber, request: { signal } }),
   ]);
   return files.filter(f => isDocumentFile(f.filename)).map(file => ({
     path: file.filename, basePath: file.previous_filename || file.filename,
@@ -379,10 +387,10 @@ async function fetchPRFileManifestUnmeasured(repoFullName: string, prNumber: num
   }));
 }
 
-export async function fetchPRFile(file: PRFile): Promise<PRFile> {
+export async function fetchPRFile(file: PRFile, signal?: AbortSignal): Promise<PRFile> {
   const [baseContent, headContent] = await Promise.all([
-    file.status === "added" ? "" : fetchFileContent(file.baseRepo!, file.basePath || file.path, file.baseRef),
-    file.status === "deleted" ? "" : fetchFileContent(file.headRepo!, file.path, file.headRef),
+    file.status === "added" ? "" : fetchFileContent(file.baseRepo!, file.basePath || file.path, file.baseRef, signal),
+    file.status === "deleted" ? "" : fetchFileContent(file.headRepo!, file.path, file.headRef, signal),
   ]);
   return { ...file, baseContent, headContent, loadState: "ready", loadError: undefined };
 }
@@ -400,13 +408,14 @@ export async function fetchPRFiles(repoFullName: string, prNumber: number): Prom
   return result;
 }
 
-export function fetchPRComments(repoFullName: string, prNumber: number): Promise<PRComment[]> {
-  return measureOperation("pr-comments", () => fetchPRCommentsUnmeasured(repoFullName, prNumber));
+export function fetchPRComments(repoFullName: string, prNumber: number, signal?: AbortSignal): Promise<PRComment[]> {
+  return measureOperation("pr-comments", () => fetchPRCommentsUnmeasured(repoFullName, prNumber, signal));
 }
 
 async function fetchPRCommentsUnmeasured(
   repoFullName: string,
-  prNumber: number
+  prNumber: number,
+  signal?: AbortSignal
 ): Promise<PRComment[]> {
   const octokit = getOctokit();
   if (!octokit) throw new Error("Not authenticated");
@@ -420,12 +429,14 @@ async function fetchPRCommentsUnmeasured(
       repo,
       pull_number: prNumber,
       per_page: 100,
+      request: { signal },
     }),
     octokit.issues.listComments({
       owner,
       repo,
       issue_number: prNumber,
       per_page: 100,
+      request: { signal },
     }),
   ]);
 
@@ -455,7 +466,7 @@ async function fetchPRCommentsUnmeasured(
   }
 
   // Fetch thread resolution status via GraphQL
-  const threadResolution = await fetchThreadResolution(owner, repo, prNumber);
+  const threadResolution = await fetchThreadResolution(owner, repo, prNumber, signal);
 
   const allComments: PRComment[] = [
     ...topLevel.map((c) => {
@@ -504,7 +515,8 @@ async function fetchPRCommentsUnmeasured(
 async function fetchThreadResolution(
   owner: string,
   repo: string,
-  prNumber: number
+  prNumber: number,
+  signal?: AbortSignal
 ): Promise<Map<number, { threadId: string; isResolved: boolean }>> {
   const octokit = getOctokit();
   if (!octokit) return new Map();
@@ -528,7 +540,7 @@ async function fetchThreadResolution(
           }
         }
       }
-    `, { owner, repo, prNumber });
+    `, { owner, repo, prNumber, request: { signal } });
 
     const map = new Map<number, { threadId: string; isResolved: boolean }>();
     const threads = result.repository?.pullRequest?.reviewThreads?.nodes || [];
@@ -543,6 +555,7 @@ async function fetchThreadResolution(
     }
     return map;
   } catch {
+    signal?.throwIfAborted();
     // GraphQL may fail if token doesn't have sufficient scope — fall back gracefully
     return new Map();
   }

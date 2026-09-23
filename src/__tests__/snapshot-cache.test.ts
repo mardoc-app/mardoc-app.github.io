@@ -22,6 +22,7 @@ describe("bounded session caches",()=>{
     const cache=new RequestCache<string>(2,20); cache.set("huge","x".repeat(20));
     expect(cache.get("huge")).toBeUndefined();
     const pending=deferred<string>(); const old=cache.load("a",()=>pending.promise);
+    await Promise.resolve(); // Start the deliberately non-cancellable loader.
     cache.clear(); cache.set("a","NEW"); pending.resolve("OLD"); await old;
     expect(cache.get("a")).toBe("NEW");
   });
@@ -42,7 +43,7 @@ describe("GitHub snapshots",()=>{
     expect(await fetchFileContent("acme/docs","deck.html",A)).toBe("<h1>Training</h1>");
     await fetchFileContent("acme/docs","deck.html",A);
     expect(blob).toHaveBeenCalledTimes(2);
-    expect(blob).toHaveBeenLastCalledWith({owner:"acme",repo:"docs",file_sha:B});
+    expect(blob).toHaveBeenLastCalledWith({owner:"acme",repo:"docs",file_sha:B,request:{signal:expect.any(AbortSignal)}});
   });
 
   it("revalidates moving branches and deduplicates only concurrent resolution",async()=>{

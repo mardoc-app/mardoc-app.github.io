@@ -189,3 +189,39 @@ test("standalone HTML links open a repository reference without replacing the so
   await page.getByRole("button",{name:"Back to review",exact:true}).click();
   await expect(source.getByRole("heading",{name:"Standalone deck"})).toBeVisible();
 });
+
+test("rapid navigation aborts an obsolete download and revisiting fetches it again", async ({page}) => {
+  await mockGitHub(page);
+  await page.addInitScript(() => {
+    const original = window.fetch;
+    (window as any).__abortedReads = 0;
+    window.fetch = (input, options) => {
+      if (decodeURIComponent(String(input)).includes("/contents/docs/slow.md")) {
+        options?.signal?.addEventListener("abort", () => { (window as any).__abortedReads++; }, {once:true});
+      }
+      return original(input, options);
+    };
+  });
+  let reads = 0;
+  let held: import("@playwright/test").Route | undefined;
+  await page.route("https://api.github.com/repos/acme/docs/contents/docs*slow.md**", async route => {
+    reads++;
+    if (reads === 1) { held = route; return; }
+    await route.fulfill({contentType:"application/json",body:JSON.stringify({
+      encoding:"base64",content:Buffer.from("# Revisited document").toString("base64"),
+    })});
+  });
+  await page.goto("/#/acme/docs/blob/main/docs/slow.md");
+  await expect.poll(() => reads).toBe(1);
+  await page.evaluate(() => { location.hash = "#/acme/docs/blob/main/docs/spec.md"; });
+  await expect(page.locator(".ProseMirror h1")).toHaveText("First branch report");
+  await expect.poll(() => page.evaluate(() => (window as any).__abortedReads)).toBe(1);
+  await page.evaluate(() => { location.hash = "#/acme/docs/blob/main/docs/slow.md"; });
+  await expect(page.locator(".ProseMirror h1")).toHaveText("Revisited document");
+  expect(reads).toBe(2);
+  // A delayed completion must not replace the revisited version.
+  await held!.fulfill({contentType:"application/json",body:JSON.stringify({
+    encoding:"base64",content:Buffer.from("# Obsolete document").toString("base64"),
+  })});
+  await expect(page.locator(".ProseMirror h1")).toHaveText("Revisited document");
+});
