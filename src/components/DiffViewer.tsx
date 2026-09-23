@@ -25,7 +25,9 @@ import {
 } from "lucide-react";
 import ContextMenu from "./ContextMenu";
 import { mapSelectionToLines, rewriteImageUrls, loadAuthenticatedImages, loadEmbedLocalImages } from "@/lib/github-api";
-import { classifyLink } from "@/lib/link-handler";
+import { useHtmlReviewLinks } from "@/lib/use-html-review-links";
+import { resolveReviewLink, scrollToDocumentAnchor } from "@/lib/review-links";
+import { buildFileHash, buildPRHash } from "@/lib/hash-router";
 import { useApp } from "@/lib/app-context";
 import { openExternal } from "@/lib/open-external";
 import { renderMermaidBlocks } from "@/lib/mermaid";
@@ -46,6 +48,8 @@ import { injectCommentHighlights } from "@/lib/highlight-comments";
 
 interface DiffViewerProps {
   file: PRFile;
+  anchor?: string;
+  onNavigateLink?: (href: string, file: PRFile, side: "base" | "head") => void;
   repoFullName: string;
   baseBranch: string;
   headBranch: string;
@@ -281,6 +285,8 @@ function FloatingToolbar({
 
 export default function DiffViewer({
   file,
+  anchor,
+  onNavigateLink,
   repoFullName,
   baseBranch,
   headBranch,
@@ -299,7 +305,7 @@ export default function DiffViewer({
   const [showPanel, setShowPanel] = useState(true);
   const [showLineNumbers, setShowLineNumbers] = useState(false);
   const { wide, toggle: toggleWide } = useWideFormat();
-  const { isEmbedded } = useApp();
+  const { isEmbedded, selectedPR, prFiles } = useApp();
   const isMobile = useIsMobile();
 
   // On mobile the comment panel lives in a slide-up bottom sheet
@@ -330,6 +336,26 @@ export default function DiffViewer({
 
   const contentRef = useRef<HTMLDivElement>(null);
   const htmlIframeRef = useRef<HTMLIFrameElement>(null);
+  const navigateHtmlLink = (href: string) => {
+    const sourcePath = htmlShowBase ? file.basePath || file.path : file.path;
+    const link = resolveReviewLink(sourcePath, href);
+    if (link.type === "external") openExternal(link.href, isEmbedded);
+    else if (link.type === "document") onNavigateLink?.(href, file, htmlShowBase ? "base" : "head");
+  };
+  const onHtmlLoad = useHtmlReviewLinks(htmlIframeRef, navigateHtmlLink, href => {
+    const link = resolveReviewLink(htmlShowBase ? file.basePath || file.path : file.path, href);
+    if (link.type !== "document") return undefined;
+    const idx = !htmlShowBase ? prFiles?.findIndex(f => f.path === link.path) ?? -1 : -1;
+    const hash = idx >= 0 && selectedPR ? buildPRHash(repoFullName, selectedPR.number, idx, link.anchor)
+      : buildFileHash((htmlShowBase ? file.baseRepo : file.headRepo) || repoFullName,
+        (htmlShowBase ? file.baseRef : file.headRef) || (htmlShowBase ? baseBranch : headBranch), link.path);
+    return new URL(hash, window.location.href).href;
+  });
+  useEffect(() => {
+    if (anchor && contentRef.current) scrollToDocumentAnchor(contentRef.current, anchor);
+    if (anchor && htmlIframeRef.current?.contentDocument) scrollToDocumentAnchor(htmlIframeRef.current.contentDocument, anchor);
+  }, [anchor, file.headContent, file.baseContent, viewMode]);
+
   const commentInputRef = useRef<HTMLInputElement>(null);
   // Post-render: fetch private repo images and render mermaid diagrams (markdown only).
   // Re-runs when comments change because renderBlockHtml injects highlight marks for
@@ -362,7 +388,7 @@ export default function DiffViewer({
 
       const iframe = htmlIframeRef.current;
 
-      if (data.type === "mardoc-iframe-resize" && typeof data.height === "number" && iframe) {
+      if (data.type === "mardoc-iframe-resize" && typeof data.height === "number" && iframe && event.source === iframe.contentWindow) {
         iframe.style.height = `${data.height + 20}px`;
         return;
       }
@@ -859,17 +885,14 @@ export default function DiffViewer({
       if (href) {
         e.preventDefault();
         e.stopPropagation();
-        const type = classifyLink(href);
-        if (type === "anchor") {
-          const id = href.slice(1);
-          const el = contentRef.current?.querySelector(`[id="${id}"]`);
-          if (el) {
-            el.scrollIntoView({ behavior: "smooth", block: "start" });
-          }
-        } else if (type === "external") {
-          openExternal(href, isEmbedded);
+        const link = resolveReviewLink(file.path, href);
+        if (link.type === "anchor" && contentRef.current) {
+          scrollToDocumentAnchor(contentRef.current, link.anchor);
+        } else if (link.type === "external") {
+          openExternal(link.href, isEmbedded);
+        } else if (link.type === "document") {
+          onNavigateLink?.(href, file, "head");
         }
-        // Relative links don't apply in diff view — ignore
         return;
       }
     }
@@ -883,7 +906,7 @@ export default function DiffViewer({
         setShowPanel(true);
       }
     }
-  }, []);
+  }, [file, onNavigateLink, isEmbedded]);
 
   return (
     <div className="h-full flex flex-col">
@@ -1132,6 +1155,7 @@ export default function DiffViewer({
                 <div className="flex-1 overflow-auto">
                   <iframe
                     ref={htmlIframeRef}
+                    onLoad={() => { onHtmlLoad(); if (anchor && htmlIframeRef.current?.contentDocument) scrollToDocumentAnchor(htmlIframeRef.current.contentDocument, anchor); }}
                     srcDoc={htmlSrcdoc}
                     sandbox="allow-scripts allow-same-origin"
                     title={file.path}
