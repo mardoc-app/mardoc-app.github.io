@@ -1,5 +1,13 @@
 # 010: Comment Reply Threading
 
+**Status: Implemented core.** Reviewed against `4abb8f5` on 2026-09-23.
+
+PR comments, replies, and resolution use GitHub REST/GraphQL. The placeholder diagnosis below describes the original problem.
+
+See the [feature index](../README.md) for current status and reference documentation. The original story below is retained as a historical design record; its checkboxes and future-tense instructions are not a current completion report.
+
+## Original story (historical)
+
 ## Value
 Reviewers can have threaded conversations on PR comments — replies, back-and-forth discussion, and resolution — all synced with GitHub. Currently the reply input exists in the UI but is a placeholder (`console.log`). Wiring it up completes the review collaboration loop.
 

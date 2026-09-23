@@ -1,5 +1,13 @@
 # 018: HTML in Markdown Round-Trip Fidelity
 
+**Status: Partial.** Reviewed against `4abb8f5` on 2026-09-23.
+
+Converter preservation rules exist, but HTML comments/table spans have known failures and converter tests omit TipTap. Full lossless editor preservation is not implemented.
+
+See the [feature index](../README.md) for current status and reference documentation. The original story below is retained as a historical design record; its checkboxes and future-tense instructions are not a current completion report.
+
+## Original story (historical)
+
 ## Value
 
 Markdown files often contain embedded HTML — `<details>`, `<summary>`, styled `<div>`s, `<video>`, `<iframe>`, custom attributes. Today MarDoc silently destroys this HTML on save because Turndown strips or converts unrecognized tags. Users should be able to edit a markdown file with embedded HTML and commit it without losing the HTML they didn't touch.

@@ -1,5 +1,13 @@
 # 031 — HTML Document Rendering
 
+**Status: Partial; isolation gap open.** Reviewed against `4abb8f5` on 2026-09-23.
+
+HTML viewing and PR source/rendered modes exist. Actual sandbox flags include allow-same-origin; the intended token-isolation criterion is NOT met. See SEC-01.
+
+See the [feature index](../README.md) for current status and reference documentation. The original story below is retained as a historical design record; its checkboxes and future-tense instructions are not a current completion report.
+
+## Original story (historical)
+
 ## Value
 
 AI-generated HTML documents (research reports, cost analyses, architecture guides) are beautiful, self-contained files with custom CSS, mermaid diagrams, and rich layouts. But checking them into GitHub for PR review means reviewers see raw HTML source — they can't see the rendered document, judge content correctness, or comment meaningfully. MarDoc already solves this for markdown; extending to HTML makes these documents reviewable.
@@ -14,7 +22,7 @@ AI-generated HTML documents (research reports, cost analyses, architecture guide
 - [x] Fullscreen toggle available for HTML viewer
 - [x] PR DiffViewer shows "Rendered" (iframe) and "Source Diff" modes for HTML files
 - [x] Base/Head toggle in rendered mode lets reviewers compare versions
-- [x] GitHub token is not accessible from the iframe (sandbox security)
+- [ ] GitHub token is not accessible from the iframe — intended criterion, currently unmet (SEC-01)
 - [x] Demo mode includes a sample HTML file and a mock PR with HTML changes
 - [x] Relative asset URLs rewritten to raw.githubusercontent.com for repo files
 - [x] Existing markdown rendering is not affected
@@ -30,7 +38,7 @@ None — builds on existing infrastructure.
 - Used in `github-api.ts` (tree, PR files, PR counts) and `Sidebar.tsx` (file input, empty states)
 
 **HtmlViewer** (`src/components/HtmlViewer.tsx`):
-- `<iframe srcdoc={content} sandbox="allow-scripts" />` — scripts execute but can't access parent localStorage
+- Intended design: `<iframe srcdoc={content} sandbox="allow-scripts" />`. Current code adds `allow-same-origin`, so the intended parent-storage isolation is not met.
 - Resize script injected via postMessage for auto-height
 - Asset URL rewriting for relative paths in repo context
 

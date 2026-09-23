@@ -1,5 +1,13 @@
 # 021 — Hash Router URL Decoding
 
+**Status: Partial.** Reviewed against `4abb8f5` on 2026-09-23.
+
+Branch/path decoding exists; malformed escapes, numeric validation, fallback routes, and route-builder encoding still need work. See NAV-01.
+
+See the [feature index](../README.md) for current status and reference documentation. The original story below is retained as a historical design record; its checkboxes and future-tense instructions are not a current completion report.
+
+## Original story (historical)
+
 ## Value
 
 Files and branches with spaces, special characters, or URL-encoded segments can't be navigated to via deep links. This breaks the core navigation contract for repos with non-ASCII paths.

@@ -1,91 +1,55 @@
-# Setting Up a GitHub Personal Access Token for MarDoc
+# Connect GitHub with a personal access token
 
-MarDoc connects to GitHub using a **Personal Access Token (PAT)**. The simplest path is a **classic token** with the `repo` scope — one checkbox, done. Fine-grained tokens also work if you need tighter scope control, but they're fiddlier to configure.
+MarDoc calls GitHub directly from your browser using a personal access token (PAT). It supports classic and fine-grained tokens; choose one your organization permits and scope it to the work you need. No Auth0 setup or environment variable is required.
 
-## Why a PAT?
+The token is saved in browser localStorage and sent to GitHub to authenticate requests. Read [data storage and security](data-and-security.md), including the current HTML isolation gap, before connecting sensitive repositories.
 
-MarDoc runs entirely in your browser — there's no server. Your token is stored in your browser's local storage and used to call the GitHub API directly. It never leaves your machine.
+## Fine-grained token
 
-## Step-by-step (classic token)
+1. Open [GitHub token settings](https://github.com/settings/personal-access-tokens/new).
+2. Choose a descriptive name, expiration, and resource owner.
+3. Select the repositories MarDoc should access.
+4. Choose repository permissions for your workflows using the table below.
+5. Generate the token; obtain organization approval if required.
+6. In MarDoc, open Settings → **GitHub Connection**, paste the token, and click **Connect**. Then select a repository in the **Repository** tab.
 
-### 1. Open GitHub token settings
+| Workflow | Contents | Pull requests |
+| --- | --- | --- |
+| Browse documents and read PRs | Read | Read |
+| Review an existing PR, reply, approve/request changes | Read | Read and write |
+| Edit/create documents, create review PRs, accept suggestions, upload images | Read and write | Read and write |
 
-Go to [github.com/settings/tokens](https://github.com/settings/tokens) (Settings → Developer settings → Personal access tokens → Tokens (classic)).
+Contents write is required for file commits and image uploads; read-only access is insufficient. [GitHub documents this requirement for file creation/update](https://docs.github.com/en/rest/repos/contents#create-or-update-file-contents).
 
-### 2. Click "Generate new token" → "Generate new token (classic)"
+MarDoc uses issue-comment endpoints for general PR comments and fallback comments. GitHub documents **Pull requests: write** or **Issues: write** as alternative permission sets for creating those comments; a separate Issues permission is not normally required when Pull requests write is granted. [Issue comment permissions](https://docs.github.com/en/rest/issues/comments#create-an-issue-comment)
 
-Give it a descriptive name like `MarDoc` so you remember what it's for.
+Fine-grained tokens are scoped to a resource owner and selected repositories. Organization approval and token limitations can affect access; check [GitHub's current token guide](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) if you work across organizations or as an outside collaborator. Token permissions do not bypass branch protection or grant repository access your account lacks.
 
-### 3. Set an expiration
+## Classic token
 
-Choose an expiration that matches your comfort level — 90 days is a reasonable default. You can always create a new one when it expires. MarDoc will prompt you to reconnect if your token stops working.
+1. Open [classic token settings](https://github.com/settings/tokens) and choose **Generate new token (classic)**.
+2. Set a descriptive name and expiration.
+3. Select `repo` for the connected private-repository review/edit workflow. This grants broad repository access within your account's permissions; it does not limit the token to one selected repository.
+4. Generate and copy the token. For an organization using SAML SSO, authorize the token through **Configure SSO** as described in [GitHub's SSO guide](https://docs.github.com/en/authentication/authenticating-with-single-sign-on/authorizing-a-personal-access-token-for-use-with-single-sign-on).
+5. Paste it into Settings → **GitHub Connection**, connect, and select a repository.
 
-### 4. Select scopes
+The current in-app help also suggests `read:org`. That scope concerns organization membership information; it is not a universal prerequisite for listing repositories accessible to the authenticated user. Start troubleshooting missing repositories with account access, token scope, SSO authorization, and organization policy rather than assuming this extra scope fixes every case. [Repository listing permissions](https://docs.github.com/en/rest/repos/repos#list-repositories-for-the-authenticated-user)
 
-Check two boxes:
+Some organizations restrict classic PATs or require approval for fine-grained PATs. Follow the organization's policy; [GitHub documents these controls](https://docs.github.com/en/organizations/managing-programmatic-access-to-your-organization/setting-a-personal-access-token-policy-for-your-organization).
 
-- **`repo`** — full read/write on any repository you already have access to. Checking this top-level box ticks all six sub-scopes automatically.
-- **`read:org`** — needed if any of the repositories you want to review belong to a GitHub organization. In theory the `repo` scope alone is enough; in practice organization repos (and anything behind SAML SSO) need `read:org` to show up reliably in MarDoc's repo picker. If every repo you review is in your personal account, you can skip this one.
+## Disconnect or revoke
 
-```
-✅ repo
-  ✅ repo:status
-  ✅ repo_deployment
-  ✅ public_repo
-  ✅ repo:invite
-  ✅ security_events
-✅ read:org              ← check this if you want to see org repos
-```
-
-Leave everything else unchecked.
-
-**One extra step for SSO-protected orgs**: after generating the token, the token list page will show a **Configure SSO** button next to it. Click that and authorize the specific organization(s) whose repos you want to review. Without this step, SSO orgs will silently not appear even with both scopes set.
-
-### 5. Generate and copy
-
-Click **Generate token** at the bottom, then copy the token immediately — GitHub only shows it once. It starts with `ghp_`. Store it somewhere safe (a password manager is ideal).
-
-### 6. Paste into MarDoc
-
-1. Go to [mardoc.app](https://mardoc.app)
-2. Click the gear icon (Settings)
-3. Paste your token and click **Connect**
-4. Select a repository from the list
-
-Your token is saved in your browser so you won't need to re-enter it on your next visit.
-
-## Alternative: fine-grained tokens
-
-Fine-grained tokens are the newer GitHub model — they scope to specific repositories and specific permissions rather than a single monolithic `repo` scope. They work with MarDoc, but the setup is more involved and easy to get wrong.
-
-If you still want one, go to [github.com/settings/tokens?type=beta](https://github.com/settings/tokens?type=beta) and configure:
-
-| Permission | Access level | Why MarDoc needs it |
-|---|---|---|
-| **Contents** | Read | Browse repository files and read markdown content |
-| **Pull requests** | Read and Write | List PRs, read PR diffs, and post review comments |
-| **Issues** | Read and Write | *(Optional)* Only needed if you want to reference issues |
-
-Under **Repository access**, pick the specific repositories MarDoc should see, or "All repositories" if you want it broad. All other permissions can stay at "No access."
-
-If a fine-grained token isn't letting MarDoc see a repo it should — or the PR list comes up empty even though PRs exist — it's almost always a missing permission or a repository that wasn't included in the token's scope. A classic token with `repo` sidesteps all of that.
-
-## Revoking access
-
-To revoke MarDoc's access at any time:
-
-- **In MarDoc** — open Settings and click **Disconnect**. This removes the token from your browser.
-- **On GitHub** — go to [github.com/settings/tokens](https://github.com/settings/tokens) and delete the token. This immediately revokes API access.
+**Disconnect** removes the saved token and repository preference from MarDoc. It does not erase drafts/preferences or comprehensively clear in-memory credentials. See [storage lifecycle](data-and-security.md). Deleting the token in GitHub settings revokes its API access.
 
 ## Troubleshooting
 
-**"Bad credentials"** — Double-check that you copied the full token (classic tokens start with `ghp_`). If it looks right, the token may have expired — regenerate it and reconnect.
+| Symptom | Check |
+| --- | --- |
+| Bad credentials / 401 | Full token copied, token not expired or revoked; reconnect with a valid token. |
+| Repository missing / 403 / 404 | Access on github.com, selected resource owner/repos, organization approval/policy, and classic-token SSO authorization. |
+| Can read but cannot save or upload | Contents write, your repository role, and branch rules. |
+| Cannot submit a review or reply | Pull requests write and GitHub's review restrictions for your account/PR. |
+| Some comments/files absent on a large PR | Current app pagination limits; see [known issues](known-issues.md). |
+| Rate-limit message | Allow the reset interval to pass; repeated retries are not a permission fix. |
 
-**"Failed to load repository" or org repos missing from the picker** — Almost always one of three things:
-1. Your token doesn't have `read:org` — regenerate with that box checked (Step 4).
-2. The organization uses SAML SSO and you haven't authorized the token for it — go back to [github.com/settings/tokens](https://github.com/settings/tokens), click **Configure SSO** next to your token, and authorize each org.
-3. You don't actually have access to that repo on github.com itself (check in a browser first).
-
-**No pull requests showing** — For classic tokens, make sure `repo` is checked. For fine-grained tokens, **Pull requests** needs to be set to at least Read.
-
-**Can't post comments** — For fine-grained tokens, **Pull requests** needs to be Read **and Write**, not just Read. Classic tokens handle this automatically under `repo`.
+Do not include a token in bug reports, screenshots, committed files, or public build variables. Report the operation, error/status code, and token type/permission names instead.

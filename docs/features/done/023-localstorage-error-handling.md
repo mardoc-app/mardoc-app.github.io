@@ -1,5 +1,13 @@
 # 023 — localStorage Error Handling
 
+**Status: Implemented core.** Reviewed against `4abb8f5` on 2026-09-23.
+
+Safe storage helpers catch access/quota errors. Persistence may silently fail; this does not guarantee recovery of unsaved work.
+
+See the [feature index](../README.md) for current status and reference documentation. The original story below is retained as a historical design record; its checkboxes and future-tense instructions are not a current completion report.
+
+## Original story (historical)
+
 ## Value
 
 The app crashes in private browsing mode or restricted browser contexts where `localStorage` throws `SecurityError` or `QuotaExceededError`. Users in these contexts can't use the app at all.

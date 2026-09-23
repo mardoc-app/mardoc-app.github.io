@@ -1,5 +1,13 @@
 # 004: Edit File and Submit as PR
 
+**Status: Partial.** Reviewed against `4abb8f5` on 2026-09-23.
+
+Editor provides dirty tracking and an edit-to-PR UI, but the existing-file save path uses a new-file helper without an update SHA. See EDIT-02.
+
+See the [feature index](../README.md) for current status and reference documentation. The original story below is retained as a historical design record; its checkboxes and future-tense instructions are not a current completion report.
+
+## Original story (historical)
+
 ## Value
 Users can edit markdown files directly in the Editor and submit changes as a PR. Turns mardoc into a full propose-changes workflow — edit content, preview it rendered, submit for review.
 

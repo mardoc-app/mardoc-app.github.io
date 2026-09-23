@@ -1,5 +1,13 @@
 # 022 — Mermaid Round-Trip Preservation
 
+**Status: Implemented core.** Reviewed against `4abb8f5` on 2026-09-23.
+
+Mermaid source preservation, Turndown restoration, and rerendering paths exist, with unit and browser coverage files. Original unchecked boxes below are historical.
+
+See the [feature index](../README.md) for current status and reference documentation. The original story below is retained as a historical design record; its checkboxes and future-tense instructions are not a current completion report.
+
+## Original story (historical)
+
 ## Value
 
 Mermaid code blocks are converted to `<img src="blob:...">` during initial render by `preRenderMermaid`. This destroys the original mermaid source. When converting to code view, Turndown outputs `![Mermaid diagram](blob:https://mardoc.app/...)` — an ephemeral URL with no mermaid syntax. The diagram source is permanently lost. Toggling back to rich view then shows a broken image.
