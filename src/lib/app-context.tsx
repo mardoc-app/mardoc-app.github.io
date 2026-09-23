@@ -253,6 +253,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const treeLoadGuard = useRef(createStalenessGuard()).current;
   const listLoadGuard = useRef(createStalenessGuard()).current;
   const navigationGuard = useRef(createStalenessGuard()).current;
+  const branchListController = useRef<AbortController | null>(null);
+  const prListController = useRef<AbortController | null>(null);
   const navigationController = useRef(new AbortController());
   const treeController = useRef(new AbortController());
   const invalidateNavigation = useCallback(() => {
@@ -276,6 +278,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       navigationGuard.invalidate(); repoLoadGuard.invalidate(); fileLoadGuard.invalidate();
       prLoadGuard.invalidate(); treeLoadGuard.invalidate(); listLoadGuard.invalidate();
       navigationController.current.abort(); treeController.current.abort();
+      branchListController.current?.abort(); prListController.current?.abort();
     };
   }, [navigationGuard, repoLoadGuard, fileLoadGuard, prLoadGuard, treeLoadGuard, listLoadGuard]);
 
@@ -283,6 +286,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const setGithubToken = useCallback((token: string | null) => {
     invalidateNavigation();
     repoLoadGuard.invalidate(); listLoadGuard.invalidate();
+    branchListController.current?.abort(); prListController.current?.abort();
     metadataRequests.current = {}; setLoadingBranches(false); setLoadingPRs(false);
     locationRef.current = { repo: null, branch: "main" };
     setCurrentRepoState(null); setSelectedFile(null); setSelectedPR(null);
@@ -447,15 +451,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const loadPRs = useCallback(async (repo: string, filter: "open" | "closed" | "all") => {
     if (!githubToken) return;
     const isCurrent = listLoadGuard.begin();
+    prListController.current?.abort();
+    const controller = new AbortController();
+    prListController.current = controller;
     metadataRequests.current.prs = JSON.stringify([repo, filter]);
     setLoadingPRs(true);
     try {
-      const prs = await fetchPullRequests(repo, filter);
+      const prs = await fetchPullRequests(repo, filter, controller.signal);
       if (!isCurrent()) return;
       setPRList(prs);
       setLoadingPRs(false);
       if (prs.length) {
-        const counts = await fetchPRMarkdownCounts(repo, prs.map(p => p.number));
+        const counts = await fetchPRMarkdownCounts(repo, prs.map(p => p.number), controller.signal);
         if (isCurrent()) setPRList(prs.map(p => ({ ...p, mdFileCount: counts.get(p.number) ?? 0 })));
       }
     } catch (err) {
@@ -465,9 +472,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const loadBranches = useCallback((repo: string) => {
     const isCurrent = repoLoadGuard.begin();
+    branchListController.current?.abort();
+    const controller = new AbortController();
+    branchListController.current = controller;
     metadataRequests.current.branches = repo;
     setLoadingBranches(true);
-    void fetchBranches(repo).then(branches => {
+    void fetchBranches(repo, controller.signal).then(branches => {
       if (!isCurrent()) return;
       setAvailableBranches(branches);
       const primary = branches.find(b => b.isDefault);
@@ -503,6 +513,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (changed) {
       setRepoFiles([]); setPRList([]); setAvailableBranches([]);
       repoLoadGuard.invalidate(); listLoadGuard.invalidate();
+      branchListController.current?.abort(); prListController.current?.abort();
       metadataRequests.current = {};
       setLoadingBranches(false); setLoadingPRs(false);
     }

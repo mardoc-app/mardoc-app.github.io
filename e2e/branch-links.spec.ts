@@ -225,3 +225,49 @@ test("rapid navigation aborts an obsolete download and revisiting fetches it aga
   })});
   await expect(page.locator(".ProseMirror h1")).toHaveText("Revisited document");
 });
+
+test("changing PR filters aborts obsolete lists and counts without reloading the document", async ({page, isMobile}) => {
+  const fixture = await mockGitHub(page);
+  await page.addInitScript(() => {
+    const original = window.fetch;
+    (window as any).__sidebarAborts = [];
+    window.fetch = (input, options) => {
+      const url = String(input);
+      if (url.includes("/pulls?") || url.endsWith("/graphql")) {
+        options?.signal?.addEventListener("abort", () => {
+          (window as any).__sidebarAborts.push(url.includes("/pulls?") ? "list" : "counts");
+        }, {once:true});
+      }
+      return original(input, options);
+    };
+  });
+  let heldList: import("@playwright/test").Route | undefined;
+  let heldCounts: import("@playwright/test").Route | undefined;
+  const pr = {number:13,title:"Closed review",state:"closed",created_at:"2026-09-23T00:00:00Z",
+    user:{login:"reviewer"},base:{ref:"main"},head:{ref:branch}};
+  await page.route("https://api.github.com/repos/acme/docs/pulls?**", async route => {
+    const state = new URL(route.request().url()).searchParams.get("state");
+    if (state === "open") { heldList = route; return; }
+    await route.fulfill({contentType:"application/json",body:JSON.stringify(state === "closed" ? [pr] : [])});
+  });
+  await page.route("https://api.github.com/graphql", route => { heldCounts = route; });
+  await page.goto(shared);
+  await expect(page.locator(".ProseMirror h1")).toHaveText("First branch report");
+  if (isMobile) await page.getByRole("button", {name:"Open navigation"}).click();
+  await page.getByRole("button", {name:"PRs",exact:true}).click();
+  await expect.poll(() => !!heldList).toBe(true);
+  await expect(page.getByRole("status", {name:"Loading pull requests"})).toBeVisible();
+  await page.getByRole("button", {name:"closed",exact:true}).click();
+  await expect.poll(() => !!heldCounts).toBe(true);
+  await page.getByRole("button", {name:"all",exact:true}).click();
+  await expect(page.getByText("No pull requests found.")).toBeVisible();
+  await expect.poll(() => page.evaluate(() => (window as any).__sidebarAborts))
+    .toEqual(expect.arrayContaining(["list", "counts"]));
+  await heldList!.fulfill({contentType:"application/json",body:JSON.stringify([pr])});
+  await heldCounts!.fulfill({contentType:"application/json",body:JSON.stringify({
+    data:{repository:{pr0:{number:13,files:{nodes:[{path:"notes.md"}]}}}},
+  })});
+  await expect(page.getByText("No pull requests found.")).toBeVisible();
+  expect(fixture.reads.filter(read => read.path === filePath)).toHaveLength(1);
+  await expect(page.locator(".ProseMirror h1")).toHaveText("First branch report");
+});

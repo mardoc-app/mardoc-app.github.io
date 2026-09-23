@@ -103,7 +103,8 @@ export async function fetchDefaultBranch(repoFullName: string, signal?: AbortSig
 }
 
 export async function fetchBranches(
-  repoFullName: string
+  repoFullName: string,
+  signal?: AbortSignal
 ): Promise<{ name: string; isDefault: boolean }[]> {
   const octokit = getOctokit();
   if (!octokit) throw new Error("Not authenticated");
@@ -112,11 +113,12 @@ export async function fetchBranches(
 
   // Fetch default branch and branch list in parallel
   const [repoData, branchPages] = await Promise.all([
-    octokit.repos.get({ owner, repo }),
+    octokit.repos.get({ owner, repo, request: { signal } }),
     octokit.paginate(octokit.repos.listBranches, {
       owner,
       repo,
       per_page: 100,
+      request: { signal },
     }),
   ]);
 
@@ -266,7 +268,8 @@ export async function fetchFileContent(repoFullName: string, path: string, ref?:
 
 export async function fetchPullRequests(
   repoFullName: string,
-  state: "open" | "closed" | "all" = "open"
+  state: "open" | "closed" | "all" = "open",
+  signal?: AbortSignal
 ): Promise<PullRequest[]> {
   const octokit = getOctokit();
   if (!octokit) throw new Error("Not authenticated");
@@ -280,6 +283,7 @@ export async function fetchPullRequests(
     sort: "updated",
     direction: "desc",
     per_page: 100,
+    request: { signal },
   });
 
   return data.map((pr) => ({
@@ -320,8 +324,10 @@ export async function fetchPullRequest(repoFullName: string, number: number, sig
  */
 export async function fetchPRMarkdownCounts(
   repoFullName: string,
-  prNumbers: number[]
+  prNumbers: number[],
+  signal?: AbortSignal
 ): Promise<Map<number, number>> {
+  signal?.throwIfAborted();
   const octokit = getOctokit();
   if (!octokit || prNumbers.length === 0) return new Map();
 
@@ -345,7 +351,7 @@ export async function fetchPRMarkdownCounts(
   }`;
 
   try {
-    const result: any = await (octokit as any).graphql(query, { owner, repo });
+    const result: any = await (octokit as any).graphql(query, { owner, repo, request: { signal } });
     const counts = new Map<number, number>();
 
     for (let i = 0; i < safeNumbers.length; i++) {
@@ -360,6 +366,7 @@ export async function fetchPRMarkdownCounts(
 
     return counts;
   } catch (err) {
+    signal?.throwIfAborted();
     console.error("Failed to fetch PR markdown counts:", err);
     return new Map();
   }
