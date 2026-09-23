@@ -47,12 +47,18 @@ async function mockGitHub(page: Page) {
 }
 
 test("shared branch link renders once, refreshes text and image together, and shares a pinned revision", async ({page}) => {
+  await page.addInitScript(() => localStorage.setItem("mardoc_profile", "1"));
   const fixture=await mockGitHub(page);
   await page.goto(shared);
   await expect(page.locator(".ProseMirror h1")).toHaveText("First branch report");
   await expect(page.locator(".ProseMirror img")).toHaveAttribute("src",/^data:image\/svg\+xml;base64,/);
   expect(fixture.reads.filter(r=>r.path===filePath)).toEqual([{path:filePath,ref:A}]);
   expect(fixture.commits).toEqual(["/repos/acme/docs/commits/feature/report"]);
+  const timings = await page.evaluate(() => performance.getEntriesByType("measure")
+    .filter(entry => entry.name.startsWith("mardoc:"))
+    .map(entry => ({name:entry.name, duration:entry.duration})));
+  expect(timings.some(entry => entry.name === "mardoc:document-fetch")).toBe(true);
+  console.log("Synthetic cold branch timings (ms)", timings);
   expect(fixture.metadata).toEqual([]);
   await expect(page).toHaveURL(new RegExp("feature%2Freport/docs/spec.md$"));
   await page.getByRole("button",{name:"Copy branch link"}).click();
