@@ -1,7 +1,7 @@
 /** Session-only LRU plus in-flight deduplication. clear() also fences old writes. */
 export class RequestCache<T> {
   private values = new Map<string, { value: T; bytes: number }>();
-  private pending = new Map<string, Promise<T>>();
+  private pending = new Map<string, { promise: Promise<T>; controller: AbortController; consumers: number }>();
   private bytes = 0;
   private generation = 0;
 
@@ -29,25 +29,51 @@ export class RequestCache<T> {
     }
   }
 
-  load(key: string, loader: () => Promise<T>, retain = true): Promise<T> {
+  load(key: string, loader: (signal: AbortSignal) => Promise<T>, retain = true, signal?: AbortSignal): Promise<T> {
+    if (signal?.aborted) return Promise.reject(signal.reason);
     const cached = retain ? this.get(key) : undefined;
     if (cached !== undefined) return Promise.resolve(cached);
-    const pending = this.pending.get(key);
-    if (pending) return pending;
-    const generation = this.generation;
-    const result = Promise.resolve().then(loader).then(value => {
-      if (retain && generation === this.generation) this.set(key, value);
-      return value;
-    }).finally(() => {
-      if (this.pending.get(key) === result) this.pending.delete(key);
+    let entry = this.pending.get(key);
+    if (!entry) {
+      const generation = this.generation;
+      const controller = new AbortController();
+      const created = { controller, consumers: 0, promise: null! as Promise<T> };
+      created.promise = Promise.resolve().then(() => {
+        controller.signal.throwIfAborted();
+        return loader(controller.signal);
+      }).then(value => {
+        if (retain && !controller.signal.aborted && generation === this.generation) this.set(key, value);
+        return value;
+      }).finally(() => {
+        if (this.pending.get(key) === created) this.pending.delete(key);
+      });
+      this.pending.set(key, created);
+      entry = created;
+    }
+    const shared = entry;
+    shared.consumers++;
+    return new Promise<T>((resolve, reject) => {
+      let settled = false;
+      const finish = (callback: () => void) => {
+        if (settled) return;
+        settled = true;
+        signal?.removeEventListener("abort", onAbort);
+        if (--shared.consumers === 0 && this.pending.get(key) === shared) {
+          this.pending.delete(key);
+          shared.controller.abort();
+        }
+        callback();
+      };
+      const onAbort = () => finish(() => reject(signal!.reason));
+      signal?.addEventListener("abort", onAbort, { once: true });
+      shared.promise.then(value => finish(() => resolve(value)), error => finish(() => reject(error)));
     });
-    this.pending.set(key, result);
-    return result;
   }
 
   clear(): void {
     this.generation++;
     this.values.clear();
+    this.pending.forEach(entry => entry.controller.abort());
     this.pending.clear();
     this.bytes = 0;
   }

@@ -1,15 +1,16 @@
 /** One visible-tab refresh at a time; dispose also fences in-flight results. */
 export function createBackgroundRefresh(
-  refresh: (isActive: () => boolean) => Promise<void>,
+  refresh: (isActive: () => boolean, signal: AbortSignal) => Promise<void>,
   visible = () => document.visibilityState !== "hidden",
 ) {
+  const controller = new AbortController();
   let disposed = false;
   let pending = false;
   const timers = new Set<ReturnType<typeof setTimeout>>();
   const run = async () => {
     if (disposed || pending || !visible()) return;
     pending = true;
-    try { await refresh(() => !disposed); }
+    try { await refresh(() => !disposed, controller.signal); }
     catch { /* Refresh is best effort; the caller handles API errors. */ }
     finally { pending = false; }
   };
@@ -29,6 +30,7 @@ export function createBackgroundRefresh(
     },
     dispose() {
       disposed = true;
+      controller.abort();
       clearInterval(interval);
       timers.forEach(timer => clearTimeout(timer));
       timers.clear();

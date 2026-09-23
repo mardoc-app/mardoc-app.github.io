@@ -73,7 +73,7 @@ production latency. Browser timer throttling already varies by environment.
 Measure before choosing further changes: manifest pagination, sidebar count
 queries competing with foreground requests, HTML layout/resize observers,
 Markdown diff/conversion costs, Mermaid rendering, retained document memory,
-and cancellation of obsolete requests. The current changes do not establish
+and remaining background requests. The current changes do not establish
 that every performance issue is solved. Track slow real-world cases with a
 revision and timing report so each additional optimization has a reproducible
 baseline and a regression test.
@@ -101,3 +101,28 @@ Run `npm run e2e -- e2e/iframe-resize.spec.ts` against a built static export in 
 or the development server locally. When reviewing a real deck, test slide changes,
 notes, resource loading and narrow layouts before merging. Private deck fixtures
 must remain outside the public repository.
+
+## Cancelling obsolete navigation reads
+
+Changing a document, branch, repository or PR aborts the previous navigation's
+revision lookup, tree, document body and PR metadata/comment reads. Switching the
+selected PR file cancels its pending base/head downloads; closing or navigating a
+repository reference cancels its body read. Disposing the PR comment poller also
+aborts its active refresh. Cancellation reaches large-file blob downloads and
+stops retry waits.
+
+Deduplicated reads count their consumers. Leaving one view cancels only its
+subscription; the underlying download stops when its last consumer leaves.
+Completed immutable cache entries remain reusable, while cancelled requests
+cannot populate the cache. Returning immediately starts a fresh request.
+Generation guards remain as protection against late completions.
+
+This scope covers navigation reads, not every background request: sidebar
+enumeration and image loading still run to completion. GitHub writes are not
+cancelled by navigation. Aborting a browser request cannot undo work GitHub has
+already performed and does not guarantee a rate-limit refund.
+
+Regression coverage includes shared consumers, immediate revisits, session
+clearing, retry cancellation, navigation races and a delayed browser download
+on desktop and mobile. This reduces obsolete work; it is not a measured claim
+about production page-load latency.

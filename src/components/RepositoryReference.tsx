@@ -22,12 +22,13 @@ export default function RepositoryReference({target, onClose}: {target: Referenc
   const iframe = useRef<HTMLIFrameElement>(null);
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
     setContent(null); setError("");
     if (!isDocumentFile(current.path)) { setError("This link is not a supported Markdown or HTML document."); return; }
-    void fetchFileContent(current.repo, current.path, current.ref).then(text => {
+    void fetchFileContent(current.repo, current.path, current.ref, controller.signal).then(text => {
       if (!cancelled) setContent(text);
     }).catch(err => { if (!cancelled) setError(err instanceof Error ? err.message : "Could not load reference."); });
-    return () => { cancelled = true; };
+    return () => { cancelled = true; controller.abort(); };
   }, [current]);
   const navigate = (href: string) => {
     const link = resolveReviewLink(current.path, href);

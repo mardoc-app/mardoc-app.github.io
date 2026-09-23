@@ -253,20 +253,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const treeLoadGuard = useRef(createStalenessGuard()).current;
   const listLoadGuard = useRef(createStalenessGuard()).current;
   const navigationGuard = useRef(createStalenessGuard()).current;
+  const navigationController = useRef(new AbortController());
+  const treeController = useRef(new AbortController());
   const invalidateNavigation = useCallback(() => {
     navigationGuard.invalidate();
     fileLoadGuard.invalidate();
     prLoadGuard.invalidate();
     treeLoadGuard.invalidate();
+    navigationController.current.abort();
+    navigationController.current = new AbortController();
+    treeController.current.abort();
     setLoadingContent(false);
     setLoadingPRFiles(false);
     setLoadingFiles(false);
     setFileRevision(null);
   }, [navigationGuard, fileLoadGuard, prLoadGuard, treeLoadGuard]);
 
-  useEffect(() => () => {
-    navigationGuard.invalidate(); repoLoadGuard.invalidate(); fileLoadGuard.invalidate();
-    prLoadGuard.invalidate(); treeLoadGuard.invalidate(); listLoadGuard.invalidate();
+  useEffect(() => {
+    // React Strict Mode replays effects without recreating refs.
+    if (navigationController.current.signal.aborted) navigationController.current = new AbortController();
+    return () => {
+      navigationGuard.invalidate(); repoLoadGuard.invalidate(); fileLoadGuard.invalidate();
+      prLoadGuard.invalidate(); treeLoadGuard.invalidate(); listLoadGuard.invalidate();
+      navigationController.current.abort(); treeController.current.abort();
+    };
   }, [navigationGuard, repoLoadGuard, fileLoadGuard, prLoadGuard, treeLoadGuard, listLoadGuard]);
 
   // Initialize octokit when token changes, persist to localStorage
@@ -500,11 +510,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const loadTree = useCallback(async (repo: string, revision: Promise<string>) => {
     const isCurrent = treeLoadGuard.begin();
+    treeController.current.abort();
+    const controller = new AbortController();
+    treeController.current = controller;
     setLoadingFiles(true);
     try {
       const sha = await revision;
       if (!isCurrent()) return;
-      const files = await fetchRepoTree(repo, sha);
+      const files = await fetchRepoTree(repo, sha, controller.signal);
       if (isCurrent()) setRepoFiles(files);
     } catch (err) {
       if (isCurrent()) { setRepoFiles([]); setError(formatApiError(err, "Failed to load branch")); }
@@ -520,12 +533,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setHash(branch ? buildBranchHash(repo, branch) : buildRepoHash(repo));
     if (!githubToken) return;
     try {
-      const ref = branch || await fetchDefaultBranch(repo);
+      const ref = branch || await fetchDefaultBranch(repo, navigationController.current.signal);
       if (!isCurrent()) return;
       locationRef.current.branch = ref;
       if (!branch) setDefaultBranch(ref);
       setSelectedBranchState(ref);
-      await loadTree(repo, fetchRevision(repo, ref));
+      await loadTree(repo, fetchRevision(repo, ref, navigationController.current.signal));
     } catch (err) { if (isCurrent()) setError(formatApiError(err, "Failed to load repository")); }
   }, [invalidateNavigation, navigationGuard, activateRepo, setHash, githubToken, loadTree]);
 
@@ -546,7 +559,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const { owner, repo, branch } = pendingInitRef.current;
     pendingInitRef.current = null;
     activateRepo(`${owner}/${repo}`, branch || "main");
-    void loadTree(`${owner}/${repo}`, fetchRevision(`${owner}/${repo}`, branch || "main"));
+    void loadTree(`${owner}/${repo}`, fetchRevision(`${owner}/${repo}`, branch || "main", navigationController.current.signal));
   }, [githubToken, activateRepo, loadTree]);
 
   const setSelectedBranch = useCallback((branch: string) => {
@@ -568,13 +581,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     if (!repo || !githubToken) return;
     activateRepo(repo, branch);
-    const revision = fetchRevision(repo, branch);
+    const revision = fetchRevision(repo, branch, navigationController.current.signal);
     void loadTree(repo, revision);
     setLoadingContent(true);
     try {
       const sha = await revision;
       if (!isCurrent()) return;
-      const content = await fetchFileContent(repo, file.path, sha);
+      const content = await fetchFileContent(repo, file.path, sha, navigationController.current.signal);
       if (!isCurrent()) return;
       setFileContent(content); setFileRevision(sha);
     } catch (err) {
@@ -660,13 +673,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!repo || !githubToken) return;
     activateRepo(repo, pr.headBranch);
     setLoadingPRFiles(true);
-    void fetchPRComments(repo, pr.number).then(comments => {
+    void fetchPRComments(repo, pr.number, navigationController.current.signal).then(comments => {
       if (isCurrent()) setPRComments(comments);
     }).catch(err => {
       if (isCurrent()) setError(formatApiError(err, "Failed to load PR comments"));
     });
     try {
-      const files = await fetchPRFileManifest(repo, pr.number);
+      const files = await fetchPRFileManifest(repo, pr.number, navigationController.current.signal);
       if (!isCurrent()) return;
       if (fileIdx >= files.length && files.length) throw new Error("The linked PR file no longer exists. Open the PR to select a file.");
       setPRFiles(files);
@@ -679,14 +692,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (currentView !== "pr-diff" || !selectedPR || !githubToken || !selectedPRFile || selectedPRFile.loadState !== "pending") return;
     let cancelled = false;
+    const controller = new AbortController();
     const index = selectedPRFileIdx;
-    void fetchPRFile(selectedPRFile).then(file => {
+    void fetchPRFile(selectedPRFile, controller.signal).then(file => {
       if (!cancelled) setPRFiles(files => files.map((old, i) => i === index ? file : old));
     }).catch(err => {
       if (!cancelled) setPRFiles(files => files.map((old, i) => i === index
         ? { ...old, loadState: "error", loadError: formatApiError(err, "Failed to load document") } : old));
     });
-    return () => { cancelled = true; };
+    return () => { cancelled = true; controller.abort(); };
   }, [selectedPRFile, selectedPRFileIdx, currentView, selectedPR, githubToken]);
 
   const openPR = useCallback((pr: PullRequest) => {
@@ -725,7 +739,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const isCurrent = navigationGuard.begin();
       setError(null); setSelectedFile(null); setSelectedPR(null); setLoadingPRFiles(true);
       try {
-        const pr = await fetchPullRequest(route.repoFullName!, route.prNumber);
+        const pr = await fetchPullRequest(route.repoFullName!, route.prNumber, navigationController.current.signal);
         if (isCurrent()) await _openPRInternal(pr, route.repoFullName, route.prFileIdx, route.anchor);
       } catch (err) {
         if (isCurrent()) { setError(formatApiError(err, "Failed to open linked PR")); setLoadingPRFiles(false); }
@@ -763,7 +777,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const { repo, branch } = locationRef.current;
     if (repo && githubToken) {
       loadMetadata(repo);
-      await loadTree(repo, fetchRevision(repo, branch));
+      await loadTree(repo, fetchRevision(repo, branch, navigationController.current.signal));
     }
   }, [githubToken, loadMetadata, loadTree]);
 
