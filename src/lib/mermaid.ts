@@ -1,5 +1,7 @@
 "use client";
 
+import { measureOperation } from "./performance";
+
 const LIGHT_THEME_VARS = {
   primaryColor: "#E6F1FB",
   primaryTextColor: "#0C447C",
@@ -85,7 +87,11 @@ const MERMAID_KEYWORDS = /^(graph|flowchart|sequenceDiagram|classDiagram|stateDi
  * <img> tags containing SVG data URIs. Use this before passing HTML to
  * TipTap, which manages its own DOM and can't have elements replaced post-render.
  */
-export async function preRenderMermaid(html: string): Promise<string> {
+export function preRenderMermaid(html: string): Promise<string> {
+  return measureOperation("mermaid-prepare", () => preRenderMermaidUnmeasured(html));
+}
+
+async function preRenderMermaidUnmeasured(html: string): Promise<string> {
   // Quick check — skip the mermaid import if no mermaid blocks
   if (!html.includes("language-mermaid") && !html.includes("class=\"mermaid")) return html;
 
@@ -133,7 +139,11 @@ export async function preRenderMermaid(html: string): Promise<string> {
  * Detects mermaid blocks by CSS class (dangerouslySetInnerHTML) or by content
  * keywords (TipTap which strips language classes).
  */
-export async function renderMermaidBlocks(container: HTMLElement): Promise<void> {
+export function renderMermaidBlocks(container: HTMLElement): Promise<void> {
+  return measureOperation("mermaid-render", () => renderMermaidBlocksUnmeasured(container));
+}
+
+async function renderMermaidBlocksUnmeasured(container: HTMLElement): Promise<void> {
   const allCodeBlocks = container.querySelectorAll<HTMLElement>("pre > code");
   const codeBlocks = Array.from(allCodeBlocks).filter((el) => {
     // Match by class (DiffViewer / dangerouslySetInnerHTML)

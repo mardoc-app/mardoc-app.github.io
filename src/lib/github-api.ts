@@ -1,5 +1,7 @@
 "use client";
 
+import { measureOperation } from "./performance";
+
 import { Octokit } from "@octokit/rest";
 import { RepoFile, PullRequest, PRFile, PRComment } from "@/types";
 import { isDocumentFile } from "@/lib/file-types";
@@ -251,7 +253,7 @@ async function fetchContentData(repoFullName: string, path: string, ref?: string
 }
 
 export async function fetchFileContent(repoFullName: string, path: string, ref?: string): Promise<string> {
-  return base64ToUtf8((await fetchContentData(repoFullName, path, ref)).content);
+  return measureOperation("document-fetch", async () => base64ToUtf8((await fetchContentData(repoFullName, path, ref)).content));
 }
 
 export async function fetchPullRequests(
@@ -356,7 +358,11 @@ export async function fetchPRMarkdownCounts(
 }
 
 /** Metadata only: opening one document must not download every PR document. */
-export async function fetchPRFileManifest(repoFullName: string, prNumber: number): Promise<PRFile[]> {
+export function fetchPRFileManifest(repoFullName: string, prNumber: number): Promise<PRFile[]> {
+  return measureOperation("pr-manifest", () => fetchPRFileManifestUnmeasured(repoFullName, prNumber));
+}
+
+async function fetchPRFileManifestUnmeasured(repoFullName: string, prNumber: number): Promise<PRFile[]> {
   const octokit = getOctokit();
   if (!octokit) throw new Error("Not authenticated");
   const { owner, repo } = parseOwnerRepo(repoFullName);
@@ -394,7 +400,11 @@ export async function fetchPRFiles(repoFullName: string, prNumber: number): Prom
   return result;
 }
 
-export async function fetchPRComments(
+export function fetchPRComments(repoFullName: string, prNumber: number): Promise<PRComment[]> {
+  return measureOperation("pr-comments", () => fetchPRCommentsUnmeasured(repoFullName, prNumber));
+}
+
+async function fetchPRCommentsUnmeasured(
   repoFullName: string,
   prNumber: number
 ): Promise<PRComment[]> {
