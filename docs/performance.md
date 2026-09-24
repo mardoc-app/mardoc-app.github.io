@@ -146,3 +146,27 @@ Unit coverage checks independent request lifetimes, repository switches, logout,
 unmounting and transport signals. Desktop/mobile browser coverage stalls a PR list
 and then a count query, changes filters, and verifies cancellation and a stable
 document without additional body reads.
+
+## Markdown conversion and Mermaid layout reuse
+
+Each PR viewer retains a bounded cache of pure Markdown conversion plus syntax
+highlighting (256 blocks, approximately 2 MiB of source/output string payload).
+Image URLs and comment highlights are still applied outside the cache. Changing
+base/head content replaces it; unmounting releases it.
+
+Editor Mermaid SVG layout is shared for identical source and theme, including
+concurrent loads, with a 64-entry / 4 MiB serialized-value budget. Cache keys and
+JavaScript overhead are additional to that payload budget. Authentication changes
+clear this session cache. Invalid diagrams are retried, and theme configuration
+and render jobs are serialized. Inline PR diagrams retain unique IDs, while
+concurrent DOM scans share work for each code block.
+
+A synthetic 200-block / ten-update microbenchmark reduced conversions from 2,000
+to 200 (one local run: 72.0 ms to 5.8 ms). A desktop browser fixture with two
+identical Unicode diagrams measured 57.1 ms for cold editor preparation and 0.8 ms
+on revisit. These are operation timings from synthetic fixtures, not production
+page-load estimates; cold Mermaid preparation also includes module loading.
+
+Run `e2e/render-reuse.spec.ts`, `e2e/pr-mermaid-stability.spec.ts`, and
+`src/__tests__/render-reuse.test.ts` to check reuse, source preservation, theme
+separation, bounded eviction, unique inline IDs and comment-panel stability.
