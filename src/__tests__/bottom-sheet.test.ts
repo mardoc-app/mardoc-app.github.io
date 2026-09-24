@@ -40,7 +40,9 @@ describe("BottomSheet", () => {
 
   it("translates off-screen when closed", () => {
     mount({ open: false });
-    const sheet = screen.getByRole("dialog");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    const sheet = screen.getByRole("dialog", {hidden:true});
+    expect(sheet.inert).toBe(true);
     expect(sheet.style.transform).toBe("translateY(100%)");
   });
 
