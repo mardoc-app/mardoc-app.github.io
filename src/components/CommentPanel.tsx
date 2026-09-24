@@ -2,12 +2,14 @@
 
 import React, { useState } from "react";
 import { X, MessageSquare, Check, Send } from "lucide-react";
+import type { CommentTarget } from "@/lib/comment-target";
 import { parseSuggestionBody } from "@/lib/suggestion-body";
 
 // ─── Comment panel — the one and only place PR comments render ──────────
 
 export interface PanelComment {
   id: string;
+  target?: CommentTarget;
   selectedText: string;
   body: string;
   author: string;
@@ -26,6 +28,7 @@ export interface CommentPanelProps {
   comments: PanelComment[];
   activeCommentId: string | null;
   onSelect: (id: string) => void;
+  onJump?: (id: string) => void;
   onReply: (id: string, body: string) => void;
   onResolve: (id: string) => void;
   onAccept?: (id: string) => void;
@@ -37,6 +40,7 @@ export default function CommentPanel({
   comments,
   activeCommentId,
   onSelect,
+  onJump,
   onReply,
   onResolve,
   onAccept,
@@ -81,21 +85,31 @@ export default function CommentPanel({
                   : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--accent)]"
               }`}
             >
+              <div className="flex items-center justify-between gap-2 px-3 pt-2">
+                <span className="text-[10px] text-[var(--text-muted)]">
+                  {comment.target?.side === "LEFT" ? "Base" : comment.target?.side === "RIGHT" ? "Head" : ""}
+                  {comment.target?.status === "outdated" ? " · Outdated" : comment.target?.status === "file" ? " · File comment" : ""}
+                </span>
+                <button type="button" className="min-h-[44px] px-2 text-xs font-medium text-[var(--accent)] rounded focus-visible:outline focus-visible:outline-2"
+                  onClick={e => { e.stopPropagation(); (onJump || onSelect)(comment.id); }}>Jump to comment</button>
+              </div>
               {/* Quoted text */}
               {comment.selectedText && (
                 <div className="px-3 pt-2.5 pb-1">
                   <div className="text-[10px] text-[var(--accent)] bg-[var(--accent-muted)] px-2 py-1 rounded-md font-mono leading-snug line-clamp-2 mb-2">
                     &ldquo;{comment.selectedText}&rdquo;
                   </div>
+
+                </div>
+              )}
+
                   {comment.startLine && (
-                    <div className="text-[9px] text-[var(--text-muted)] mb-1">
+                    <div className="px-3 text-[9px] text-[var(--text-muted)] mb-1">
                       {comment.startLine === comment.endLine
                         ? `Line ${comment.startLine}`
                         : `Lines ${comment.startLine}–${comment.endLine}`}
                     </div>
                   )}
-                </div>
-              )}
 
               {/* Main comment */}
               <div className="px-3 pb-2">

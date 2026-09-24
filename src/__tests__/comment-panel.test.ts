@@ -349,3 +349,19 @@ describe("CommentPanel — resolved comments", () => {
     expect(screen.queryByText("Resolved")).toBeNull();
   });
 });
+
+describe("CommentPanel — explicit jump control", () => {
+  it("keeps thread selection separate from jumping", () => {
+    const onSelect = vi.fn(), onJump = vi.fn();
+    render(e(CommentPanel, {
+      comments:[makeComment({id:"c1"})],activeCommentId:null,
+      onSelect,onJump,onReply:vi.fn(),onResolve:vi.fn(),onClose:vi.fn(),
+    }));
+    fireEvent.click(screen.getByText(/the quick brown fox/));
+    expect(onSelect).toHaveBeenCalledWith("c1");
+    expect(onJump).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button",{name:"Jump to comment"}));
+    expect(onJump).toHaveBeenCalledWith("c1");
+    expect(onSelect).toHaveBeenCalledTimes(1);
+  });
+});

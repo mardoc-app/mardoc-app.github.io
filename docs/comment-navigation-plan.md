@@ -4,7 +4,7 @@ Acceptance rule: reach the correct target, or explain why it cannot be located.
 Never silently jump to a plausible match. Ship one stage per PR, followed by
 desktop/mobile checks and a real-document acceptance pass before merging.
 
-## 1. Accurate comment targets — in progress
+## 1. Accurate comment targets — shipped (#124)
 
 - [x] Preserve path, base/head side, commit IDs and original/current line ranges.
 - [x] Keep historical coordinates separate; identify outdated and file comments.
@@ -12,15 +12,17 @@ desktop/mobile checks and a real-document acceptance pass before merging.
 - [x] Capture target metadata for pending selection comments.
 - [x] Provide exact-path-first, unambiguous rename lookup for the navigator.
 - [x] Validate API reloads and historical coordinates with regression fixtures.
-- [ ] Review and merge the foundation PR.
+- [x] Review and merge the foundation PR.
 
-## 2. Reliable Markdown jumps — planned
+## 2. Reliable Markdown jumps — in review
 
-- [ ] Use coordinates and quote context to distinguish repeated text.
-- [ ] Respect base/head and outdated status throughout display and navigation.
-- [ ] Replace silent failure with explicit missing/ambiguous/outdated feedback.
-- [ ] Add keyboard-accessible jump controls; dismiss mobile sheet on jump.
-- [ ] Test formatted, cross-block, repeated and deleted selections.
+- [x] Use coordinates and quote context to distinguish repeated text.
+- [x] Respect base/head and outdated status throughout display and navigation.
+- [x] Replace silent failure with explicit missing/ambiguous/outdated feedback.
+- [x] Add keyboard-accessible jump controls; dismiss mobile sheet on jump.
+- [x] Test formatted, cross-block, repeated and deleted selections.
+
+- [ ] Manual acceptance and merge of the Markdown jump PR.
 
 ## 3. PR-wide comment navigation — planned
 
@@ -47,8 +49,8 @@ desktop/mobile checks and a real-document acceptance pass before merging.
 
 ## Foundation scope
 
-Stage 1 supplies location evidence, not a complete locator. Existing text-based
-highlighting and comment click behavior remain to be replaced in stages 2–4.
+Stage 1 supplies location evidence, not a complete locator. Markdown navigation now uses stage 2 location evidence; HTML targeting remains
+planned in stages 4–5.
 GitHub comment pagination and review-thread pagination also require coverage:
 the current loader fetches only the first 100 comments/threads. Include complete
 comment enumeration in stage 3 so the PR-wide navigator cannot silently omit work.
@@ -70,5 +72,30 @@ The future locator must verify quote text against coordinates/context.
 
 `commentFileIndex` prefers exact current paths, then a unique previous filename.
 It does not fetch historical revisions or silently choose among ambiguous aliases.
-UI integration of this lookup belongs to stage 3. Existing viewers do not yet
-fully consume target metadata; side-aware highlighting belongs to stage 2.
+UI integration of this lookup belongs to stage 3. Markdown viewers consume side/range/status evidence in stage 2. HTML targeting
+remains a separate stage.
+
+
+### Markdown jump behavior (stage 2)
+
+The explicit Jump to comment button switches to split view, which keeps base and
+head text distinct. Source blocks carry side and line-range annotations. The
+locator restricts candidates by those coordinates, validates the quote against
+rendered source lines, normalizes whitespace, and requires one matching passage.
+Emphasis/link tags and multiple blocks can share one highlight. Older, unknown,
+missing, and ambiguous locations produce visible status text instead of a guess.
+Comments without quotes can jump to a source block, explicitly labelled as such
+rather than claiming an exact text selection.
+
+Within a multiline Markdown block, multiple identical rendered matches remain
+ambiguous even if a narrower line might distinguish them; this conservative
+fallback avoids inventing a per-character Markdown source map. Complex Markdown
+whose isolated source lines cannot reproduce the quote also reports missing.
+Mermaid SVG internals are excluded. Preview/suggestion views are not treated as
+the reviewed revision: jumping selects split view.
+
+Selecting a card opens its reply controls; jumping is a separate keyboard button.
+Mobile jumps dismiss the sheet and focus the highlighted document. Closed sheets
+are hidden from assistive technology and inert. Reduced-motion users receive a
+static outline. Existing HTML comment creation remains available; its jump action
+now explicitly explains that HTML targeting is not implemented yet.

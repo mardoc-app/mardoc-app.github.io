@@ -710,3 +710,12 @@ img.mardoc-image-failed::before {
     font-style: italic;
   }
 }
+
+/* Comment jumps should remain visible without animation when motion is reduced. */
+@media (prefers-reduced-motion: reduce) {
+  .comment-highlight-flash {
+    animation: none;
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
