@@ -30,6 +30,7 @@ import { resolveReviewLink, scrollToDocumentAnchor } from "@/lib/review-links";
 import { buildFileHash, buildPRHash } from "@/lib/hash-router";
 import { useApp } from "@/lib/app-context";
 import { openExternal } from "@/lib/open-external";
+import { createRenderCache } from "@/lib/render-cache";
 import { renderMermaidBlocks } from "@/lib/mermaid";
 import { highlightCodeBlocks } from "@/lib/highlight";
 import { useWideFormat } from "@/lib/use-wide-format";
@@ -560,21 +561,28 @@ export default function DiffViewer({
     }
   }, [pendingSelection]);
 
+  // Cache pure conversion only: image resolution and comment markup remain live.
+  // Each viewer owns its bounded cache; replacing a document releases it.
+  const convertBlock = useMemo(() => {
+    const cached = createRenderCache();
+    return (block: string) => cached(block, blockToHtml);
+  }, [file.baseContent, file.headContent]);
+
   // Render markdown block to HTML with repo-relative image URLs resolved
   const baseBlockToHtml = useCallback(
     (block: string) =>
       repoFullName
-        ? rewriteImageUrls(blockToHtml(block), file.baseRepo || repoFullName, file.baseRef || baseBranch, file.basePath || file.path)
-        : blockToHtml(block),
-    [repoFullName, baseBranch, file.path, file.baseRef, file.baseRepo, file.basePath]
+        ? rewriteImageUrls(convertBlock(block), file.baseRepo || repoFullName, file.baseRef || baseBranch, file.basePath || file.path)
+        : convertBlock(block),
+    [convertBlock, repoFullName, baseBranch, file.path, file.baseRef, file.baseRepo, file.basePath]
   );
 
   const headBlockToHtml = useCallback(
     (block: string) =>
       repoFullName
-        ? rewriteImageUrls(blockToHtml(block), file.headRepo || repoFullName, file.headRef || headBranch, file.path)
-        : blockToHtml(block),
-    [repoFullName, headBranch, file.path, file.headRef, file.headRepo]
+        ? rewriteImageUrls(convertBlock(block), file.headRepo || repoFullName, file.headRef || headBranch, file.path)
+        : convertBlock(block),
+    [convertBlock, repoFullName, headBranch, file.path, file.headRef, file.headRepo]
   );
 
   // Parsed blocks with line ranges
