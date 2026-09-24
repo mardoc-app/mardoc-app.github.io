@@ -23,6 +23,14 @@ const lowlight = createLowlight(common);
 
 // Extend TipTap Image to preserve data attributes needed for round-trip fidelity
 const Image = BaseImage.extend({
+  parseHTML() {
+    return [
+      ...(this.parent?.() || []),
+      // Mermaid images own their bytes rather than leaking object URLs. Keep
+      // the base extension's rules for all other image sources.
+      { tag: 'img[data-mermaid-source][src^="data:image/svg+xml;base64,"]' },
+    ];
+  },
   addAttributes() {
     return {
       ...this.parent?.(),
