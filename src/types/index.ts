@@ -1,3 +1,5 @@
+import type { CommentTarget } from "@/lib/comment-target";
+
 export interface RepoFile {
   id: string;
   name: string;
@@ -16,6 +18,7 @@ export interface PRCommentReply {
 }
 
 export interface PRComment {
+  target?: CommentTarget; // Revision-aware location; originals are historical only.
   id: string;
   githubId?: number; // numeric GitHub comment ID for API calls (replies, resolve)
   threadId?: string; // GraphQL node ID for the review thread (resolve/unresolve)
