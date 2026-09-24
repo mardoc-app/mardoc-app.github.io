@@ -46,11 +46,13 @@ import CommentPanel, { type PanelComment } from "./CommentPanel";
 import SuggestBlockEditor from "./SuggestBlockEditor";
 import { extractCommentSuggestions, mergeSuggestions } from "@/lib/suggestion-extract";
 import { parseSuggestionBody } from "@/lib/suggestion-body";
+import { commentFileIndex } from "@/lib/comment-target";
 import { locateMarkdownComment, markCommentLocation, clearCommentMarks, commentLocationMessages } from "@/lib/markdown-comment-location";
 
 interface DiffViewerProps {
   file: PRFile;
   anchor?: string;
+  externalJump?: {id: string; sequence: number};
   onNavigateLink?: (href: string, file: PRFile, side: "base" | "head") => void;
   repoFullName: string;
   baseBranch: string;
@@ -288,6 +290,7 @@ function FloatingToolbar({
 export default function DiffViewer({
   file,
   anchor,
+  externalJump,
   onNavigateLink,
   repoFullName,
   baseBranch,
@@ -488,12 +491,11 @@ export default function DiffViewer({
   // pendingPath; issue comments (ic-*, no path) are PR-level and
   // excluded from per-file views.
   const allPanelComments: PanelComment[] = useMemo(() => {
-    const filePath = file.path;
+    const files = prFiles?.length ? prFiles : [file];
     return comments
-      .filter((c) => {
-        if (c.pending) return c.pendingPath === filePath;
-        if (c.path) return c.path === filePath;
-        return false;
+      .filter(c => {
+        const index = commentFileIndex(c, files);
+        return index >= 0 && files[index].path === file.path;
       })
       .map((c) => {
         const selectedText = c.selectedText || "";
@@ -524,7 +526,7 @@ export default function DiffViewer({
           pending: c.pending,
         };
       });
-  }, [comments, file.path, file.headContent]);
+  }, [comments, file, prFiles]);
 
   // Auto-show the panel on the 0→N transition — initial mount when a
   // PR already has unresolved comments, or later when a new comment
@@ -834,6 +836,16 @@ export default function DiffViewer({
 
   useEffect(() => { setJumpMessage(""); setJumpRequest(null); }, [file.path, file.baseContent, file.headContent]);
 
+  // PRDetail only mounts this viewer after loading. Consume each request once,
+  // so background comment refreshes cannot steal focus or repeat the scroll.
+  const deliveredJump = useRef<DiffViewerProps["externalJump"]>(undefined);
+  useEffect(() => {
+    if (!externalJump || deliveredJump.current === externalJump) return;
+    deliveredJump.current = externalJump;
+    if (!isMobile) setShowPanel(true);
+    handleCommentSelect(externalJump.id);
+  }, [externalJump, handleCommentSelect, isMobile]);
+
   // Source wrappers give the locator stable side/range evidence. Pure conversion
   // remains cached; annotations do not modify the underlying Markdown.
   const renderBlockHtml = useCallback((rawHtml: string, side: "LEFT" | "RIGHT",
@@ -845,12 +857,12 @@ export default function DiffViewer({
     if (fileIsHtml || !contentRef.current || (viewMode !== "rendered" && viewMode !== "split")) return;
     const container = contentRef.current;
     clearCommentMarks(container);
-    for (const comment of allPanelComments.filter(c => !c.resolved)) {
+    for (const comment of allPanelComments.filter(c => !c.resolved || c.id === jumpRequest?.id)) {
       const location = locateMarkdownComment(container, comment.target, comment.selectedText, comment.target?.side === "LEFT" ? file.baseContent : file.headContent);
       if (location.status === "found") markCommentLocation(location, comment.id);
     }
     return () => { clearCommentMarks(container); };
-  }, [allPanelComments, viewMode, fileIsHtml, previewBlocks, diffBlocks, file.baseContent, file.headContent]);
+  }, [allPanelComments, jumpRequest, viewMode, fileIsHtml, previewBlocks, diffBlocks, file.baseContent, file.headContent]);
 
   useEffect(() => {
     if (!jumpRequest || fileIsHtml || handledJump.current === jumpRequest) return;
