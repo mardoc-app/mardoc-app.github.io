@@ -1,7 +1,8 @@
 /**
  * Walks an HTML source string and injects a `data-mardoc-line="N"`
  * attribute on every element's opening tag, where N is the 1-indexed
- * line number the tag starts on in the source.
+ * line number the tag starts on in the source. With includeEndLines, also
+ * annotate each element’s closing source line for existing-comment navigation.
  *
  * Used by feature 033 (inline comments on HTML files). When the
  * rendered HTML is loaded into the review iframe, a companion script
@@ -14,17 +15,19 @@
  * The injector is careful to preserve the source byte-for-byte
  * except for the new attribute — whitespace, ordering, and
  * existing attributes are untouched. It skips HTML comments,
- * DOCTYPE declarations, and the bodies of `<script>` and `<style>`
- * tags so that text that looks like HTML inside those regions is
+ * DOCTYPE declarations, and raw-text bodies (script, style, textarea, title) so that text that looks like HTML inside those regions is
  * not mistaken for real elements.
  */
 
 const ATTR_NAME = "data-mardoc-line";
 
-export function injectSourceLineAttributes(source: string): string {
+export function injectSourceLineAttributes(source: string, includeEndLines = false): string {
   if (!source) return "";
 
   let out = "";
+  const ranges: {offset: number; name: string; end: number}[] = [];
+  const stack: typeof ranges = [];
+  const voidTags = new Set(["area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"]);
   let i = 0;
   let line = 1;
   const len = source.length;
@@ -89,6 +92,15 @@ export function injectSourceLineAttributes(source: string): string {
         break;
       }
       const chunk = source.slice(i, end + 1);
+      if (includeEndLines) {
+        const name = /^<\/\s*([\w:-]+)/.exec(chunk)?.[1].toLowerCase();
+        for (let k = stack.length - 1; k >= 0; k--) {
+          if (stack[k].name === name) {
+            for (const range of stack.splice(k)) range.end = line + countNewlines(chunk);
+            break;
+          }
+        }
+      }
       out += chunk;
       line += countNewlines(chunk);
       i = end + 1;
@@ -140,13 +152,18 @@ export function injectSourceLineAttributes(source: string): string {
       // The chunk from `<` up to and including `>`
       const tagBody = source.slice(tagStart, end + 1);
       const injected = addAttribute(tagBody, tagStartLine);
+      if (includeEndLines) {
+        const slash = /\/\s*>$/.exec(injected);
+        const range = {offset: out.length + (slash ? slash.index : injected.length - 1), name: tagName.toLowerCase(), end: line};
+        ranges.push(range);
+        if (!slash && !voidTags.has(range.name)) stack.push(range);
+      }
       out += injected;
       i = end + 1;
 
-      // Skip raw-text element bodies: <script> and <style> contents
-      // are not HTML and must not be rescanned
+      // Raw text and escapable raw text must not be rescanned as tags.
       const lower = tagName.toLowerCase();
-      if (lower === "script" || lower === "style") {
+      if (["script", "style", "textarea", "title"].includes(lower)) {
         const closing = `</${lower}`;
         // Find the closing tag case-insensitively
         const remaining = source.slice(i);
@@ -173,7 +190,16 @@ export function injectSourceLineAttributes(source: string): string {
     i++;
   }
 
-  return out;
+  if (!includeEndLines) return out;
+  for (const range of stack) range.end = line;
+  const pieces: string[] = [];
+  let offset = 0;
+  for (const range of ranges) {
+    pieces.push(out.slice(offset, range.offset), ` data-mardoc-end-line="${range.end}"`);
+    offset = range.offset;
+  }
+  pieces.push(out.slice(offset));
+  return pieces.join("");
 }
 
 /**
