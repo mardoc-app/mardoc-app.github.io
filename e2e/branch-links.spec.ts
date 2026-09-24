@@ -113,7 +113,7 @@ test("sidebar requests lists only when their controls are opened", async ({page,
 });
 
 
-test("presenter links open PR documents and pinned references, and Back preserves the deck", async ({page}) => {
+test("presenter links open PR documents and pinned references, and Back preserves the deck", async ({page}, testInfo) => {
   await mockGitHub(page);
   const pr={number:381,title:"Training",state:"open",created_at:"2026-09-23T00:00:00Z",body:"",
     user:{login:"reviewer"},base:{ref:"main",sha:A,repo:{full_name:"acme/docs"}},head:{ref:branch,sha:B,repo:{full_name:"acme/docs"}}};
@@ -154,6 +154,31 @@ test("presenter links open PR documents and pinned references, and Back preserve
   await frame.getByRole("link",{name:"Workshop outcomes"}).click();
   await expect(page.getByRole("heading",{name:"Workshop outcomes",exact:true}).first()).toBeInViewport();
   await expect(page).toHaveURL(/pull\/381\?anchor=workshop-outcomes$/);
+  await page.keyboard.press("Escape"); // Dismiss the mobile comment sheet before returning.
+  const returnBar = page.getByRole("navigation", {name:"Return to review"});
+  const returnButton = returnBar.getByRole("button", {name:"Back to review",exact:true});
+  await expect(returnButton).toBeInViewport();
+  await expect(returnBar.getByText("architecture.html", {exact:true})).toBeVisible();
+  const size = await returnButton.boundingBox();
+  expect(size!.width).toBeGreaterThan(130);
+  expect(size!.height).toBeGreaterThanOrEqual(44);
+  const labelHeight = await returnButton.evaluate(button => {
+    const text = Array.from(button.childNodes).find(node => node.nodeType === Node.TEXT_NODE && node.textContent?.includes("Back to review"))!;
+    const range = document.createRange(); range.selectNodeContents(text);
+    return range.getBoundingClientRect().height;
+  });
+  expect(labelHeight).toBeLessThan(30); // The label stays on one line.
+  await page.screenshot({path:`/tmp/return-review-${testInfo.project.name}.png`});
+  await page.getByRole("button", {name:"Toggle theme",exact:true}).click();
+  await expect(returnButton).toBeVisible();
+  await page.screenshot({path:`/tmp/return-review-dark-${testInfo.project.name}.png`});
+  await page.getByRole("button", {name:"Toggle theme",exact:true}).click();
+  await returnButton.focus();
+  await page.keyboard.press("Enter");
+  await expect(frame.locator("#slide")).toHaveText("2");
+  await expect(frame.locator("#notes")).toBeVisible();
+  await frame.getByRole("link",{name:"Workshop outcomes"}).click();
+
   await page.goBack();
   await expect(frame.locator("#slide")).toHaveText("2");
   await expect(frame.locator("#notes")).toBeVisible();
@@ -161,6 +186,10 @@ test("presenter links open PR documents and pinned references, and Back preserve
   await expect(page.getByText(/Not changed in this PR/)).toBeVisible();
   await expect(page.frameLocator('iframe[title="Read-only repository document"]').getByRole("heading",{name:"Reference heading"})).toBeVisible();
   expect(reads).toContainEqual({path:"docs/reference.md",ref:B});
+  await expect(returnBar.getByText("architecture.html", {exact:true})).toBeVisible();
+  await expect(returnButton).toBeInViewport();
+  await page.screenshot({path:`/tmp/return-reference-${testInfo.project.name}.png`});
+
   await page.getByRole("button",{name:"Back to review",exact:true}).click();
   await expect(frame.locator("#slide")).toHaveText("2");
   await page.context().route("https://example.com/**", route => route.fulfill({contentType:"text/html", body:"<h1>External training</h1>"}));
