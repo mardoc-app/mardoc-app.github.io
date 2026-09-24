@@ -170,3 +170,30 @@ page-load estimates; cold Mermaid preparation also includes module loading.
 Run `e2e/render-reuse.spec.ts`, `e2e/pr-mermaid-stability.spec.ts`, and
 `src/__tests__/render-reuse.test.ts` to check reuse, source preservation, theme
 separation, bounded eviction, unique inline IDs and comment-panel stability.
+
+## Retained document and iframe memory audit
+
+Editor Mermaid preparation previously allocated an object URL for every diagram
+on every visit, without revoking it. Those URLs keep Blob storage alive for the
+page's lifetime even after the editor document disappears. Diagram images now use
+UTF-8-safe SVG data URIs, so there is no object-URL registry allocation. Their
+bytes are owned by editor documents/history and the bounded layout cache; they
+become eligible for collection when those owners release them. Data URI encoding
+has overhead, so this is a lifetime fix, not a claim of lower peak memory.
+
+The PR viewer mounts only the selected document plus one originating deck for
+Back navigation, with at most one repository-reference overlay. The deck is
+intentionally alive: its scripts, slide position and presenter notes must survive
+reference review. Browser checks repeatedly open/close eight references, assert
+all eight reference frames detach, retain the deck's slide/notes, and verify no
+viewer frames remain after leaving the review. Editor checks revisit Unicode
+diagrams repeatedly and assert zero SVG object-URL allocations and readable images.
+These checks establish resource lifetimes, not a cross-browser heap-byte budget.
+
+Remaining memory work: visited base/head document strings are retained in PR state
+until the PR is replaced, independent of the bounded API caches. Editor undo
+history also intentionally owns previous content. Large real-world PRs should be
+profiled before introducing body eviction or undo-history limits, which could
+trade memory for extra downloads or lost editing state. Hidden originating decks
+continue running their own scripts; pausing or evicting them needs a separate
+presentation-state design. Image download cancellation is still outstanding.
