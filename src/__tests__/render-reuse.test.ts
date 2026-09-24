@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { base64ToUtf8 } from "@/lib/base64-utf8";
+import { createTurndownService } from "@/lib/turndown";
 import { createRenderCache } from "@/lib/render-cache";
 import { clearMermaidCache, preRenderMermaid, renderMermaidBlocks } from "@/lib/mermaid";
 import { blockToHtml } from "@/lib/diff-blocks";
@@ -87,4 +89,20 @@ it("serializes different-theme work and initializes each render's captured theme
   const dark = preRenderMermaid(html);
   await Promise.all([light, dark]);
   expect(themes).toEqual(["#E6F1FB", "#363949"]);
+});
+
+it("owns Unicode diagram bytes without allocating persistent object URLs", async () => {
+  mermaid.render.mockResolvedValue({svg:'<svg xmlns="http://www.w3.org/2000/svg"><text>日本語 &amp; café</text></svg>'});
+  for (let i = 0; i < 20; i++) {
+    const rendered = await preRenderMermaid(html);
+    const container = document.createElement("div"); container.innerHTML = rendered;
+    const img = container.querySelector("img")!;
+    expect(img.src).toMatch(/^data:image\/svg\+xml;base64,/);
+    expect(base64ToUtf8(img.src.split(",")[1])).toContain("日本語 &amp; café");
+    const markdown = createTurndownService().turndown(rendered);
+    expect(markdown).toContain("```mermaid");
+    expect(markdown).toContain("A --> B");
+    expect(markdown).not.toContain("data:image");
+  }
+  expect(URL.createObjectURL).not.toHaveBeenCalled();
 });
