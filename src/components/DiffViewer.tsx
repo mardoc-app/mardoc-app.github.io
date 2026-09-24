@@ -46,7 +46,7 @@ import CommentPanel, { type PanelComment } from "./CommentPanel";
 import SuggestBlockEditor from "./SuggestBlockEditor";
 import { extractCommentSuggestions, mergeSuggestions } from "@/lib/suggestion-extract";
 import { parseSuggestionBody } from "@/lib/suggestion-body";
-import { injectCommentHighlights } from "@/lib/highlight-comments";
+import { locateMarkdownComment, markCommentLocation, clearCommentMarks, commentLocationMessages } from "@/lib/markdown-comment-location";
 
 interface DiffViewerProps {
   file: PRFile;
@@ -318,6 +318,9 @@ export default function DiffViewer({
   }, [isMobile]);
 
   // Single source of truth: comments prop from PRDetail (no local duplicate)
+  const handledJump = useRef<object | null>(null);
+  const [jumpRequest, setJumpRequest] = useState<{id:string} | null>(null);
+  const [jumpMessage, setJumpMessage] = useState("");
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const [pendingSelection, setPendingSelection] = useState<string | null>(null);
   const [pendingCommentInput, setPendingCommentInput] = useState("");
@@ -493,31 +496,16 @@ export default function DiffViewer({
         return false;
       })
       .map((c) => {
-        // For GitHub comments with line ranges but no selectedText,
-        // extract the text from the file content and strip markdown
-        // syntax so it matches against the rendered HTML text layer.
-        let selectedText = c.selectedText || "";
-        if (!selectedText && c.startLine && c.endLine && file.headContent) {
-          const lines = file.headContent.split("\n");
-          const raw = lines
-            .slice(c.startLine - 1, c.endLine)
-            .join("\n")
-            .trim();
-          selectedText = raw
-            .replace(/^#{1,6}\s+/gm, "")
-            .replace(/\*\*(.+?)\*\*/g, "$1")
-            .replace(/\*(.+?)\*/g, "$1")
-            .replace(/`(.+?)`/g, "$1")
-            .replace(/^>\s?/gm, "")
-            .replace(/^[-*+]\s+/gm, "")
-            .replace(/^\d+\.\s+/gm, "")
-            .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-            .trim();
-        }
+        const selectedText = c.selectedText || "";
+        const target = c.target || (c.startLine && c.endLine ? {
+          path: c.path || file.path, side: "RIGHT" as const, status: "current" as const,
+          startLine: c.startLine, endLine: c.endLine,
+        } : undefined);
 
         return {
           id: c.id,
           selectedText,
+          target,
           body: c.body,
           author: c.author,
           avatarColor: c.avatarColor,
@@ -832,57 +820,70 @@ export default function DiffViewer({
     setActiveCommentId(null);
   }, [onResolveComment]);
 
-  // Scroll-to-mark behaviour when the user taps a comment in the
-  // panel. Shared between the desktop right-rail and the mobile sheet
-  // so the flows don't diverge.
   const handleCommentSelect = useCallback((id: string) => {
     setActiveCommentId(id);
-    setTimeout(() => {
-      const container = contentRef.current;
-      if (!container) return;
+    if (isMobile) setShowPanel(false);
+    if (fileIsHtml) {
+      setJumpMessage("Jumping to HTML comments is not supported yet. The comment remains available in the panel.");
+      return;
+    }
+    // Split view provides both revisions without mixed added/removed text.
+    setViewMode("split");
+    setJumpRequest({id});
+  }, [isMobile, fileIsHtml]);
 
-      const mark = container.querySelector(`[data-comment-id="${id}"]`);
-      if (mark) {
-        mark.scrollIntoView({ behavior: "smooth", block: "center" });
-        mark.classList.add("comment-highlight-flash");
-        setTimeout(() => mark.classList.remove("comment-highlight-flash"), 1500);
+  useEffect(() => { setJumpMessage(""); setJumpRequest(null); }, [file.path, file.baseContent, file.headContent]);
+
+  // Source wrappers give the locator stable side/range evidence. Pure conversion
+  // remains cached; annotations do not modify the underlying Markdown.
+  const renderBlockHtml = useCallback((rawHtml: string, side: "LEFT" | "RIGHT",
+    start: number | undefined, source: string) =>
+    '<div data-review-side="' + side + '" data-review-start="' + (start || 0) +
+    '" data-review-end="' + (start ? start + source.split("\n").length - 1 : 0) + '">' + rawHtml + '</div>', []);
+
+  useEffect(() => {
+    if (fileIsHtml || !contentRef.current || (viewMode !== "rendered" && viewMode !== "split")) return;
+    const container = contentRef.current;
+    clearCommentMarks(container);
+    for (const comment of allPanelComments.filter(c => !c.resolved)) {
+      const location = locateMarkdownComment(container, comment.target, comment.selectedText, comment.target?.side === "LEFT" ? file.baseContent : file.headContent);
+      if (location.status === "found") markCommentLocation(location, comment.id);
+    }
+    return () => { clearCommentMarks(container); };
+  }, [allPanelComments, viewMode, fileIsHtml, previewBlocks, diffBlocks, file.baseContent, file.headContent]);
+
+  useEffect(() => {
+    if (!jumpRequest || fileIsHtml || handledJump.current === jumpRequest) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let highlighted: HTMLElement[] = [];
+    const frame = requestAnimationFrame(() => {
+      const container = contentRef.current;
+      const comment = allPanelComments.find(c => c.id === jumpRequest.id);
+      handledJump.current = jumpRequest;
+      if (!container || !comment) return;
+      const location = locateMarkdownComment(container, comment.target, comment.selectedText, comment.target?.side === "LEFT" ? file.baseContent : file.headContent);
+      setJumpMessage(commentLocationMessages[location.status]);
+      if (location.status !== "found" && location.status !== "range") return;
+      highlighted = location.status === "range" ? location.blocks
+        : Array.from(container.querySelectorAll<HTMLElement>("[data-comment-id]"))
+          .filter(mark => mark.dataset.commentId === comment.id);
+      const first = highlighted[0];
+      if (!first) return;
+      if (!first.getClientRects().length) {
+        setJumpMessage("The commented passage is hidden. Expand its section before jumping.");
         return;
       }
-
-      // Fallback: find the comment's text in the DOM via tree walker
-      const comment = allPanelComments.find((c) => c.id === id);
-      if (comment && comment.selectedText) {
-        const searchText = comment.selectedText.slice(0, 40);
-        const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
-        let node: Node | null;
-        while ((node = walker.nextNode())) {
-          if (node.textContent && node.textContent.includes(searchText)) {
-            const el = node.parentElement;
-            if (el) {
-              el.scrollIntoView({ behavior: "smooth", block: "center" });
-              el.classList.add("comment-highlight-flash");
-              setTimeout(() => el.classList.remove("comment-highlight-flash"), 1500);
-            }
-            break;
-          }
-        }
-      }
-    }, 50);
-  }, [allPanelComments]);
-
-  // Render block content with highlighted commented text.
-  // Uses DOMParser to match against text content (not raw HTML),
-  // so highlights work across tag boundaries and never match
-  // inside attributes.
-  const renderBlockHtml = useCallback(
-    (rawHtml: string) => {
-      const activeComments = allPanelComments
-        .filter((c) => !c.resolved && c.selectedText)
-        .map((c) => ({ selectedText: c.selectedText, commentId: c.id }));
-      return injectCommentHighlights(rawHtml, activeComments);
-    },
-    [allPanelComments]
-  );
+      first.tabIndex = -1;
+      first.focus({preventScroll:true});
+      first.scrollIntoView({behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block:"center"});
+      highlighted.forEach(el => el.classList.add("comment-highlight-flash"));
+      timer = setTimeout(() => highlighted.forEach(el => el.classList.remove("comment-highlight-flash")),1500);
+    });
+    return () => {
+      cancelAnimationFrame(frame); if (timer) clearTimeout(timer);
+      highlighted.forEach(el => { el.classList.remove("comment-highlight-flash"); el.removeAttribute("tabindex"); });
+    };
+  }, [jumpRequest, viewMode, fileIsHtml, allPanelComments, file.baseContent, file.headContent]);
 
   const handleMarkClick = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -894,13 +895,14 @@ export default function DiffViewer({
       if (href) {
         e.preventDefault();
         e.stopPropagation();
-        const link = resolveReviewLink(file.path, href);
+        const side = target.closest("[data-review-side]")?.getAttribute("data-review-side") === "LEFT" ? "base" : "head";
+        const link = resolveReviewLink(side === "base" ? file.basePath || file.path : file.path, href);
         if (link.type === "anchor" && contentRef.current) {
           scrollToDocumentAnchor(contentRef.current, link.anchor);
         } else if (link.type === "external") {
           openExternal(link.href, isEmbedded);
         } else if (link.type === "document") {
-          onNavigateLink?.(href, file, "head");
+          onNavigateLink?.(href, file, side);
         }
         return;
       }
@@ -1047,6 +1049,8 @@ export default function DiffViewer({
           )}
         </div>
       </div>
+
+      {jumpMessage && <p role="status" className="shrink-0 px-4 py-2 text-sm bg-[var(--accent-muted)] text-[var(--text-primary)]">{jumpMessage}</p>}
 
       {/* Pending selection comment input.
           Desktop: inline below the toolbar.
@@ -1236,7 +1240,7 @@ export default function DiffViewer({
                     {block.type === "unchanged" && (
                       <MarkdownBlock
                         className="rendered-block diff-content"
-                        html={renderBlockHtml(headBlockToHtml(block.headText))}
+                        html={renderBlockHtml(headBlockToHtml(block.headText), "RIGHT", block.headLine, block.headText)}
                         onClick={handleMarkClick}
                       />
                     )}
@@ -1247,7 +1251,7 @@ export default function DiffViewer({
                           <Plus size={12} /> Added
                         </div>
                         <MarkdownBlock
-                          html={renderBlockHtml(headBlockToHtml(block.headText))}
+                          html={renderBlockHtml(headBlockToHtml(block.headText), "RIGHT", block.headLine, block.headText)}
                           onClick={handleMarkClick}
                         />
                       </div>
@@ -1259,7 +1263,8 @@ export default function DiffViewer({
                           <X size={12} /> Removed
                         </div>
                         <MarkdownBlock
-                          html={renderBlockHtml(baseBlockToHtml(block.baseText))}
+                          html={renderBlockHtml(baseBlockToHtml(block.baseText), "LEFT", block.baseLine, block.baseText)}
+                        onClick={handleMarkClick}
                         />
                       </div>
                     )}
@@ -1272,7 +1277,7 @@ export default function DiffViewer({
                         <MarkdownBlock
                           className="text-sm leading-relaxed"
                           html={renderBlockHtml(
-                            headBlockToHtml(block.diffHtml || block.headText)
+                            headBlockToHtml(block.diffHtml || block.headText), "RIGHT", block.headLine, block.headText
                           )}
                           onClick={handleMarkClick}
                         />
@@ -1314,7 +1319,7 @@ export default function DiffViewer({
                           {showLineNumbers && <LineGutter line={block.baseLine} />}
                           <div className="flex-1 min-w-0">
                             <MarkdownBlock
-                              html={renderBlockHtml(baseBlockToHtml(block.baseText))}
+                              html={renderBlockHtml(baseBlockToHtml(block.baseText), "LEFT", block.baseLine, block.baseText)}
                               onClick={handleMarkClick}
                             />
                           </div>
@@ -1323,7 +1328,7 @@ export default function DiffViewer({
                           {showLineNumbers && <LineGutter line={block.headLine} />}
                           <div className="flex-1 min-w-0">
                             <MarkdownBlock
-                              html={renderBlockHtml(headBlockToHtml(block.headText))}
+                              html={renderBlockHtml(headBlockToHtml(block.headText), "RIGHT", block.headLine, block.headText)}
                               onClick={handleMarkClick}
                             />
                           </div>
@@ -1336,7 +1341,8 @@ export default function DiffViewer({
                           {showLineNumbers && <LineGutter line={block.baseLine} />}
                           <div className="flex-1 min-w-0">
                             <MarkdownBlock
-                              html={renderBlockHtml(baseBlockToHtml(block.baseText))}
+                              html={renderBlockHtml(baseBlockToHtml(block.baseText), "LEFT", block.baseLine, block.baseText)}
+                            onClick={handleMarkClick}
                             />
                           </div>
                         </div>
@@ -1350,7 +1356,7 @@ export default function DiffViewer({
                           {showLineNumbers && <LineGutter line={block.headLine} />}
                           <div className="flex-1 min-w-0">
                             <MarkdownBlock
-                              html={renderBlockHtml(headBlockToHtml(block.headText))}
+                              html={renderBlockHtml(headBlockToHtml(block.headText), "RIGHT", block.headLine, block.headText)}
                               onClick={handleMarkClick}
                             />
                           </div>
@@ -1363,7 +1369,8 @@ export default function DiffViewer({
                           {showLineNumbers && <LineGutter line={block.baseLine} />}
                           <div className="flex-1 min-w-0">
                             <MarkdownBlock
-                              html={renderBlockHtml(baseBlockToHtml(block.splitDiffBase || block.baseText))}
+                              html={renderBlockHtml(baseBlockToHtml(block.splitDiffBase || block.baseText), "LEFT", block.baseLine, block.baseText)}
+                            onClick={handleMarkClick}
                             />
                           </div>
                         </div>
@@ -1371,7 +1378,7 @@ export default function DiffViewer({
                           {showLineNumbers && <LineGutter line={block.headLine} />}
                           <div className="flex-1 min-w-0">
                             <MarkdownBlock
-                              html={renderBlockHtml(headBlockToHtml(block.splitDiffHead || block.headText))}
+                              html={renderBlockHtml(headBlockToHtml(block.splitDiffHead || block.headText), "RIGHT", block.headLine, block.headText)}
                               onClick={handleMarkClick}
                             />
                           </div>
@@ -1534,7 +1541,7 @@ export default function DiffViewer({
                         )}
                         <MarkdownBlock
                           className={`rendered-block flex-1 min-w-0 ${hasSuggestion ? "border-l-2 border-[var(--accent)] pl-3 bg-[var(--accent-muted)] rounded-r" : ""}`}
-                          html={renderBlockHtml(headBlockToHtml(block))}
+                          html={renderBlockHtml(headBlockToHtml(block), "RIGHT", headBlockRanges[idx]?.startLine, block)}
                           onClick={handleMarkClick}
                         />
                       </div>
@@ -1552,7 +1559,8 @@ export default function DiffViewer({
           <CommentPanel
             comments={allPanelComments}
             activeCommentId={activeCommentId}
-            onSelect={handleCommentSelect}
+            onSelect={setActiveCommentId}
+            onJump={handleCommentSelect}
             onReply={handleReply}
             onResolve={handleResolve}
             onAccept={onAcceptSuggestion}
@@ -1578,7 +1586,8 @@ export default function DiffViewer({
           <CommentPanel
             comments={allPanelComments}
             activeCommentId={activeCommentId}
-            onSelect={handleCommentSelect}
+            onSelect={setActiveCommentId}
+            onJump={handleCommentSelect}
             onReply={handleReply}
             onResolve={handleResolve}
             onAccept={onAcceptSuggestion}

@@ -54,7 +54,10 @@ export default function BottomSheet({
   }, [open]);
 
   useEffect(() => {
-    if (open && sheetRef.current) sheetRef.current.focus();
+    if (sheetRef.current) {
+      sheetRef.current.inert = !open;
+      if (open) sheetRef.current.focus();
+    }
   }, [open]);
 
   return (
@@ -76,6 +79,7 @@ export default function BottomSheet({
         ref={sheetRef}
         role="dialog"
         aria-modal="true"
+        aria-hidden={!open}
         aria-label={ariaLabel}
         tabIndex={-1}
         className="fixed left-0 right-0 bottom-0 z-[100] bg-[var(--surface)] border-t border-[var(--border)] outline-none flex flex-col"
