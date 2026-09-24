@@ -99,10 +99,10 @@ test("browser Back cancels a queued jump",async ({page})=>{
 });
 
 
-test("opening comments preserves a live deck and explains unsupported HTML targeting",async ({page})=>{
+test("opening comments preserves a live deck and reports an absent HTML target",async ({page})=>{
   await setup(page);
   await openComment(page,"deck.html");
-  await expect(page.getByRole("status").filter({hasText:"Jumping to HTML comments is not supported yet"})).toBeVisible();
+  await expect(page.getByRole("status").filter({hasText:"The commented text could not be located"})).toBeVisible();
   const deck = page.frameLocator('iframe[title="deck.html"]');
   await deck.getByRole("button",{name:"0",exact:true}).click();
   await openComment(page,"third.md");
