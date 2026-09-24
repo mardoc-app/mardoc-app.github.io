@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import ContextMenu from "./ContextMenu";
 import { mapSelectionToLines, rewriteImageUrls, loadAuthenticatedImages, loadEmbedLocalImages } from "@/lib/github-api";
+import { useHtmlCommentJump } from "@/lib/use-html-comment-jump";
 import { useHtmlReviewLinks } from "@/lib/use-html-review-links";
 import { resolveReviewLink, scrollToDocumentAnchor } from "@/lib/review-links";
 import { buildFileHash, buildPRHash } from "@/lib/hash-router";
@@ -422,32 +423,22 @@ export default function DiffViewer({
     return () => window.removeEventListener("message", handleMessage);
   }, [fileIsHtml, htmlViewMode, htmlShowBase]);
 
-  // Prepare HTML srcdoc with injected source-line attributes,
-  // resize script, and selection listener. Source-line injection
-  // tags every element with `data-mardoc-line` so that when a user
-  // selects text inside the iframe, the selection script can walk
-  // up to find the source line and postMessage it to the parent.
+  // Source markers cover both revisions; the head alone accepts new selections.
+  const htmlAnnotatedSource = useMemo(() => fileIsHtml
+    ? injectSourceLineAttributes(htmlShowBase ? file.baseContent : file.headContent, true) : "",
+    [fileIsHtml, file.baseContent, file.headContent, htmlShowBase]);
   const htmlSrcdoc = useMemo(() => {
     if (!fileIsHtml) return "";
-    const content = htmlShowBase ? file.baseContent : file.headContent;
     const assetRepo = (htmlShowBase ? file.baseRepo : file.headRepo) || repoFullName;
     const assetRef = htmlShowBase ? file.baseRef || baseBranch : file.headRef || headBranch;
-    const raw = assetRepo ? rewriteHtmlAssetUrls(content, assetRepo, assetRef,
-      htmlShowBase ? file.basePath || file.path : file.path) : content;
-    // Inject per-element source line attributes. Only on the head
-    // (new) view — we don't need comment-target lines on the base
-    // since comments always target the head revision.
-    const tagged = htmlShowBase ? raw : injectSourceLineAttributes(raw);
+    const tagged = assetRepo ? rewriteHtmlAssetUrls(htmlAnnotatedSource, assetRepo, assetRef,
+      htmlShowBase ? file.basePath || file.path : file.path) : htmlAnnotatedSource;
     const resizeScript = `<script>${buildIframeResizeScript()}</script>`;
-    // Only attach the selection listener in head view — base is
-    // reference-only and shouldn't accept comments.
-    const selectionScript = htmlShowBase
-      ? ""
-      : `<script>${buildIframeSelectionScript()}</script>`;
+    const selectionScript = htmlShowBase ? "" : `<script>${buildIframeSelectionScript()}</script>`;
     const injected = resizeScript + selectionScript;
     if (tagged.includes("</body>")) return tagged.replace("</body>", `${injected}</body>`);
     return tagged + injected;
-  }, [fileIsHtml, file, htmlShowBase, repoFullName, baseBranch, headBranch]);
+  }, [fileIsHtml, file, htmlAnnotatedSource, htmlShowBase, repoFullName, baseBranch, headBranch]);
 
   // Simple source diff for HTML files
   const htmlSourceDiff = useMemo(() => {
@@ -822,17 +813,24 @@ export default function DiffViewer({
     setActiveCommentId(null);
   }, [onResolveComment]);
 
+  const onHtmlCommentLoad = useHtmlCommentJump(htmlIframeRef, htmlAnnotatedSource, htmlSrcdoc,
+    fileIsHtml && htmlViewMode === "rendered", jumpRequest, allPanelComments, setJumpMessage);
+
   const handleCommentSelect = useCallback((id: string) => {
     setActiveCommentId(id);
     if (isMobile) setShowPanel(false);
     if (fileIsHtml) {
-      setJumpMessage("Jumping to HTML comments is not supported yet. The comment remains available in the panel.");
+      const comment = allPanelComments.find(item => item.id === id);
+      setHtmlViewMode("rendered");
+      setHtmlShowBase(comment?.target?.side === "LEFT" || (!file.headContent && !!file.baseContent));
+      setJumpMessage("Locating HTML comment…");
+      setJumpRequest({id});
       return;
     }
     // Split view provides both revisions without mixed added/removed text.
     setViewMode("split");
     setJumpRequest({id});
-  }, [isMobile, fileIsHtml]);
+  }, [isMobile, fileIsHtml, allPanelComments, file.headContent, file.baseContent]);
 
   useEffect(() => { setJumpMessage(""); setJumpRequest(null); }, [file.path, file.baseContent, file.headContent]);
 
@@ -1149,8 +1147,8 @@ export default function DiffViewer({
         <div className="flex-1 overflow-y-auto">
           {fileIsHtml ? (
             /* HTML file rendering */
-            htmlViewMode === "rendered" ? (
-              <div className="h-full flex flex-col">
+            <>
+              <div className="h-full flex flex-col" style={{display: htmlViewMode === "rendered" ? undefined : "none"}} aria-hidden={htmlViewMode !== "rendered"}>
                 {/* Base/Head toggle for rendered HTML */}
                 {file.baseContent && file.headContent && (
                   <div className="flex items-center gap-2 px-4 py-2 border-b border-[var(--border)] bg-[var(--bg-secondary,var(--surface))]">
@@ -1180,7 +1178,7 @@ export default function DiffViewer({
                 <div className="flex-1 overflow-auto">
                   <iframe
                     ref={htmlIframeRef}
-                    onLoad={() => { onHtmlLoad(); if (anchor && htmlIframeRef.current?.contentDocument) scrollToDocumentAnchor(htmlIframeRef.current.contentDocument, anchor); }}
+                    onLoad={() => { onHtmlLoad(); onHtmlCommentLoad(); if (anchor && htmlIframeRef.current?.contentDocument) scrollToDocumentAnchor(htmlIframeRef.current.contentDocument, anchor); }}
                     srcDoc={htmlSrcdoc}
                     sandbox="allow-scripts allow-same-origin"
                     title={file.path}
@@ -1189,7 +1187,7 @@ export default function DiffViewer({
                   />
                 </div>
               </div>
-            ) : (
+            {htmlViewMode === "source" && (
               /* Source diff for HTML files */
               <div className={wide ? "mx-auto px-12 py-6" : "max-w-5xl mx-auto px-8 py-6"}>
                 <div className="text-[10px] text-[var(--text-muted)] mb-4">
@@ -1215,7 +1213,8 @@ export default function DiffViewer({
                   ))}
                 </pre>
               </div>
-            )
+            )}
+            </>
           ) : viewMode === "rendered" ? (
             <div className="relative" ref={contentRef}>
               {/* Floating selection toolbar */}
