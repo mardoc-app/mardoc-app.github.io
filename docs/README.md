@@ -10,6 +10,7 @@ Current reference documentation was checked against application source at `4abb8
 | Understand components and request flows | [Architecture](architecture.md) |
 | Understand credentials, drafts, and document isolation | [Data storage and security](data-and-security.md) |
 | Run, test, or deploy the static site | [Development](development.md), [browser tests](../e2e/README.md) |
+| Track comment navigation priorities | [Comment navigation checklist](comment-navigation-plan.md) |
 | Find shipped and unfinished work | [Feature status](features/README.md), [known issues](known-issues.md) |
 | Understand why these docs were refreshed | [Initial audit](application-audit.md) — historical snapshot |
 | Manually inspect Markdown/HTML conversion | [Round-trip fixture](test-html-roundtrip.md) |
