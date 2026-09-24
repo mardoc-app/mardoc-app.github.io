@@ -175,6 +175,26 @@ test("presenter links open PR documents and pinned references, and Back preserve
   await page.goBack();
   await expect(frame.locator("#notes")).toBeVisible();
   expect(manifestReads).toBe(1);
+  // Repeated reference documents must detach; only the source deck stays alive.
+  const attached: import("@playwright/test").Frame[] = [];
+  const onAttached = (frame: import("@playwright/test").Frame) => attached.push(frame);
+  page.on("frameattached", onAttached);
+  for (let visit = 0; visit < 8; visit++) {
+    await frame.getByRole("link",{name:"Supporting reference"}).click();
+    await expect(page.frameLocator('iframe[title="Read-only repository document"]').getByRole("heading",{name:"Reference heading"})).toBeVisible();
+    await expect(page.locator("iframe")).toHaveCount(2);
+    await page.getByRole("button",{name:"Back to review",exact:true}).click();
+    await expect(page.locator("iframe")).toHaveCount(1);
+    await expect(frame.locator("#slide")).toHaveText("2");
+    await expect(frame.locator("#notes")).toBeVisible();
+  }
+  page.off("frameattached", onAttached);
+  expect(attached).toHaveLength(8);
+  expect(attached.every(frame => frame.isDetached())).toBe(true);
+  expect(page.frames()).toHaveLength(2); // Main document plus preserved deck.
+  await page.evaluate(() => { location.hash = "#/acme/docs/blob/main/docs/spec.md"; });
+  await expect(page.locator("iframe")).toHaveCount(0);
+  await expect.poll(() => page.frames().length).toBe(1);
 });
 
 test("standalone HTML links open a repository reference without replacing the source iframe", async ({page}) => {

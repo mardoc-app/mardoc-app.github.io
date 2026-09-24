@@ -1,5 +1,6 @@
 "use client";
 
+import { utf8ToBase64 } from "./base64-utf8";
 import { RequestCache } from "./request-cache";
 import { measureOperation } from "./performance";
 
@@ -136,10 +137,10 @@ async function preRenderMermaidUnmeasured(html: string): Promise<string> {
       const { svg } = await editorDiagrams.load(JSON.stringify([dark, source]), async () => ({
         source, svg: await renderDiagram(source, dark),
       }));
-      const blob = new Blob([svg], { type: "image/svg+xml" });
-      const blobUrl = URL.createObjectURL(blob);
+      // No object-URL registry entry: the image bytes are owned by the editor
+      // document/history and become collectible when those references go away.
       const img = document.createElement("img");
-      img.src = blobUrl;
+      img.src = `data:image/svg+xml;base64,${utf8ToBase64(svg)}`;
       img.alt = "Mermaid diagram";
       img.setAttribute("data-mermaid-source", source);
       pre.replaceWith(img);
