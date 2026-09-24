@@ -36,6 +36,7 @@ import RepositoryReference, { type ReferenceTarget } from "./RepositoryReference
 import { resolveReviewLink } from "@/lib/review-links";
 import { isHtmlFile } from "@/lib/file-types";
 import DiffViewer from "./DiffViewer";
+import PRCommentNavigator from "./PRCommentNavigator";
 import ReviewReturnBar from "./ReviewReturnBar";
 import Showdown from "showdown";
 
@@ -64,6 +65,20 @@ export default function PRDetail({ pr, onBack }: PRDetailProps) {
     setSelectedPRFileIdx,
   } = useApp();
 
+  // Keep one request through lazy loading/error retry; a newer click replaces it.
+  const [commentJump, setCommentJump] = useState<{id: string; path: string; sequence: number; hash: string} | null>(null);
+  const jumpSequence = useRef(0);
+  useEffect(() => {
+    setCommentJump(jump => jump && jump.path !== prFiles[selectedPRFileIdx]?.path ? null : jump);
+  }, [selectedPRFileIdx, prFiles]);
+  useEffect(() => {
+    // Our own hash update also emits history events. Cancel only when leaving
+    // the requested route, including same-file anchor navigation.
+    const cancel = () => setCommentJump(jump => jump?.hash === window.location.hash ? jump : null);
+    window.addEventListener("popstate", cancel);
+    window.addEventListener("hashchange", cancel);
+    return () => { window.removeEventListener("popstate", cancel); window.removeEventListener("hashchange", cancel); };
+  }, []);
   const [returnFileIdx, setReturnFileIdx] = useState<number | null>(null);
   const [reference, setReference] = useState<ReferenceTarget | null>(null);
   useEffect(() => { setReference(null); }, [selectedPRFileIdx]);
@@ -595,6 +610,14 @@ export default function PRDetail({ pr, onBack }: PRDetailProps) {
         </div>
       </div>
 
+      <PRCommentNavigator comments={comments} files={prFiles} onJump={(comment, index) => {
+        setReference(null);
+        if (selectedFile && isHtmlFile(selectedFile.path) && index !== selectedPRFileIdx) {
+          setReturnFileIdx(old => old ?? selectedPRFileIdx);
+        }
+        setSelectedPRFileIdx(index);
+        setCommentJump({id: comment.id, path: prFiles[index].path, sequence: ++jumpSequence.current, hash: window.location.hash});
+      }}/>
       {!reference && returnFileIdx !== null && returnFileIdx !== selectedPRFileIdx && (
         <ReviewReturnBar path={prFiles[returnFileIdx]?.path} onReturn={() => setSelectedPRFileIdx(returnFileIdx)}/>
       )}
@@ -610,6 +633,7 @@ export default function PRDetail({ pr, onBack }: PRDetailProps) {
               : file.loadState === "error" ? <div role="alert" className="p-6">{file.loadError}
                 <button className="toolbar-btn" onClick={() => setSelectedPRFileIdx(idx)}>Retry document</button></div>
               : <DiffViewer file={file} repoFullName={currentRepo || ""} baseBranch={pr.baseBranch} headBranch={pr.headBranch}
+                externalJump={active && commentJump?.path === file.path ? commentJump : undefined}
                 anchor={active ? documentAnchor : undefined} onNavigateLink={navigateReviewLink}
                 comments={comments} onAddComment={handleAddComment} onResolveComment={handleResolveComment}
                 onReplyComment={handleReplyComment} onSubmitSuggestions={handleSubmitSuggestions}

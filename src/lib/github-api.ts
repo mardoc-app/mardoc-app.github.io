@@ -422,6 +422,18 @@ export function fetchPRComments(repoFullName: string, prNumber: number, signal?:
   return measureOperation("pr-comments", () => fetchPRCommentsUnmeasured(repoFullName, prNumber, signal));
 }
 
+/** Keep complete results private until every REST page succeeds. */
+async function commentPages<T>(fetchPage: (page: number) => Promise<{data: T[]}>, signal?: AbortSignal): Promise<{data: T[]}> {
+  const data: T[] = [];
+  for (let page = 1; ; page++) {
+    signal?.throwIfAborted();
+    const result = await fetchPage(page);
+    signal?.throwIfAborted();
+    data.push(...result.data);
+    if (result.data.length < 100) return {data};
+  }
+}
+
 async function fetchPRCommentsUnmeasured(
   repoFullName: string,
   prNumber: number,
@@ -434,20 +446,22 @@ async function fetchPRCommentsUnmeasured(
 
   // Get both review comments and issue comments
   const [reviewComments, issueComments] = await Promise.all([
-    octokit.pulls.listReviewComments({
+    commentPages(page => octokit.pulls.listReviewComments({
+      page,
       owner,
       repo,
       pull_number: prNumber,
       per_page: 100,
       request: { signal },
-    }),
-    octokit.issues.listComments({
+    }), signal),
+    commentPages(page => octokit.issues.listComments({
+      page,
       owner,
       repo,
       issue_number: prNumber,
       per_page: 100,
       request: { signal },
-    }),
+    }), signal),
   ]);
 
   const colors = ["#e76f51", "#2a9d8f", "#264653", "#e9c46a", "#f4a261"];
@@ -533,41 +547,54 @@ async function fetchThreadResolution(
   const octokit = getOctokit();
   if (!octokit) return new Map();
 
+  let startedPaging = false;
   try {
-    const result: any = await (octokit as any).graphql(`
-      query($owner: String!, $repo: String!, $prNumber: Int!) {
-        repository(owner: $owner, name: $repo) {
-          pullRequest(number: $prNumber) {
-            reviewThreads(first: 100) {
-              nodes {
-                id
-                isResolved
-                comments(first: 1) {
-                  nodes {
-                    databaseId
+    const map = new Map<number, { threadId: string; isResolved: boolean }>();
+    let cursor: string | null = null;
+    const seen = new Set<string>();
+    while (true) {
+      signal?.throwIfAborted();
+      const result: any = await (octokit as any).graphql(`
+        query($owner: String!, $repo: String!, $prNumber: Int!, $cursor: String) {
+          repository(owner: $owner, name: $repo) {
+            pullRequest(number: $prNumber) {
+              reviewThreads(first: 100, after: $cursor) {
+                pageInfo { hasNextPage endCursor }
+                nodes {
+                  id
+                  isResolved
+                  comments(first: 1) {
+                    nodes {
+                      databaseId
+                    }
                   }
                 }
               }
             }
           }
         }
+      `, { owner, repo, prNumber, cursor, request: { signal } });
+      signal?.throwIfAborted();
+      const threads = result.repository?.pullRequest?.reviewThreads?.nodes || [];
+      for (const thread of threads) {
+        const firstCommentId = thread.comments?.nodes?.[0]?.databaseId;
+        if (firstCommentId) {
+          map.set(firstCommentId, {
+            threadId: thread.id,
+            isResolved: thread.isResolved,
+          });
+        }
       }
-    `, { owner, repo, prNumber, request: { signal } });
-
-    const map = new Map<number, { threadId: string; isResolved: boolean }>();
-    const threads = result.repository?.pullRequest?.reviewThreads?.nodes || [];
-    for (const thread of threads) {
-      const firstCommentId = thread.comments?.nodes?.[0]?.databaseId;
-      if (firstCommentId) {
-        map.set(firstCommentId, {
-          threadId: thread.id,
-          isResolved: thread.isResolved,
-        });
-      }
+      const pageInfo = result.repository?.pullRequest?.reviewThreads?.pageInfo;
+      if (!pageInfo?.hasNextPage) return map;
+      startedPaging = true;
+      cursor = pageInfo.endCursor;
+      if (!cursor || seen.has(cursor)) throw new Error("Invalid review thread cursor");
+      seen.add(cursor);
     }
-    return map;
-  } catch {
+  } catch (error) {
     signal?.throwIfAborted();
+    if (startedPaging) throw error;
     // GraphQL may fail if token doesn't have sufficient scope — fall back gracefully
     return new Map();
   }
