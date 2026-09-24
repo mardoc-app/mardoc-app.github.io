@@ -64,7 +64,7 @@ it("deduplicates overlapping DOM scans but keeps inline SVG IDs unique", async (
   const container = document.createElement("div"); container.innerHTML = html + html;
   await Promise.all([renderMermaidBlocks(container), renderMermaidBlocks(container)]);
   expect(mermaid.render).toHaveBeenCalledTimes(2);
-  const ids = [...container.querySelectorAll("svg")].map(svg => svg.id);
+  const ids = Array.from(container.querySelectorAll("svg")).map(svg => svg.id);
   expect(new Set(ids).size).toBe(2);
 });
 it("evicts editor layouts after the bounded entry limit", async () => {
