@@ -117,8 +117,7 @@ Completed immutable cache entries remain reusable, while cancelled requests
 cannot populate the cache. Returning immediately starts a fresh request.
 Generation guards remain as protection against late completions.
 
-This scope covers navigation reads, not every background request: sidebar
-enumeration and image loading still run to completion. GitHub writes are not
+Image loading still runs to completion. GitHub writes are not
 cancelled by navigation. Aborting a browser request cannot undo work GitHub has
 already performed and does not guarantee a rate-limit refund.
 
@@ -126,3 +125,24 @@ Regression coverage includes shared consumers, immediate revisits, session
 clearing, retry cancellation, navigation races and a delayed browser download
 on desktop and mobile. This reduces obsolete work; it is not a measured claim
 about production page-load latency.
+
+## Sidebar request cancellation
+
+Branch enumeration, PR lists and PR file-count queries have separate lifetimes
+from document navigation. Changing repositories, changing authentication or
+unmounting the app cancels pending sidebar reads. Changing the PR status filter
+cancels the previous list and its count query. Status filters stay available while
+the list is loading, so a slow response does not block another choice. Explicit sidebar refresh replaces
+any prior requests for the refreshed lists.
+
+Browsing files or branches within the same repository keeps useful sidebar reads
+alive. Closing the branch menu or switching sidebar tabs also lets those requested
+lists finish for reuse. PR filter changes do not interrupt branch enumeration.
+Cancellation uses the same retry-aware transport as document reads, and generation
+guards prevent late results from overwriting the latest list. Ordinary count-query
+failures retain their existing empty-count fallback; cancellation is propagated.
+
+Unit coverage checks independent request lifetimes, repository switches, logout,
+unmounting and transport signals. Desktop/mobile browser coverage stalls a PR list
+and then a count query, changes filters, and verifies cancellation and a stable
+document without additional body reads.
