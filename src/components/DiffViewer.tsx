@@ -47,7 +47,7 @@ import CommentPanel, { type PanelComment } from "./CommentPanel";
 import SuggestBlockEditor from "./SuggestBlockEditor";
 import { extractCommentSuggestions, mergeSuggestions } from "@/lib/suggestion-extract";
 import { parseSuggestionBody } from "@/lib/suggestion-body";
-import { commentFileIndex } from "@/lib/comment-target";
+import { commentFileIndex, commentTargetForFile } from "@/lib/comment-target";
 import { locateMarkdownComment, markCommentLocation, clearCommentMarks, commentLocationMessages } from "@/lib/markdown-comment-location";
 
 interface DiffViewerProps {
@@ -490,7 +490,7 @@ export default function DiffViewer({
       })
       .map((c) => {
         const selectedText = c.selectedText || "";
-        const target = c.target || (c.startLine && c.endLine ? {
+        const target = commentTargetForFile(c.target, file) || (c.startLine && c.endLine ? {
           path: c.path || file.path, side: "RIGHT" as const, status: "current" as const,
           startLine: c.startLine, endLine: c.endLine,
         } : undefined);
@@ -514,6 +514,7 @@ export default function DiffViewer({
             createdAt: r.createdAt,
           })),
           source: c.pending ? ("local" as const) : ("github" as const),
+          conversation: c.id.startsWith("ic-"),
           pending: c.pending,
         };
       });

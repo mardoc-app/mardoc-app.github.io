@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { PRComment, PRFile } from "@/types";
-import { commentFileIndex } from "@/lib/comment-target";
+import { commentFileIndex, commentTargetForFile } from "@/lib/comment-target";
 
 /** Full-PR index; the document's panel remains the place to reply and resolve. */
 export default function PRCommentNavigator({comments, files, onJump}: {
@@ -31,14 +31,16 @@ export default function PRCommentNavigator({comments, files, onJump}: {
         <h2 className="text-xs font-semibold break-all">{path || "General discussion"}</h2>
         {group.map(comment => {
           const index = commentFileIndex(comment, files);
+          const target = index >= 0 ? commentTargetForFile(comment.target, files[index]) : comment.target;
           return <article key={comment.id} className="mt-2 rounded border border-[var(--border)] p-2 text-sm">
             <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--text-muted)]">
               <strong>{comment.author}</strong>
               {comment.pending && <span>Pending</span>}
+              {target?.revisionPinned && <span>PR conversation</span>}
               {comment.resolved && <span>Resolved</span>}
-              {comment.target?.status === "outdated" && <span>Outdated</span>}
-              {comment.target?.status === "file" && <span>File comment</span>}
-              {comment.target?.side && <span>{comment.target.side === "LEFT" ? "Base" : "Head"}</span>}
+              {target?.status === "outdated" && <span>Outdated</span>}
+              {target?.status === "file" && <span>File comment</span>}
+              {target?.side && <span>{target.side === "LEFT" ? "Base" : "Head"}</span>}
             </div>
             <p className="whitespace-pre-wrap break-words">{comment.body}</p>
             {!!comment.replies?.length && <details className="mt-1">

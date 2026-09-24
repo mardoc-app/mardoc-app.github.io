@@ -365,3 +365,13 @@ describe("CommentPanel — explicit jump control", () => {
     expect(onSelect).toHaveBeenCalledTimes(1);
   });
 });
+
+it("labels conversation fallbacks without offering native thread resolution or suggestion acceptance", () => {
+  mount({comments:[makeComment({id:"ic-1",source:"github",conversation:true,body:"```suggestion\nReplacement\n```"})],
+    activeCommentId:"ic-1",onAccept:vi.fn()});
+  expect(screen.getByText("PR conversation",{exact:true})).toBeTruthy();
+  expect(screen.queryByRole("button",{name:"Resolve"})).toBeNull();
+  expect(screen.queryByRole("button",{name:"Accept suggestion"})).toBeNull();
+  expect(screen.getByPlaceholderText("Reply...")).toBeTruthy();
+  expect(screen.getByRole("button",{name:"Jump to comment"})).toBeTruthy();
+});

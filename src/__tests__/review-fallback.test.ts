@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import {
+  ReviewFallbackError,
   isLineResolutionError,
   runInlineFallback,
   type ReviewFallbackDeps,
@@ -30,6 +31,12 @@ describe("isLineResolutionError", () => {
 
   it("is case-insensitive on the message", () => {
     expect(isLineResolutionError({ status: 422, message: "LINE COULD NOT BE RESOLVED" })).toBe(true);
+  });
+
+  it("recognizes oversized diffs in the message and structured GitHub error payload", () => {
+    expect(isLineResolutionError({status:422,message:'Unprocessable Entity: "Diff entry docs/support/architecture.html diff is too large"'})).toBe(true);
+    expect(isLineResolutionError({response:{status:422,data:{message:"Validation Failed",errors:[{message:"Diff is too large"}]}}})).toBe(true);
+    expect(isLineResolutionError({status:500,message:"Diff is too large"})).toBe(false);
   });
 
   // ─── False positives we must NOT match ────────────────────────────────
@@ -92,7 +99,7 @@ function makeDeps(
     issueCalls,
     postInlineComment: async (c) => {
       inlineCalls.push(c);
-      if (inlineBehavior === "fail") throw new Error("line out of hunk");
+      if (inlineBehavior === "fail") throw {status:422,message:"Line could not be resolved"};
       if (typeof inlineBehavior === "function") return inlineBehavior(c);
     },
     postIssueComment: async (body) => {
@@ -158,7 +165,7 @@ describe("runInlineFallback", () => {
       makeComment({ body: "fourth-bad", line: 100 }),
     ];
     const deps = makeDeps(async (c) => {
-      if (c.body.includes("bad")) throw new Error("unresolvable");
+      if (c.body.includes("bad")) throw {status:422,message:"Line could not be resolved"};
     });
     const result = await runInlineFallback(comments, deps);
 
@@ -169,13 +176,29 @@ describe("runInlineFallback", () => {
     expect(deps.issueCalls[1]).toContain("fourth-bad");
   });
 
-  it("swallows errors from the issue-comment fallback (never rethrows)", async () => {
-    const comments = [makeComment({ body: "cursed" })];
+  it("reports failed fallback writes instead of treating drafts as submitted", async () => {
     const deps = makeDeps("fail", "fail");
-    // Must not throw even though both inline AND issue fallback fail.
-    const result = await runInlineFallback(comments, deps);
-    expect(result.unresolvedCount).toBe(1);
-    expect(deps.issueCalls).toHaveLength(1); // attempt was made
+    await expect(runInlineFallback([makeComment()], deps)).rejects.toMatchObject({
+      name:"ReviewFallbackError",postedComments:[],unresolvedCount:0,
+    });
+  });
+
+  it("reports only confirmed earlier writes when a later fallback fails", async () => {
+    const first = makeComment({body:"first"}), second = makeComment({body:"second"});
+    const deps = makeDeps(async comment => {
+      if (comment === second) throw {status:422,message:"Diff is too large"};
+    }, "fail");
+    await expect(runInlineFallback([first,second], deps)).rejects.toMatchObject({
+      postedComments:[first],unresolvedCount:0,
+    });
+  });
+
+  it("does not create a second write for authentication or uncertain network errors", async () => {
+    for (const error of [{status:403,message:"Forbidden"},new Error("connection lost")]) {
+      const deps = makeDeps(async () => {throw error;});
+      await expect(runInlineFallback([makeComment()],deps)).rejects.toBeInstanceOf(ReviewFallbackError);
+      expect(deps.issueCalls).toHaveLength(0);
+    }
   });
 
   it("returns 0 unresolved when the input list is empty", async () => {
@@ -204,7 +227,7 @@ describe("runInlineFallback", () => {
   it("does NOT retry a comment after a failed fallback (no infinite loop)", async () => {
     const comments = [makeComment({ body: "once" })];
     const deps = makeDeps("fail", "fail");
-    await runInlineFallback(comments, deps);
+    await expect(runInlineFallback(comments, deps)).rejects.toBeInstanceOf(ReviewFallbackError);
     // One inline attempt + one issue attempt = two total, not a retry storm.
     expect(deps.inlineCalls).toHaveLength(1);
     expect(deps.issueCalls).toHaveLength(1);
