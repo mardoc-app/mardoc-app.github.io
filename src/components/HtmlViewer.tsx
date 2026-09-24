@@ -439,7 +439,7 @@ export default function HtmlViewer({ content, filePath, repoFullName, branch }: 
           </aside>
         )}
       </div>
-      {reference && <RepositoryReference target={reference} onClose={() => setReference(null)}/>}
+      {reference && <RepositoryReference target={reference} returnPath={filePath} onClose={() => setReference(null)}/>}
     </div>
   );
 }
