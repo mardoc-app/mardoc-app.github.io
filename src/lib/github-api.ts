@@ -1,5 +1,6 @@
 "use client";
 
+import { reviewCommentTarget, selectionQuote } from "./comment-target";
 import { clearMermaidCache } from "./mermaid";
 import { abortableDelay } from "./abort";
 import { measureOperation } from "./performance";
@@ -480,6 +481,7 @@ async function fetchPRCommentsUnmeasured(
   const allComments: PRComment[] = [
     ...topLevel.map((c) => {
       const thread = threadResolution.get(c.id);
+      const target = reviewCommentTarget(c);
       return {
         id: `rc-${c.id}`,
         githubId: c.id,
@@ -489,9 +491,10 @@ async function fetchPRCommentsUnmeasured(
         avatarColor: getColor(c.user?.login || "unknown"),
         body: c.body,
         createdAt: c.created_at,
-        blockIndex: c.line || c.original_line || 0,
-        startLine: (c as any).start_line || c.line || c.original_line || undefined,
-        endLine: c.line || c.original_line || undefined,
+        target,
+        selectedText: selectionQuote(c.body),
+        startLine: target.startLine,
+        endLine: target.endLine,
         resolved: thread?.isResolved ?? false,
         replies: (replyMap.get(c.id) || []).map((r) => ({
           id: `rc-${r.id}`,
