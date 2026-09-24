@@ -36,6 +36,7 @@ import RepositoryReference, { type ReferenceTarget } from "./RepositoryReference
 import { resolveReviewLink } from "@/lib/review-links";
 import { isHtmlFile } from "@/lib/file-types";
 import DiffViewer from "./DiffViewer";
+import ReviewReturnBar from "./ReviewReturnBar";
 import Showdown from "showdown";
 
 const descriptionConverter = new Showdown.Converter({
@@ -592,7 +593,7 @@ export default function PRDetail({ pr, onBack }: PRDetailProps) {
       </div>
 
       {!reference && returnFileIdx !== null && returnFileIdx !== selectedPRFileIdx && (
-        <button className="toolbar-btn self-start" onClick={() => setSelectedPRFileIdx(returnFileIdx)}>Back to review</button>
+        <ReviewReturnBar path={prFiles[returnFileIdx]?.path} onReturn={() => setSelectedPRFileIdx(returnFileIdx)}/>
       )}
       {/* Keep the originating deck mounted while reviewing a linked file. */}
       <div className="flex-1 overflow-hidden relative">
@@ -613,7 +614,7 @@ export default function PRDetail({ pr, onBack }: PRDetailProps) {
             }
           </div>;
         })}
-        {reference && <RepositoryReference target={reference} onClose={() => window.history.back()}/>}
+        {reference && <RepositoryReference target={reference} returnPath={prFiles[selectedPRFileIdx]?.path} onClose={() => window.history.back()}/>}
       </div>
 
       {reviewModalOpen && (
