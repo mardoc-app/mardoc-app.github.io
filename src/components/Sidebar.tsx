@@ -589,10 +589,6 @@ export default function Sidebar() {
               ))}
             </div>
           )
-        ) : loadingPRs ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 size={18} className="animate-spin text-[var(--text-muted)]" />
-          </div>
         ) : (
           <div className="space-y-1">
             {/* State filter — pills with status dots on mobile, compact on desktop */}
@@ -626,7 +622,11 @@ export default function Sidebar() {
               New Review
             </button>
 
-            {pullRequests.length === 0 ? (
+            {loadingPRs ? (
+              <div role="status" aria-label="Loading pull requests" className="flex items-center justify-center py-8">
+                <Loader2 size={18} className="animate-spin text-[var(--text-muted)]" />
+              </div>
+            ) : pullRequests.length === 0 ? (
               <p className="text-sm text-[var(--text-muted)] text-center py-4">
                 No pull requests found.
               </p>

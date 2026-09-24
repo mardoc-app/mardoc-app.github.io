@@ -179,6 +179,66 @@ describe("PR demand loading", () => {
 
 
 describe("sidebar metadata demand", () => {
+  it("cancels old PR lists and counts on filter changes without cancelling branches", async () => {
+    const oldList = deferred<any[]>(), oldCounts = deferred<Map<number, number>>();
+    vi.mocked(api.fetchPullRequests).mockReturnValueOnce(oldList.promise)
+      .mockResolvedValueOnce([{number:13}] as any).mockResolvedValueOnce([]);
+    vi.mocked(api.fetchPRMarkdownCounts).mockReturnValue(oldCounts.promise);
+    vi.mocked(api.fetchBranches).mockReturnValue(new Promise(() => {}));
+    await start("#/acme/docs/blob/topic/notes.md");
+    await waitFor(() => expect(state.fileRevision).toBe(FEATURE));
+    await act(async () => { state.loadSidebarMetadata("branches"); state.loadSidebarMetadata("prs"); });
+    const branchesSignal = vi.mocked(api.fetchBranches).mock.calls.at(-1)![1]!;
+    const listSignal = vi.mocked(api.fetchPullRequests).mock.calls.at(-1)![2]!;
+    await act(async () => state.setPRStateFilter("closed"));
+    expect(listSignal.aborted).toBe(true);
+    await waitFor(() => expect(api.fetchPRMarkdownCounts).toHaveBeenCalled());
+    const countSignal = vi.mocked(api.fetchPRMarkdownCounts).mock.calls.at(-1)![2]!;
+    await act(async () => state.setPRStateFilter("all"));
+    expect(countSignal.aborted).toBe(true);
+    expect(branchesSignal.aborted).toBe(false);
+    await act(async () => { oldList.resolve([{number:12}]); oldCounts.resolve(new Map([[13,99]])); });
+    expect(state.pullRequests).toEqual([]);
+    expect(state.loadingPRs).toBe(false);
+    expect(state.error).toBeNull();
+    expect(api.fetchPRMarkdownCounts).toHaveBeenCalledTimes(1);
+    expect(api.fetchFileContent).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps repository metadata alive across file navigation, then aborts it on logout", async () => {
+    const branches = deferred<any[]>(), prs = deferred<any[]>();
+    vi.mocked(api.fetchBranches).mockReturnValue(branches.promise);
+    vi.mocked(api.fetchPullRequests).mockReturnValue(prs.promise);
+    await start("#/acme/docs/blob/topic/notes.md");
+    await waitFor(() => expect(state.fileRevision).toBe(FEATURE));
+    await act(async () => { state.loadSidebarMetadata("branches"); state.loadSidebarMetadata("prs"); });
+    const branchSignal = vi.mocked(api.fetchBranches).mock.calls.at(-1)![1]!;
+    const prSignal = vi.mocked(api.fetchPullRequests).mock.calls.at(-1)![2]!;
+    await navigate("#/acme/docs/blob/topic/other.md");
+    expect(branchSignal.aborted).toBe(false);
+    expect(prSignal.aborted).toBe(false);
+    await act(async () => state.setGithubToken(null));
+    expect(branchSignal.aborted).toBe(true);
+    expect(prSignal.aborted).toBe(true);
+    await act(async () => { branches.resolve([]); prs.resolve([]); });
+    expect(state.error).toBeNull();
+    expect(state.loadingBranches).toBe(false);
+    expect(state.loadingPRs).toBe(false);
+  });
+
+  it("aborts sidebar reads on unmount", async () => {
+    vi.mocked(api.fetchBranches).mockReturnValue(new Promise(() => {}));
+    vi.mocked(api.fetchPullRequests).mockReturnValue(new Promise(() => {}));
+    await start("#/acme/docs/blob/topic/notes.md");
+    await waitFor(() => expect(state.fileRevision).toBe(FEATURE));
+    await act(async () => { state.loadSidebarMetadata("branches"); state.loadSidebarMetadata("prs"); });
+    const branchSignal = vi.mocked(api.fetchBranches).mock.calls.at(-1)![1]!;
+    const prSignal = vi.mocked(api.fetchPullRequests).mock.calls.at(-1)![2]!;
+    cleanup();
+    expect(branchSignal.aborted).toBe(true);
+    expect(prSignal.aborted).toBe(true);
+  });
+
   it("makes no list/count requests for a direct document and deduplicates requested lists", async () => {
     const branches = deferred<any[]>();
     const counts = deferred<Map<number, number>>();
@@ -213,7 +273,9 @@ describe("sidebar metadata demand", () => {
     await start("#/acme/docs/blob/topic/notes.md");
     await waitFor(() => expect(state.fileRevision).toBe(FEATURE));
     await act(async () => state.loadSidebarMetadata("branches"));
+    const oldSignal = vi.mocked(api.fetchBranches).mock.calls.at(-1)![1]!;
     await navigate("#/other/docs/blob/new/notes.md");
+    expect(oldSignal.aborted).toBe(true);
     await act(async () => old.resolve([{name:"old",isDefault:true}]));
     expect(state.availableBranches).toEqual([]);
     await act(async () => state.loadSidebarMetadata("branches"));
