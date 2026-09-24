@@ -1,5 +1,6 @@
 "use client";
 
+import { clearMermaidCache } from "./mermaid";
 import { abortableDelay } from "./abort";
 import { measureOperation } from "./performance";
 
@@ -29,6 +30,7 @@ const treeCache = new RequestCache<RepoFile[]>(32, 8 * 1024 * 1024);
 
 export function resetGitHubSession(): void {
   octokitInstance = null;
+  clearMermaidCache();
   contentCache.clear();
   revisionRequests.clear();
   treeCache.clear();

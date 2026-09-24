@@ -1,5 +1,6 @@
 "use client";
 
+import { RequestCache } from "./request-cache";
 import { measureOperation } from "./performance";
 
 const LIGHT_THEME_VARS = {
@@ -71,13 +72,27 @@ function getMermaid() {
   return mermaidReady;
 }
 
-/** Re-initialize mermaid with the current theme. Call before rendering. */
-async function syncMermaidTheme(): Promise<void> {
-  const isDark = detectDarkMode();
-  if (isDark === lastDark) return;
-  lastDark = isDark;
-  const mermaid = await getMermaid();
-  mermaid.initialize(getMermaidConfig(isDark));
+// Mermaid has global configuration: serialize initialization with rendering so
+// concurrent light/dark requests cannot change the theme of a queued diagram.
+let renderQueue: Promise<unknown> = Promise.resolve();
+let nextDiagramId = 0;
+const editorDiagrams = new RequestCache<{ source: string; svg: string }>(64, 4 * 1024 * 1024);
+const renderingBlocks = new WeakSet<HTMLElement>();
+
+export function clearMermaidCache(): void { editorDiagrams.clear(); }
+
+function renderDiagram(source: string, dark: boolean): Promise<string> {
+  const result = renderQueue.then(async () => {
+    const mermaid = await getMermaid();
+    if (lastDark !== dark) {
+      mermaid.initialize(getMermaidConfig(dark));
+      lastDark = dark;
+    }
+    const { svg } = await mermaid.render(`mardoc-mermaid-${++nextDiagramId}`, source);
+    return svg;
+  });
+  renderQueue = result.catch(() => {});
+  return result;
 }
 
 const MERMAID_KEYWORDS = /^(graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|gitgraph|journey|mindmap|timeline|quadrantChart|sankey|block|xychart|C4Context)\b/;
@@ -103,8 +118,7 @@ async function preRenderMermaidUnmeasured(html: string): Promise<string> {
   );
   if (codeBlocks.length === 0) return html;
 
-  await syncMermaidTheme();
-  const mermaid = await getMermaid();
+  const dark = detectDarkMode();
 
   for (let i = 0; i < codeBlocks.length; i++) {
     const codeEl = codeBlocks[i];
@@ -117,8 +131,11 @@ async function preRenderMermaidUnmeasured(html: string): Promise<string> {
     const source = textarea.value.trim();
 
     try {
-      const id = `mermaid-pre-${Date.now()}-${i}`;
-      const { svg } = await mermaid.render(id, source);
+      // Cached SVG is used only inside images, whose IDs are isolated from the
+      // document. Inline PR SVGs still get unique IDs and fresh layout.
+      const { svg } = await editorDiagrams.load(JSON.stringify([dark, source]), async () => ({
+        source, svg: await renderDiagram(source, dark),
+      }));
       const blob = new Blob([svg], { type: "image/svg+xml" });
       const blobUrl = URL.createObjectURL(blob);
       const img = document.createElement("img");
@@ -154,13 +171,12 @@ async function renderMermaidBlocksUnmeasured(container: HTMLElement): Promise<vo
   });
   if (codeBlocks.length === 0) return;
 
-  await syncMermaidTheme();
-  const mermaid = await getMermaid();
+  const dark = detectDarkMode();
 
   for (let i = 0; i < codeBlocks.length; i++) {
     const codeEl = codeBlocks[i];
     const pre = codeEl.parentElement;
-    if (!pre || pre.tagName !== "PRE" || pre.dataset.mermaidRendered) continue;
+    if (!pre || pre.tagName !== "PRE" || renderingBlocks.has(pre)) continue;
 
     // Decode HTML entities and normalize line breaks (TipTap may use <br>)
     const rawHtml = codeEl.innerHTML.replace(/<br\s*\/?>/gi, "\n");
@@ -169,14 +185,15 @@ async function renderMermaidBlocksUnmeasured(container: HTMLElement): Promise<vo
     const source = textarea.value.trim();
 
     try {
-      const id = `mermaid-${Date.now()}-${i}`;
-      const { svg } = await mermaid.render(id, source);
+      renderingBlocks.add(pre);
+      const svg = await renderDiagram(source, dark);
+      if (!container.contains(pre)) continue;
       const wrapper = document.createElement("div");
       wrapper.className = "mermaid-diagram";
       wrapper.innerHTML = svg;
       pre.replaceWith(wrapper);
     } catch {
       // Leave the code block as-is if mermaid can't parse it
-    }
+    } finally { renderingBlocks.delete(pre); }
   }
 }
