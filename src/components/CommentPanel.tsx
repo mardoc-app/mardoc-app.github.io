@@ -22,6 +22,7 @@ export interface PanelComment {
   replies: { author: string; avatarColor: string; body: string; createdAt: string }[];
   source: "local" | "github";
   pending?: boolean;
+  conversation?: boolean;
 }
 
 export interface CommentPanelProps {
@@ -135,7 +136,7 @@ export default function CommentPanel({
                     </span>
                   ) : comment.source === "github" ? (
                     <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--surface-secondary)] text-[var(--text-muted)]">
-                      GitHub
+                      {comment.conversation ? "PR conversation" : "GitHub"}
                     </span>
                   ) : null}
                   {comment.pending && onDiscardPending && (
@@ -159,7 +160,7 @@ export default function CommentPanel({
                     // suggestion, there's no posted comment to reference and
                     // the line range can be stale — accepting would commit
                     // blind. Hide the button until the review is submitted.
-                    const canAccept = !!onAccept && !comment.pending;
+                    const canAccept = !!onAccept && !comment.pending && !comment.conversation;
                     return (
                       <div className="mt-1">
                         <div className="text-[9px] text-[var(--accent)] font-medium mb-1">Suggested change:</div>
@@ -181,7 +182,7 @@ export default function CommentPanel({
                           >
                             Submit the review first to enable Accept
                           </p>
-                        ) : null}
+                        ) : comment.conversation ? <p className="text-[9px] text-[var(--text-muted)] mt-1.5">This suggestion is in the PR conversation; apply it in the editor.</p> : null}
                       </div>
                     );
                   }
@@ -251,13 +252,13 @@ export default function CommentPanel({
                       <Send size={12} />
                     </button>
                   </div>
-                  <button
+                  {comment.conversation ? <p className="text-[10px] text-[var(--text-muted)] mt-1.5">Replies are posted in the PR conversation. GitHub does not provide thread resolution here.</p> : <button
                     onClick={() => onResolve(comment.id)}
                     className="flex items-center gap-1 text-[10px] text-[var(--text-muted)] hover:text-green-600 mt-1.5 transition-colors"
                   >
                     <Check size={10} />
                     Resolve
-                  </button>
+                  </button>}
                 </div>
               )}
             </div>

@@ -1,8 +1,8 @@
-import { PendingInlineComment } from "@/lib/github-api";
+import type { PendingInlineComment } from "@/lib/github-api";
+import { formatReviewFallback } from "./review-comment-context";
 
 /**
- * Detects the specific GitHub error that means "one or more of the inline
- * comment lines is outside a diff hunk on that file".
+ * Detects known 422 diff-location failures, including diffs GitHub cannot display.
  *
  * GitHub's pulls.createReview is atomic: if any comment's `line` doesn't
  * resolve to a position in the PR diff, the whole review is rejected with a
@@ -16,10 +16,14 @@ export function isLineResolutionError(err: unknown): boolean {
   const anyErr = err as Record<string, any>;
   const status = anyErr.status ?? anyErr.response?.status;
   if (status !== 422) return false;
-  const message = String(anyErr.message || "").toLowerCase();
+  const errors = anyErr.response?.data?.errors;
+  const message = [anyErr.message, anyErr.response?.data?.message,
+    ...(Array.isArray(errors) ? errors.map(error => typeof error === "string" ? error : error?.message) : [])]
+    .filter(value => typeof value === "string").join(" ").toLowerCase();
   return (
     message.includes("could not be resolved") ||
-    message.includes("pull_request_review_thread.line")
+    message.includes("pull_request_review_thread.line") ||
+    /diff (?:entry[\s\S]*? )?(?:is )?too large/.test(message)
   );
 }
 
@@ -32,37 +36,35 @@ export interface ReviewFallbackDeps {
   postIssueComment: (body: string) => Promise<void>;
 }
 
-/**
- * Try each pending comment as an individual inline review comment. If the
- * inline post fails for a specific comment (its line doesn't resolve on this
- * specific file, or any other per-comment error), fall back to posting that
- * comment as a general PR issue comment with the file + line context baked
- * into the body so the feedback isn't lost.
- *
- * Returns the number of comments that ended up as issue comments instead of
- * inline review threads, so the caller can surface a warning.
- */
+/** Only confirmed writes are removed from the local queue after partial failure. */
+export class ReviewFallbackError extends Error {
+  constructor(message: string, readonly postedComments: PendingInlineComment[], readonly unresolvedCount: number) {
+    super(message);
+    this.name = "ReviewFallbackError";
+  }
+}
+
+/** Fall back only on known diff-location rejection, never on uncertain writes. */
 export async function runInlineFallback(
   comments: PendingInlineComment[],
   deps: ReviewFallbackDeps
-): Promise<{ unresolvedCount: number }> {
+): Promise<{ unresolvedCount: number; postedComments: PendingInlineComment[] }> {
   let unresolvedCount = 0;
-  for (const c of comments) {
+  const postedComments: PendingInlineComment[] = [];
+  for (const comment of comments) {
     try {
-      await deps.postInlineComment(c);
-    } catch {
-      unresolvedCount++;
-      const range =
-        c.startLine && c.startLine !== c.line
-          ? ` (L${c.startLine}-L${c.line})`
-          : ` (L${c.line})`;
-      const contextBody = `**${c.path}**${range}\n\n${c.body}`;
       try {
-        await deps.postIssueComment(contextBody);
-      } catch {
-        // Give up silently on this one — at least the others posted.
+        await deps.postInlineComment(comment);
+      } catch (error) {
+        if (!isLineResolutionError(error)) throw error;
+        await deps.postIssueComment(formatReviewFallback(comment));
+        unresolvedCount++;
       }
+      postedComments.push(comment);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "GitHub rejected the comment";
+      throw new ReviewFallbackError(`Could not confirm posting ${comment.path}. Unsent comments remain pending. ${detail}`, postedComments, unresolvedCount);
     }
   }
-  return { unresolvedCount };
+  return { unresolvedCount, postedComments };
 }

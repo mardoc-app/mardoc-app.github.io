@@ -22,7 +22,7 @@ The file picker and repository filters recognize `.md`, `.mdx`, `.html`, and `.h
 
 Open the PR, select a document, choose a view, and select a passage to comment. File panels filter inline comments to the selected file; general PR comments have no file association and are excluded from these panels. Pending inline comments remain local until you finish the review. Refreshing or leaving the review can lose unsubmitted work; there is no cross-device pending queue.
 
-Finish the review with a comment, approval, or request for changes. Normally the pending comments are sent together through GitHub's review endpoint. If GitHub rejects source-line mappings, the app tries individual inline comments and then issue comments. General PR comments can be posted immediately. Replies and resolution changes also write directly to GitHub.
+Finish the review with a comment, approval, or request for changes. Normally the pending comments are sent together through GitHub's review endpoint. If GitHub rejects source-line mappings or reports a diff too large to comment on, the app tries individual inline comments and then PR conversation comments for known location failures. These fallback comments carry file, line, quote and revision context so MarDoc can restore their jump targets on reload. A visible notice explains the fallback. Failed writes keep the unsent drafts; confirmed comments are removed from the queue so a retry does not resend them. General PR comments can be posted immediately. Replies and resolution changes also write directly to GitHub.
 
 Accepting a suggestion applies one line-range replacement to the current PR branch. Batch acceptance in one commit and reliable outdated-suggestion protection remain unfinished. GitHub permissions and branch rules still govern writes.
 
@@ -61,3 +61,29 @@ Repository Markdown images use URL rewriting and authenticated loading. HTML ass
 | Mobile | Layout below 768px, navigation drawer, review comment sheet | Split mode is hidden; swipe-file navigation and forced tablet/mobile preference remain unfinished. |
 
 Use `?` for the in-app keyboard list and `Cmd/Ctrl+Shift+P` for the command palette. Embed reload is also exposed as a toolbar action; webview shortcut routing depends on the host.
+
+
+### Large-diff review comments
+
+GitHub may render a file too large for its review diff even when MarDoc can render
+the complete HTML document. The API's `Diff entry … diff is too large` response is
+a known location failure, alongside unresolved diff lines. MarDoc can post that
+feedback to the PR conversation, preserving a readable filename/line heading and
+a versioned location marker. Review summary text and approval/change-request events
+are still submitted separately when required. GitHub documents review creation
+and its validation responses in the [review API reference](https://docs.github.com/en/rest/pulls/reviews#create-a-review-for-a-pull-request).
+
+Conversation comments are labelled in the document panel. They can be jumped to
+in MarDoc, but GitHub does not provide inline thread resolution or native suggestion
+acceptance for them. Replies appear as PR conversation comments. Fallback targets
+are pinned to the viewed commit; a changed revision is labelled outdated rather
+than reusing historical line numbers. Older fallback comments without the new
+location marker remain general discussion. The marker is location evidence, not
+authenticated provenance; the rendered locator still verifies the passage.
+
+If a fallback write fails, submission stops and unsent comments remain pending in
+the current tab. Confirmed earlier writes are removed from the queue, including
+when the final approval/review event fails. Authentication errors and uncertain
+network errors do not trigger a second comment type automatically. A lost server
+response still cannot prove whether a write happened; check GitHub before manually
+retrying such an error. Pending drafts are not restored after reloading the tab.
