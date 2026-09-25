@@ -42,9 +42,10 @@ describe("HTML source and live-DOM comment evidence", () => {
     live.querySelector("p")!.append(" Original");
     expect(locateHtmlComment(live,source,target(1),"Original").status).toBe("ambiguous");
   });
-  it("can locate hidden targets for visibility feedback, but excludes executable and SVG text", () => {
-    const doc = parse('<script>Secret</script>\n<style>Secret</style>\n<svg><text>Secret</text></svg>\n<p hidden>Hidden text</p>');
+  it("can locate hidden targets for visibility feedback, but excludes executable and SVG metadata", () => {
+    const doc = parse('<script>Secret</script>\n<style>Secret</style>\n<svg><desc>Secret</desc><text>Diagram label</text></svg>\n<p hidden>Hidden text</p>');
     expect(locateHtmlComment(doc,doc,undefined,"Secret").status).toBe("missing");
+    expect(locateHtmlComment(doc,doc,target(3),"Diagram label").status).toBe("found");
     expect(locateHtmlComment(doc,doc,target(4),"Hidden text").status).toBe("found");
   });
 });
