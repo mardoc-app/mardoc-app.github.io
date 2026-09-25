@@ -153,7 +153,7 @@ The originating deck remains retained by PR-wide Back to review as in stage 3.
 
 Standard details/summary sections can be expanded after a unique match. Other
 hidden content is reported without changing arbitrary presentation classes or
-calling deck-specific scripts. Canvas/SVG/shadow-DOM text and generated text
+calling deck-specific scripts. Canvas/shadow-DOM text and generated text
 without matching source evidence are not supported. Malformed markup or root-only
 text that cannot be verified in the inert source fragment may report missing;
 the locator does not guess. Slide adapters and the private-deck acceptance pass
@@ -171,3 +171,17 @@ remain stage 5 work.
 
 See [large-diff review comments](capabilities.md#large-diff-review-comments) for
 conversation-comment behavior and revision limits.
+
+### SVG text and numbered slide follow-up
+
+SVG text/tspan passages now use the same source-verified range locator and CSS
+highlighting as HTML text. SVG metadata remains excluded. A narrowly detected
+numbered deck (slide elements, one active aria-visible slide, matching position
+counter, and Previous/Next buttons) can reveal the target through its own controls.
+Each step must synchronously advance exactly one slide; unrecognized decks retain
+the hidden-target explanation. No slide classes are rewritten by MarDoc.
+
+Validated locally against the private architectural deck: the saved SVG comment
+now moves from slide 1 to slide 7 and highlights its exact quote. The private
+document and comment are not committed. Template-generated presenter notes and
+other presentation frameworks remain follow-up work.
