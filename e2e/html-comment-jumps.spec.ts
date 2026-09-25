@@ -194,3 +194,35 @@ test("SVG comment jumps activate numbered slides through controls and preserve t
   await jump(page,"Repeated passage");
   await expect(frame(page).locator("#position")).toHaveText("3 / 3");
 });
+
+test("template notes jump selects the slide, opens notes, and retains controls and iframe state", async ({page}) => {
+  const source = [
+    '<html><body><style>.slide{display:none}.slide.active{display:block}</style>',
+    '<button id="previous">Previous</button><button id="next">Next</button><span id="position"></span>',
+    '<section class="slide"><p id="second">Same phrase.</p></section>',
+    '<section class="slide"><p>Middle</p></section>',
+    '<section class="slide"><p>Final slide</p></section>',
+    '<template id="notes-3"><p id="note-target">Same <a href="#destination">phrase</a>.</p></template>',
+    '<template id="notes-1"><p>Starting notes</p></template><template id="notes-2"><p>Middle notes</p></template>',
+    '<aside id="notes" hidden></aside><button id="toggle-notes" aria-expanded="false">Presenter notes</button>',
+    '<h2 id="destination">Destination</h2>',
+    '<script>window.runs=1;window.linkClicks=0;document.addEventListener("click",e=>{if(e.target.matches("a"))window.linkClicks++});let current=0;const slides=[...document.querySelectorAll(".slide")];function show(i){current=i;slides.forEach((s,n)=>{s.classList.toggle("active",n===i);s.setAttribute("aria-hidden",String(n!==i))});position.textContent=(i+1)+" / "+slides.length;previous.disabled=i===0;next.disabled=i===slides.length-1;notes.replaceChildren(document.getElementById("notes-"+(i+1)).content.cloneNode(true));}previous.onclick=()=>show(current-1);next.onclick=()=>show(current+1);document.getElementById("toggle-notes").onclick=()=>{notes.hidden=!notes.hidden;document.getElementById("toggle-notes").setAttribute("aria-expanded",String(!notes.hidden));};show(0);</script>',
+    '</body></html>',
+  ].join("\n");
+  await setup(page, source);
+  await jump(page, "Repeated passage");
+  await expect(frame(page).locator("#position")).toHaveText("3 / 3");
+  await expect(frame(page).locator("#notes")).toBeVisible();
+  await expect(frame(page).locator("#note-target")).toBeFocused();
+  await expect(status(page,"Comment location highlighted")).toBeVisible();
+  await frame(page).getByRole("link",{name:"phrase",exact:true}).click();
+  expect(await frame(page).locator("body").evaluate(()=>(window as any).linkClicks)).toBe(1);
+  await frame(page).locator("#previous").click();
+  await expect(frame(page).locator("#position")).toHaveText("2 / 3");
+  await expect(status(page,"highlighted passage changed")).toBeVisible();
+  await page.getByRole("button",{name:"Source Diff",exact:true}).click();
+  await jump(page,"Repeated passage");
+  await expect(frame(page).locator("#note-target")).toBeFocused();
+  await expect(frame(page).locator("#toggle-notes")).toHaveAttribute("aria-expanded","true");
+  expect(await frame(page).locator("body").evaluate(()=>(window as any).runs)).toBe(1);
+});

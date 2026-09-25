@@ -45,12 +45,13 @@ desktop/mobile checks and a real-document acceptance pass before merging.
 
 - [x] Manual acceptance and merge of the HTML jump PR.
 
-## 5. Presentation navigation — planned
+## 5. Presentation navigation — slide jumps shipped (#129); notes in review
 
-- [ ] Detect supported slide containers and explicitly reveal target slides.
-- [ ] Provide honest unsupported/hidden-target fallback for arbitrary scripts.
-- [ ] Preserve slide state, expanded notes and Back navigation.
-- [ ] Validate with the private architectural deck without publishing its content.
+- [x] Detect supported numbered slide containers and explicitly reveal target slides.
+- [x] Provide honest unsupported/hidden-target fallback for arbitrary scripts.
+- [x] Preserve the live deck and use its controls to select slides and expand notes.
+- [x] Validate SVG slide targeting and template-note targeting on the private architectural deck using local fixtures.
+- [ ] Manual acceptance and merge of template-note navigation.
 
 ## Foundation scope
 
@@ -183,5 +184,32 @@ the hidden-target explanation. No slide classes are rewritten by MarDoc.
 
 Validated locally against the private architectural deck: the saved SVG comment
 now moves from slide 1 to slide 7 and highlights its exact quote. The private
-document and comment are not committed. Template-generated presenter notes and
-other presentation frameworks remain follow-up work.
+document and comment are not committed. Template-generated presenter notes are covered below; other presentation frameworks remain follow-up work.
+
+### Template presenter notes — in review
+
+The source locator checks each top-level template independently and requires a
+unique quote plus source coordinates before attempting note navigation. This
+matters for generated documents that place all notes on one source line.
+Ambiguity across ordinary content and templates is reported before navigation.
+
+For the supported numbered deck, `notes-N` identifies the slide, `#notes` hosts
+its cloned content, and `#toggle-notes` controls visibility with aria-expanded.
+MarDoc uses the deck's Previous/Next and notes buttons, then re-locates the
+passage in the live notes container. It never highlights the inert template or
+copies its contents itself. Already-open notes stay open. Replacing note text
+on subsequent slide navigation clears the old highlight through the existing
+mutation check.
+
+Other template conventions, nested templates, cross-template selections, and
+quote-free template targets are not automatically navigated. Unknown controls
+or mismatched live text produce location feedback instead of guessed highlights.
+Validation includes desktop/mobile links, controls, Source/Rendered switching,
+and a temporary local comment on the private deck's slide-7 notes. No remote
+comment was created.
+
+## Next: clickable HTML comment markers
+
+- [ ] Show markers for existing HTML comments without requiring a prior jump.
+- [ ] Clicking a marker opens its comment in the panel.
+- [ ] Preserve SVG/deck controls, selection behavior and mobile accessibility.

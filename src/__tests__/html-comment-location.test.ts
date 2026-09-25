@@ -61,3 +61,21 @@ it("adds closing ranges without scanning raw text or changing source bytes", () 
   expect(doc.querySelector("br")?.dataset.mardocEndLine).toBe("5");
   expect(doc.querySelector("textarea")?.textContent).toBe("<p>literal</p>");
 });
+
+it("verifies template source against cloned notes and refuses shared-line ambiguity", () => {
+  const source = parse('<template id="notes-1"><p>First note</p></template><template id="notes-2"><p>Second <b>note</b></p></template>');
+  const doc = parse('<aside id="notes"></aside>');
+  doc.getElementById("notes")!.append(source.querySelector<HTMLTemplateElement>("#notes-2")!.content.cloneNode(true));
+  const location = locateHtmlComment(doc,source,target(1),"Second note");
+  expect(location.status).toBe("found");
+  expect(text(location)).toBe("Second note");
+  expect(locateHtmlComment(doc,source,target(1),"note").status).toBe("ambiguous");
+  expect(locateHtmlComment(doc,source,undefined,"Second note").status).toBe("unknown");
+  doc.getElementById("notes")!.textContent = "Changed note";
+  expect(locateHtmlComment(doc,source,target(1),"Second note").status).toBe("missing");
+});
+
+it("refuses ambiguous body/template quotes before touching presentation controls", () => {
+  const source = parse('<p>Shared passage</p><template id="notes-1"><p>Shared passage</p></template>');
+  expect(locateHtmlComment(source,source,target(1),"Shared passage",true).status).toBe("ambiguous");
+});

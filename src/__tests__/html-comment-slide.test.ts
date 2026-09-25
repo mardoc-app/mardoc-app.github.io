@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { revealCommentSlide } from "@/lib/html-comment-slide";
+import { revealCommentSlide, revealCommentNotes } from "@/lib/html-comment-slide";
 
 function deck() {
   document.body.innerHTML = '<button id="previous"></button><button id="next"></button><span id="position">1 / 3</span>' +
@@ -38,4 +38,23 @@ it("stops if a control does not synchronously advance one slide",()=>{
   revealCommentSlide(document,[slides[2]]);
   expect(calls()).toBe(0);
   expect(slides[0].classList.contains("active")).toBe(true);
+});
+
+it("opens notes using the toggle and does not close already-open notes", () => {
+  const {calls} = deck();
+  document.body.insertAdjacentHTML("beforeend", '<template id="notes-3"><p>Note</p></template><aside id="notes" hidden></aside><button id="toggle-notes" aria-expanded="false"></button>');
+  const notes = document.getElementById("notes")!, toggle = document.getElementById("toggle-notes")!;
+  let toggles = 0;
+  toggle.onclick = () => {toggles++;notes.hidden=!notes.hidden;toggle.setAttribute("aria-expanded",String(!notes.hidden));};
+  expect(revealCommentNotes(document,"notes-3")).toBe(notes);
+  expect(calls()).toBe(2);
+  expect(toggles).toBe(1);
+  expect(revealCommentNotes(document,"notes-3")).toBe(notes);
+  expect(toggles).toBe(1);
+});
+it("refuses unsupported or inconsistent notes controls before navigating", () => {
+  const {calls} = deck();
+  expect(revealCommentNotes(document,"arbitrary-template")).toBeNull();
+  expect(revealCommentNotes(document,"notes-3")).toBeNull();
+  expect(calls()).toBe(0);
 });
