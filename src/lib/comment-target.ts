@@ -5,6 +5,8 @@ export interface CommentTarget {
   side?: "LEFT" | "RIGHT";
   startSide?: "LEFT" | "RIGHT";
   commitId?: string;
+  /** Issue-comment fallback coordinates are pinned, not remapped by GitHub. */
+  revisionPinned?: boolean;
   originalCommitId?: string;
   startLine?: number;
   endLine?: number;
@@ -52,4 +54,12 @@ export function commentFileIndex(comment: PRComment, files: PRFile[]): number {
   if (current >= 0) return current;
   const renamed = files.map((file, index) => file.basePath === path ? index : -1).filter(index => index >= 0);
   return renamed.length === 1 ? renamed[0] : -1;
+}
+
+/** GitHub does not update issue-comment coordinates when a PR revision changes. */
+export function commentTargetForFile(target: CommentTarget | undefined, file: PRFile): CommentTarget | undefined {
+  if (!target?.revisionPinned) return target;
+  const revision = target.side === "LEFT" ? file.baseRef : file.headRef;
+  return {...target,status: !target.commitId || !revision ? "unknown"
+    : target.commitId === revision ? "current" : "outdated"};
 }

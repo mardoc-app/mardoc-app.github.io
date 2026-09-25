@@ -35,7 +35,7 @@ desktop/mobile checks and a real-document acceptance pass before merging.
 - [x] Paginate review comments, general comments, and review-thread resolution.
 - [x] Manual acceptance and merge of the PR-wide navigation PR.
 
-## 4. HTML jumps and highlighting — in review
+## 4. HTML jumps and highlighting — shipped (#127)
 
 - [x] Locate ranges inside the live iframe without resetting its document.
 - [x] Scope source-line candidates, then refine by quote/context.
@@ -43,7 +43,7 @@ desktop/mobile checks and a real-document acceptance pass before merging.
 - [x] Reveal supported collapsed content; report hidden or missing targets.
 - [x] Test source/rendered views, multiline elements, dynamic DOM and mobile.
 
-- [ ] Manual acceptance and merge of the HTML jump PR.
+- [x] Manual acceptance and merge of the HTML jump PR.
 
 ## 5. Presentation navigation — planned
 
@@ -158,3 +158,16 @@ without matching source evidence are not supported. Malformed markup or root-onl
 text that cannot be verified in the inert source fragment may report missing;
 the locator does not guess. Slide adapters and the private-deck acceptance pass
 remain stage 5 work.
+
+
+### Oversized-diff submission follow-up
+
+- [x] Recognize GitHub's oversized-diff 422 response as an inline-location failure.
+- [x] Preserve fallback comment location, quote and viewed revision across reloads.
+- [x] Show PR-conversation status and avoid unsupported native thread controls.
+- [x] Keep unsuccessful drafts and remove only confirmed writes before retry.
+- [x] Preserve review summary text and final review events on fallback.
+- [ ] Review and merge the submission fix; validate on the live training deck.
+
+See [large-diff review comments](capabilities.md#large-diff-review-comments) for
+conversation-comment behavior and revision limits.
