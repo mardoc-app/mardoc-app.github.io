@@ -37,7 +37,7 @@ export function useHtmlCommentJump(iframe: RefObject<HTMLIFrameElement>, source:
       if (!comment) return;
       handled.current = request;
       cleanup.current?.(); cleanup.current = undefined;
-      const location = locateHtmlComment(loaded.doc, sourceDocument, comment.target, comment.selectedText || "");
+      const location = locateHtmlComment(loaded.doc, sourceDocument, comment.target, comment.selectedText || "", true);
       if (location.status !== "found" && location.status !== "range") {
         report(commentLocationMessages[location.status]); return;
       }

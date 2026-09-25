@@ -1,5 +1,5 @@
 import type { CommentTarget } from "./comment-target";
-import { revealCommentSlide } from "./html-comment-slide";
+import { revealCommentSlide, revealCommentNotes } from "./html-comment-slide";
 import type { LocatedComment } from "./markdown-comment-location";
 
 const excluded = "head,title,script,style,template,textarea,select";
@@ -30,7 +30,7 @@ function eligible(element: Element, target?: CommentTarget): boolean {
   return false;
 }
 
-function locate(doc: Document | DocumentFragment, target: CommentTarget | undefined, quote: string): LocatedComment {
+function locate(doc: Document | DocumentFragment | HTMLElement, target: CommentTarget | undefined, quote: string): LocatedComment {
   const root = "body" in doc ? doc.body : doc;
   const owner = "body" in doc ? doc : doc.ownerDocument;
   if (!quote.trim()) {
@@ -91,14 +91,33 @@ function locate(doc: Document | DocumentFragment, target: CommentTarget | undefi
 }
 
 /** Verify source evidence, then locate on the current live DOM without executing source. */
-export function locateHtmlComment(doc: Document, source: Document | DocumentFragment, target: CommentTarget | undefined, quote: string): LocatedComment {
+export function locateHtmlComment(doc: Document, source: Document | DocumentFragment, target: CommentTarget | undefined, quote: string, revealNotes = false): LocatedComment {
   if (target?.status === "outdated") return result("outdated");
   if (target?.status === "file") return result("file");
   if (target && (target.status !== "current" || !target.side || !target.startLine || !target.endLine ||
     target.startLine > target.endLine || (target.startSide && target.startSide !== target.side))) return result("unknown");
   if (!target && !quote.trim()) return result("unknown");
   const original = locate(source, target, quote);
-  if (original.status !== "found" && original.status !== "range") return original;
+  // Template contents are separate document fragments; a normal tree walk never
+  // visits them. Search each independently so text cannot span unrelated slides.
+  // Require a quote for templates: opening-line ranges alone are often shared.
+  const templates = quote.trim() ? Array.from(source.querySelectorAll<HTMLTemplateElement>("template"))
+    .map(template => ({template, location:locate(template.content, target, quote)}))
+    .filter(candidate => candidate.location.status === "found" || candidate.location.status === "ambiguous") : [];
+  const originalMatches = original.status === "found" || original.status === "range";
+  if (original.status === "ambiguous" || templates.some(candidate => candidate.location.status === "ambiguous") ||
+    templates.length + Number(originalMatches) > 1) return result("ambiguous");
+  if (templates.length === 1) {
+    const template = templates[0].template;
+    // Do not activate a template based on a legacy quote without coordinates.
+    if (!target) return result("unknown");
+    const notes = revealNotes ? revealCommentNotes(doc, template.id) : doc.getElementById("notes");
+    if (!notes) return result("missing");
+    // Verify the freshly cloned live text after navigation, never highlight the
+    // inert template or accept a stale reference to a previous slide's notes.
+    return locate(notes, target, quote);
+  }
+  if (!originalMatches) return original;
   return locate(doc, target, quote);
 }
 
