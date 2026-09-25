@@ -9,7 +9,7 @@ import { Octokit } from "@octokit/rest";
 import { RepoFile, PullRequest, PRFile, PRComment } from "@/types";
 import { isDocumentFile } from "@/lib/file-types";
 import { utf8ToBase64, base64ToUtf8 } from "@/lib/base64-utf8";
-import { isLineResolutionError, runInlineFallback } from "@/lib/review-fallback";
+import { isLineResolutionError, runInlineFallback, ReviewFallbackError } from "@/lib/review-fallback";
 import {
   updateFromHeaders,
   isRateLimitError,
@@ -21,6 +21,7 @@ import { computeBackoff } from "@/lib/fetch-retry";
 import { requestEmbedImage } from "@/lib/embed-image-bridge";
 import { resolvePath, classifyLink } from "@/lib/link-handler";
 
+import { parseReviewFallback } from "./review-comment-context";
 import { RequestCache, isCommitSha } from "./request-cache";
 
 let octokitInstance: Octokit | null = null;
@@ -519,16 +520,24 @@ async function fetchPRCommentsUnmeasured(
         })),
       };
     }),
-    ...issueComments.data.map((c) => ({
-      id: `ic-${c.id}`,
-      githubId: c.id,
-      author: c.user?.login || "unknown",
-      avatarColor: getColor(c.user?.login || "unknown"),
-      body: c.body || "",
-      createdAt: c.created_at,
-      resolved: false,
-      replies: [],
-    })),
+    ...issueComments.data.map((c) => {
+      const restored = parseReviewFallback(c.body || "");
+      return {
+        id: `ic-${c.id}`,
+        githubId: c.id,
+        author: c.user?.login || "unknown",
+        avatarColor: getColor(c.user?.login || "unknown"),
+        body: restored?.body ?? c.body ?? "",
+        target: restored?.target,
+        path: restored?.target.path,
+        selectedText: restored ? selectionQuote(restored.body) : undefined,
+        startLine: restored?.target.startLine,
+        endLine: restored?.target.endLine,
+        createdAt: c.created_at,
+        resolved: false,
+        replies: [],
+      };
+    }),
   ];
 
   return allComments;
@@ -687,6 +696,9 @@ export async function createInlineComment(
  * Maps 1:1 to the shape GitHub's pulls.createReview accepts in its `comments[]`.
  */
 export interface PendingInlineComment {
+  /** Local queue ID and viewed revision; never sent as GitHub API fields. */
+  localId?: string;
+  commitId?: string;
   path: string;
   body: string;
   line: number;
@@ -748,7 +760,7 @@ export async function submitReview(
 }
 
 /**
- * Submit a review with graceful fallback for out-of-hunk comments.
+ * Submit a review with fallback for unresolvable lines and oversized diffs.
  *
  * GitHub's pulls.createReview requires every inline comment's `line` to sit
  * inside a diff hunk on that file. A single unresolvable line rejects the
@@ -757,10 +769,10 @@ export async function submitReview(
  * We try the batched path first. On a 422 that looks like a line-resolution
  * error, fall back to posting each comment individually:
  *   1. createInlineComment for each — succeeds for in-hunk lines.
- *   2. On per-comment failure, post it as a general PR issue comment with the
+ *   2. On a known per-comment location failure, post a PR issue comment with the
  *      file + line context baked into the body so the feedback isn't lost.
  *   3. Finally submit the review event (APPROVE / REQUEST_CHANGES) with no
- *      comments. For COMMENT the individual comments are the review.
+ *      comments. Preserve a COMMENT review body too, when supplied.
  *
  * Returns the count of comments that had to fall back to general PR comments,
  * so the caller can surface a warning.
@@ -776,12 +788,12 @@ export async function submitReviewBatched(
     await submitReview(repoFullName, prNumber, event, body, comments);
     return { unresolvedCount: 0 };
   } catch (err) {
-    if (!isLineResolutionError(err)) {
+    if (!comments.length || !isLineResolutionError(err)) {
       throw err;
     }
   }
 
-  const { unresolvedCount } = await runInlineFallback(comments, {
+  const { unresolvedCount, postedComments } = await runInlineFallback(comments, {
     postInlineComment: (c) =>
       createInlineComment(
         repoFullName,
@@ -795,10 +807,13 @@ export async function submitReviewBatched(
     postIssueComment: (text) => createPRComment(repoFullName, prNumber, text),
   });
 
-  if (event !== "COMMENT") {
-    // Record the approval / change-request state even though the comments
-    // were posted outside the review envelope.
-    await submitReview(repoFullName, prNumber, event, body, []);
+  if (event !== "COMMENT" || body?.trim()) {
+    try {
+      await submitReview(repoFullName, prNumber, event, body, []);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "GitHub rejected the review";
+      throw new ReviewFallbackError(`Comments were posted, but the review itself was not confirmed. Retry the review without resending those comments. ${detail}`, postedComments, unresolvedCount);
+    }
   }
 
   return { unresolvedCount };

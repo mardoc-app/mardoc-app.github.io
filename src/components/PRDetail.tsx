@@ -28,6 +28,7 @@ import {
   type ReviewEvent,
 } from "@/lib/github-api";
 import { createBackgroundRefresh } from "@/lib/background-refresh";
+import { ReviewFallbackError } from "@/lib/review-fallback";
 import { mergeFreshComments } from "@/lib/comment-merge";
 import { buildSuggestionBody, parseSuggestionBody } from "@/lib/suggestion-body";
 import { transformGitHubAlerts } from "@/lib/github-alerts";
@@ -113,6 +114,7 @@ export default function PRDetail({ pr, onBack }: PRDetailProps) {
   const [reviewBody, setReviewBody] = useState("");
   const [reviewEvent, setReviewEvent] = useState<ReviewEvent>("COMMENT");
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [reviewNotice, setReviewNotice] = useState<string | null>(null);
   const [reviewError, setReviewError] = useState<string | null>(null);
 
   // Sync comments from context when they load
@@ -222,6 +224,8 @@ export default function PRDetail({ pr, onBack }: PRDetailProps) {
           typeof c.pendingEndLine === "number"
       )
       .map((c) => ({
+        localId: c.id,
+        commitId: c.target?.commitId || prFiles.find(file => file.path === c.pendingPath)?.headRef,
         path: c.pendingPath!,
         body: c.body,
         line: c.pendingEndLine!,
@@ -231,7 +235,7 @@ export default function PRDetail({ pr, onBack }: PRDetailProps) {
             : undefined,
         side: "RIGHT" as const,
       }));
-  }, [comments]);
+  }, [comments, prFiles]);
 
   const pendingCount = comments.filter((c) => c.pending && c.pendingPath).length;
 
@@ -278,22 +282,17 @@ export default function PRDetail({ pr, onBack }: PRDetailProps) {
       // Clear pending comments — the next poll will pull them back with proper
       // thread/github IDs. Until then, hide the local optimistic copies so the
       // sidebar doesn't show duplicates.
-      setComments((prev) => prev.filter((c) => !c.pending));
+      const submittedIds = new Set(inlineComments.map(comment => comment.localId));
+      setComments(prev => prev.filter(comment => !submittedIds.has(comment.id)));
 
       if (reviewEvent === "APPROVE") setReviewStatus("approved");
       if (reviewEvent === "REQUEST_CHANGES") setReviewStatus("changes-requested");
 
       setReviewModalOpen(false);
 
-      // Surface a soft warning (not an error) so the reviewer knows some
-      // comments ended up as general PR comments instead of inline review
-      // threads. This is the graceful-fallback signal from submitReviewBatched.
-      if (unresolvedCount > 0) {
-        const word = unresolvedCount === 1 ? "comment" : "comments";
-        console.warn(
-          `${unresolvedCount} ${word} could not be tied to specific lines in the PR diff and were posted as general PR comments.`
-        );
-      }
+      setReviewNotice(unresolvedCount > 0
+        ? `${unresolvedCount} comment${unresolvedCount === 1 ? " was" : "s were"} posted to the PR conversation because GitHub could not attach the feedback to its diff. Document location and selection context were preserved.`
+        : null);
 
       // Refetch once now for the happy path, then hedge with additional
       // refetches at increasing delays so the new comments reliably appear
@@ -302,6 +301,12 @@ export default function PRDetail({ pr, onBack }: PRDetailProps) {
       scheduleRefreshHedge();
     } catch (err) {
       console.error("Failed to submit review:", err);
+      if (err instanceof ReviewFallbackError && err.postedComments.length) {
+        const submittedIds = new Set(err.postedComments.map(comment => comment.localId));
+        setComments(prev => prev.filter(comment => !submittedIds.has(comment.id)));
+        if (err.unresolvedCount) setReviewNotice(`${err.unresolvedCount} comment${err.unresolvedCount === 1 ? " was" : "s were"} posted to the PR conversation with document context.`);
+        scheduleRefreshHedge();
+      }
       setReviewError(
         err instanceof Error ? err.message : "Failed to submit review"
       );
@@ -422,6 +427,8 @@ export default function PRDetail({ pr, onBack }: PRDetailProps) {
         replies: [],
         pending: true,
         pendingPath: file.path,
+        target: {path:file.path,side:"RIGHT",status:"current",commitId:file.headRef,
+          startLine:suggestion.startLine,endLine:suggestion.endLine},
         pendingStartLine: suggestion.startLine,
         pendingEndLine: suggestion.endLine,
       };
@@ -610,6 +617,7 @@ export default function PRDetail({ pr, onBack }: PRDetailProps) {
         </div>
       </div>
 
+      {reviewNotice && <p role="status" className="shrink-0 border-b border-[var(--border)] px-4 py-2 text-sm">{reviewNotice}</p>}
       <PRCommentNavigator comments={comments} files={prFiles} onJump={(comment, index) => {
         setReference(null);
         if (selectedFile && isHtmlFile(selectedFile.path) && index !== selectedPRFileIdx) {
