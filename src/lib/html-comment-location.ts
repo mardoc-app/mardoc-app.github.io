@@ -1,8 +1,9 @@
 import type { CommentTarget } from "./comment-target";
+import { revealCommentSlide } from "./html-comment-slide";
 import type { LocatedComment } from "./markdown-comment-location";
 
-const excluded = "head,title,script,style,template,svg,textarea,select";
-const blocks = "p,div,section,article,li,dt,dd,td,th,pre,blockquote,h1,h2,h3,h4,h5,h6,summary";
+const excluded = "head,title,script,style,template,textarea,select";
+const blocks = "p,div,section,article,li,dt,dd,td,th,pre,blockquote,h1,h2,h3,h4,h5,h6,summary,text";
 const normalize = (text: string) => text.replace(/\s+/g, " ").trim();
 const result = (status: LocatedComment["status"], elements: HTMLElement[] = [], parts: LocatedComment["parts"] = []): LocatedComment => ({status, blocks:elements, parts});
 
@@ -15,6 +16,7 @@ function overlaps(element: Element, target?: CommentTarget): boolean {
 
 function eligible(element: Element, target?: CommentTarget): boolean {
   if (element.closest(excluded)) return false;
+  if (element.namespaceURI === "http://www.w3.org/2000/svg" && !element.closest("text")) return false;
   if (!target) return true;
   const nearest = element.closest("[data-mardoc-line]");
   if (!nearest) return false;
@@ -33,7 +35,7 @@ function locate(doc: Document | DocumentFragment, target: CommentTarget | undefi
   const owner = "body" in doc ? doc : doc.ownerDocument;
   if (!quote.trim()) {
     const candidates = Array.from(root.querySelectorAll<HTMLElement>("[data-mardoc-line]"))
-      .filter(element => !element.closest(excluded) && overlaps(element, target));
+      .filter(element => eligible(element, target) && overlaps(element, target));
     const candidateSet = new Set<Element>(candidates), excludedParents = new Set<Element>();
     for (const element of candidates) {
       for (let parent = element.parentElement; parent; parent = parent.parentElement) {
@@ -109,6 +111,7 @@ interface HighlightWindow {
 export function highlightHtmlComment(doc: Document, location: LocatedComment, onChanged?: () => void): {status: "highlighted" | "element" | "hidden"; clear: () => void} {
   const noop = () => {};
   const elements = location.blocks;
+  revealCommentSlide(doc, elements);
   for (const element of elements) {
     for (let parent: HTMLElement | null = element; parent; parent = parent.parentElement) {
       if (parent.tagName === "DETAILS") (parent as HTMLDetailsElement).open = true;
