@@ -135,8 +135,7 @@ DOM. Opening and closing source-line annotations restrict the candidate text;
 whitespace-normalized quotes must match uniquely in both the inert source and
 the live document. Repeated, changed, missing, unknown and outdated targets have
 explicit feedback. A quote-free range receives an element outline labelled as
-approximate. HTML highlights currently follow the explicitly selected comment;
-this does not add passive pins for every thread.
+approximate. HTML range highlights follow the explicitly selected comment. The marker follow-up below adds passive entry points for locatable unresolved comments.
 
 Highlighting uses the feature-detected [CSS Custom Highlight API](https://developer.mozilla.org/en-US/docs/Web/API/CSS_Custom_Highlight_API)
 with DOM ranges, preserving text nodes, event listeners and the user's selection.
@@ -208,8 +207,36 @@ Validation includes desktop/mobile links, controls, Source/Rendered switching,
 and a temporary local comment on the private deck's slide-7 notes. No remote
 comment was created.
 
-## Next: clickable HTML comment markers
+## Clickable HTML comment markers — in review
 
-- [ ] Show markers for existing HTML comments without requiring a prior jump.
-- [ ] Clicking a marker opens its comment in the panel.
-- [ ] Preserve SVG/deck controls, selection behavior and mobile accessibility.
+- [x] Show markers for existing HTML comments without requiring a prior jump.
+- [x] Clicking a marker opens and focuses its comment in the panel.
+- [x] Validate SVG/deck controls, text-node preservation, links and mobile/keyboard access.
+- [ ] Manual acceptance and merge of the marker PR.
+
+### Passive HTML marker behavior
+
+Numbered, keyboard-accessible marker buttons appear beside confidently located,
+visible unresolved comments in the currently displayed base/head revision. Markers
+also work for SVG text and for presenter notes after the deck has made them visible.
+They never navigate slides or expand notes automatically. Outdated, ambiguous,
+missing and whole-file comments remain accessible through the existing panels.
+
+Clicking a marker opens the existing comment card, scrolls it into view and focuses
+it; on mobile it opens the Comments sheet. Reply, resolution and PR-conversation
+limitations remain the same as in the panel.
+
+A zero-size fixed host with isolated styles keeps marker controls separate from
+document text and out of source scans. Placement avoids measured text and standard
+controls and stacks nearby markers when room permits. If no nearby 44-pixel hit
+area fits, that marker is omitted; the comment is still available in the panel.
+Marker numbering can therefore have gaps. Scroll/resize/DOM changes schedule one
+layout per animation frame; identical polling data does not rebuild controls.
+Text changes trigger re-location, while geometry-only updates reuse locations.
+Source view, revision changes and unmount dispose the marker layer and listeners.
+
+Validation includes desktop/mobile HTML, SVG slides, cloned notes, hidden sections,
+links, changed text, matching-card focus, and observer/animation-frame cleanup.
+The actual architectural-deck SVG comment was also checked locally using captured
+read-only data: its marker appears on slide 7 and opens the saved comment without
+switching slides. No private data is committed.
