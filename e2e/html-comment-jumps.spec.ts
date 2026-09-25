@@ -22,7 +22,7 @@ const html = [
   '</body></html>',
 ].join('\n');
 const frame = (page: Page) => page.frameLocator('iframe[title="deck.html"]');
-async function setup(page: Page) {
+async function setup(page: Page, source = html) {
   await page.addInitScript(() => localStorage.setItem("mardoc_github_token","fake"));
   const quote=(text:string,body:string)=>`> _"${text}"_\n\n${body}`;
   const comments = [
@@ -48,7 +48,7 @@ async function setup(page: Page) {
       : path.endsWith("/pulls/12/comments") ? comments
       : path.endsWith("/issues/12/comments") ? []
       : path==="/graphql" ? {data:{repository:{pullRequest:{reviewThreads:{nodes:[]}}}}}
-      : path.includes("/contents/") ? {encoding:"base64",content:Buffer.from(url.searchParams.get("ref")==="a".repeat(40)?html.replace("Head text.","Base text."):html).toString("base64")}
+      : path.includes("/contents/") ? {encoding:"base64",content:Buffer.from(url.searchParams.get("ref")==="a".repeat(40)?source.replace("Head text.","Base text."):source).toString("base64")}
       : pr;
     await route.fulfill({contentType:"application/json",body:JSON.stringify(data)});
   });
@@ -168,4 +168,29 @@ test("an iframe that navigated away reports why it cannot locate the comment",as
   await expect.poll(()=>frame(page).locator("body").evaluate(()=>document.URL)).toBe("about:blank");
   await jump(page,"Repeated passage");
   await expect(status(page,"no longer showing the reviewed HTML document")).toBeVisible();
+});
+
+test("SVG comment jumps activate numbered slides through controls and preserve the live deck", async ({page}) => {
+  const source = [
+    '<html><body><style>.slide{display:none}.slide.active{display:block}</style>',
+    '<button id="previous">Previous</button><button id="next">Next</button><span id="position"></span>',
+    '<section class="slide"><p>Start</p></section>',
+    '<section class="slide"><p>Middle</p></section>',
+    '<section class="slide"><svg width="400" height="80">',
+    '<text id="second" x="10" y="30">Same <tspan>phrase</tspan>.</text>',
+    '</svg></section>',
+    '<script>window.runs=1;let current=0;const slides=[...document.querySelectorAll(".slide")];function show(i){current=i;slides.forEach((s,n)=>{s.classList.toggle("active",n===i);s.setAttribute("aria-hidden",String(n!==i))});position.textContent=(i+1)+" / "+slides.length;previous.disabled=i===0;next.disabled=i===slides.length-1}previous.onclick=()=>show(current-1);next.onclick=()=>show(current+1);show(0);</script>',
+    '</body></html>'
+  ].join("\n");
+  await setup(page,source);
+  await jump(page,"Repeated passage");
+  await expect(frame(page).locator("#position")).toHaveText("3 / 3");
+  await expect(frame(page).locator("#second")).toBeFocused();
+  await expect(frame(page).locator("#second")).toBeInViewport();
+  await expect(status(page,"Comment location highlighted")).toBeVisible();
+  expect(await frame(page).locator("body").evaluate(() => (window as any).runs)).toBe(1);
+  await frame(page).getByRole("button",{name:"Previous",exact:true}).click();
+  await expect(frame(page).locator("#position")).toHaveText("2 / 3");
+  await jump(page,"Repeated passage");
+  await expect(frame(page).locator("#position")).toHaveText("3 / 3");
 });
