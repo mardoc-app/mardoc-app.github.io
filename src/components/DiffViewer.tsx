@@ -325,6 +325,7 @@ export default function DiffViewer({
   const handledJump = useRef<object | null>(null);
   const [jumpRequest, setJumpRequest] = useState<{id:string} | null>(null);
   const [jumpMessage, setJumpMessage] = useState("");
+  const [panelFocus, setPanelFocus] = useState<{id:string} | null>(null);
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const [pendingSelection, setPendingSelection] = useState<string | null>(null);
   const [pendingCommentInput, setPendingCommentInput] = useState("");
@@ -815,7 +816,11 @@ export default function DiffViewer({
   }, [onResolveComment]);
 
   const onHtmlCommentLoad = useHtmlCommentJump(htmlIframeRef, htmlAnnotatedSource, htmlSrcdoc,
-    fileIsHtml && htmlViewMode === "rendered", jumpRequest, allPanelComments, setJumpMessage);
+    fileIsHtml && htmlViewMode === "rendered", jumpRequest, allPanelComments, setJumpMessage, htmlShowBase ? "LEFT" : "RIGHT", id => {
+      setActiveCommentId(id);
+      setShowPanel(true);
+      setPanelFocus({id});
+    });
 
   const handleCommentSelect = useCallback((id: string) => {
     setActiveCommentId(id);
@@ -833,7 +838,15 @@ export default function DiffViewer({
     setJumpRequest({id});
   }, [isMobile, fileIsHtml, allPanelComments, file.headContent, file.baseContent]);
 
-  useEffect(() => { setJumpMessage(""); setJumpRequest(null); }, [file.path, file.baseContent, file.headContent]);
+  const jumpDocument = useRef({path:file.path,base:file.baseContent,head:file.headContent});
+  useEffect(() => {
+    const previous = jumpDocument.current;
+    // Initial state is already empty. Reset only when the document changes:
+    // StrictMode replays mount effects and must not erase a queued cross-file jump.
+    if (previous.path === file.path && previous.base === file.baseContent && previous.head === file.headContent) return;
+    jumpDocument.current = {path:file.path,base:file.baseContent,head:file.headContent};
+    setJumpMessage(""); setJumpRequest(null);
+  }, [file.path, file.baseContent, file.headContent]);
 
   // PRDetail only mounts this viewer after loading. Consume each request once,
   // so background comment refreshes cannot steal focus or repeat the scroll.
@@ -1571,6 +1584,7 @@ export default function DiffViewer({
           <CommentPanel
             comments={allPanelComments}
             activeCommentId={activeCommentId}
+            focusRequest={panelFocus}
             onSelect={setActiveCommentId}
             onJump={handleCommentSelect}
             onReply={handleReply}
@@ -1598,6 +1612,7 @@ export default function DiffViewer({
           <CommentPanel
             comments={allPanelComments}
             activeCommentId={activeCommentId}
+            focusRequest={panelFocus}
             onSelect={setActiveCommentId}
             onJump={handleCommentSelect}
             onReply={handleReply}
