@@ -183,6 +183,13 @@ test("SVG comment jumps activate numbered slides through controls and preserve t
     '</body></html>'
   ].join("\n");
   await setup(page,source);
+  await expect(frame(page).locator('[data-comment-marker-id="rc-1"]')).toBeHidden();
+  await expect(frame(page).locator("#position")).toHaveText("1 / 3");
+  await frame(page).locator("#next").click();
+  await frame(page).locator("#next").click();
+  await expect(frame(page).locator('[data-comment-marker-id="rc-1"]')).toBeVisible();
+  await frame(page).locator("#previous").click();
+  await expect(frame(page).locator('[data-comment-marker-id="rc-1"]')).toBeHidden();
   await jump(page,"Repeated passage");
   await expect(frame(page).locator("#position")).toHaveText("3 / 3");
   await expect(frame(page).locator("#second")).toBeFocused();
@@ -214,6 +221,7 @@ test("template notes jump selects the slide, opens notes, and retains controls a
   await expect(frame(page).locator("#position")).toHaveText("3 / 3");
   await expect(frame(page).locator("#notes")).toBeVisible();
   await expect(frame(page).locator("#note-target")).toBeFocused();
+  await expect(frame(page).locator('[data-comment-marker-id="rc-1"]')).toBeVisible();
   await expect(status(page,"Comment location highlighted")).toBeVisible();
   await frame(page).getByRole("link",{name:"phrase",exact:true}).click();
   expect(await frame(page).locator("body").evaluate(()=>(window as any).linkClicks)).toBe(1);
@@ -225,4 +233,50 @@ test("template notes jump selects the slide, opens notes, and retains controls a
   await expect(frame(page).locator("#note-target")).toBeFocused();
   await expect(frame(page).locator("#toggle-notes")).toHaveAttribute("aria-expanded","true");
   expect(await frame(page).locator("body").evaluate(()=>(window as any).runs)).toBe(1);
+});
+
+test("passive HTML markers open the matching comment without changing the document",async ({page,isMobile})=>{
+  await setup(page);
+  const marker=frame(page).locator('[data-comment-marker-id="rc-1"]');
+  await expect(marker).toBeVisible();
+  await expect(frame(page).locator('[data-comment-marker-id="rc-2"]')).toHaveCount(0); // other revision
+  await expect(frame(page).locator('[data-comment-marker-id="rc-3"]')).toBeHidden(); // collapsed notes
+  await expect(frame(page).locator('[data-comment-marker-id="rc-4"]')).toBeHidden();
+  await expect(frame(page).locator('[data-comment-marker-id="rc-6"]')).toBeHidden(); // ambiguous
+  await expect(frame(page).locator('[data-comment-marker-id="rc-9"]')).toBeHidden(); // historical
+  await expect(frame(page).locator('#notes')).not.toHaveAttribute("open");
+  await frame(page).locator("body").evaluate(()=>{
+    (window as any).originalParagraph=document.querySelector("#second");
+    (window as any).originalText=document.querySelector("#second")!.firstChild;
+  });
+  await marker.focus();
+  await page.keyboard.press("Enter");
+  const card=page.locator('[data-panel-comment-id="rc-1"]');
+  await expect(card).toBeFocused();
+  await expect(card.getByPlaceholder("Reply...")).toBeVisible();
+  await expect(card).toBeInViewport();
+  if(isMobile) {
+    await expect(page.getByRole("dialog",{name:"Comments",exact:true})).toHaveAttribute("aria-hidden","false");
+    await page.keyboard.press("Escape");
+    await marker.tap();
+    await expect(card).toBeFocused();
+    await expect(card.getByPlaceholder("Reply...")).toBeVisible();
+    await page.keyboard.press("Escape");
+  }
+  expect(await frame(page).locator("body").evaluate(()=>({
+    same:(window as any).originalParagraph===document.querySelector("#second"),
+    text:(window as any).originalText===document.querySelector("#second")!.firstChild,
+    runs:(window as any).scriptRuns,
+  }))).toEqual({same:true,text:true,runs:1});
+  await frame(page).locator("#notes summary").click();
+  await expect(frame(page).locator('[data-comment-marker-id="rc-3"]')).toBeVisible();
+  await frame(page).getByRole("link",{name:"this guide",exact:true}).click();
+  expect(await frame(page).locator("body").evaluate(()=>(window as any).linkClicks)).toBe(1);
+  await frame(page).locator("#second").evaluate(el=>{el.textContent="Changed passage";});
+  await expect(marker).toBeHidden();
+  await page.getByRole("button",{name:"Source Diff",exact:true}).click();
+  await expect(frame(page).locator('[data-mardoc-comment-markers]')).toHaveCount(0);
+  await page.getByRole("button",{name:"Rendered",exact:true}).click();
+  await expect(frame(page).locator('[data-comment-marker-id="rc-3"]')).toBeVisible();
+  expect(await frame(page).locator("body").evaluate(()=>(window as any).scriptRuns)).toBe(1);
 });

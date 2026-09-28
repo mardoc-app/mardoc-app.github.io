@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { X, MessageSquare, Check, Send } from "lucide-react";
 import type { CommentTarget } from "@/lib/comment-target";
 import { parseSuggestionBody } from "@/lib/suggestion-body";
@@ -28,6 +28,7 @@ export interface PanelComment {
 export interface CommentPanelProps {
   comments: PanelComment[];
   activeCommentId: string | null;
+  focusRequest?: {id:string} | null;
   onSelect: (id: string) => void;
   onJump?: (id: string) => void;
   onReply: (id: string, body: string) => void;
@@ -40,6 +41,7 @@ export interface CommentPanelProps {
 export default function CommentPanel({
   comments,
   activeCommentId,
+  focusRequest,
   onSelect,
   onJump,
   onReply,
@@ -48,11 +50,22 @@ export default function CommentPanel({
   onDiscardPending,
   onClose,
 }: CommentPanelProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!focusRequest) return;
+    const frame = requestAnimationFrame(() => {
+      const card = Array.from(panelRef.current?.querySelectorAll<HTMLElement>("[data-panel-comment-id]") || [])
+        .find(element => element.dataset.panelCommentId === focusRequest.id);
+      card?.focus({preventScroll:true});
+      card?.scrollIntoView({block:"nearest",behavior:"auto"});
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [focusRequest]);
   const [replyText, setReplyText] = useState<Record<string, string>>({});
   const activeCount = comments.filter((c) => !c.resolved).length;
 
   return (
-    <div className="w-72 shrink-0 border-l border-[var(--border)] bg-[var(--surface-secondary)] flex flex-col h-full overflow-hidden">
+    <div ref={panelRef} className="w-72 shrink-0 border-l border-[var(--border)] bg-[var(--surface-secondary)] flex flex-col h-full overflow-hidden">
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-[var(--border)]">
         <span className="text-xs font-medium text-[var(--text-primary)]">
           Comments ({activeCount})
@@ -79,6 +92,8 @@ export default function CommentPanel({
           .map((comment) => (
             <div
               key={comment.id}
+              data-panel-comment-id={comment.id}
+              tabIndex={-1}
               onClick={() => onSelect(comment.id)}
               className={`rounded-lg border transition-colors cursor-pointer ${
                 activeCommentId === comment.id
