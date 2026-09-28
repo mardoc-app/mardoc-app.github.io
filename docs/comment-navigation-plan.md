@@ -45,18 +45,20 @@ desktop/mobile checks and a real-document acceptance pass before merging.
 
 - [x] Manual acceptance and merge of the HTML jump PR.
 
-## 5. Presentation navigation — slide jumps shipped (#129); notes in review
+## 5. Presentation navigation — shipped (#129, #130)
 
 - [x] Detect supported numbered slide containers and explicitly reveal target slides.
 - [x] Provide honest unsupported/hidden-target fallback for arbitrary scripts.
 - [x] Preserve the live deck and use its controls to select slides and expand notes.
 - [x] Validate SVG slide targeting and template-note targeting on the private architectural deck using local fixtures.
-- [ ] Manual acceptance and merge of template-note navigation.
+- [x] Merge template-note navigation (#130).
+- [ ] Live acceptance of presenter-note navigation by the reviewer.
 
 ## Foundation scope
 
 Stage 1 supplies location evidence. Stage 2 locates Markdown comments and stage 4
-locates HTML comments. Presentation-specific reveal behavior remains in stage 5.
+locates HTML comments. Stage 5 adds numbered slide and template-note navigation.
+Numbered slides and template-generated notes are supported; other presentation frameworks remain extensions.
 Stage 3 loads every REST comment page and GraphQL review-thread cursor. A later
 page failure rejects the refresh rather than publishing partial results. If the
 initial GraphQL request is unavailable (for example, insufficient token scope),
@@ -156,8 +158,7 @@ hidden content is reported without changing arbitrary presentation classes or
 calling deck-specific scripts. Canvas/shadow-DOM text and generated text
 without matching source evidence are not supported. Malformed markup or root-only
 text that cannot be verified in the inert source fragment may report missing;
-the locator does not guess. Slide adapters and the private-deck acceptance pass
-remain stage 5 work.
+the locator does not guess. Supported numbered slides and template notes are described below.
 
 
 ### Oversized-diff submission follow-up
@@ -167,7 +168,7 @@ remain stage 5 work.
 - [x] Show PR-conversation status and avoid unsupported native thread controls.
 - [x] Keep unsuccessful drafts and remove only confirmed writes before retry.
 - [x] Preserve review summary text and final review events on fallback.
-- [ ] Review and merge the submission fix; validate on the live training deck.
+- [x] Merge the submission fix (#128); reviewer confirmed successful live submission.
 
 See [large-diff review comments](capabilities.md#large-diff-review-comments) for
 conversation-comment behavior and revision limits.
@@ -185,7 +186,7 @@ Validated locally against the private architectural deck: the saved SVG comment
 now moves from slide 1 to slide 7 and highlights its exact quote. The private
 document and comment are not committed. Template-generated presenter notes are covered below; other presentation frameworks remain follow-up work.
 
-### Template presenter notes — in review
+### Template presenter notes — shipped (#130)
 
 The source locator checks each top-level template independently and requires a
 unique quote plus source coordinates before attempting note navigation. This
@@ -207,7 +208,7 @@ Validation includes desktop/mobile links, controls, Source/Rendered switching,
 and a temporary local comment on the private deck's slide-7 notes. No remote
 comment was created.
 
-## Clickable HTML comment markers — in review
+## Clickable HTML comment markers — ready for review
 
 - [x] Show markers for existing HTML comments without requiring a prior jump.
 - [x] Clicking a marker opens and focuses its comment in the panel.
