@@ -73,9 +73,8 @@ test("inline HTML marks word and block changes while retaining formatting and pa
   await expect(frame.locator('#intro [data-mardoc-diff="added"]')).toHaveText("desktop");
   await expect(frame.locator('#intro [data-mardoc-diff="removed"]')).toHaveText("tray");
   await expect(frame.locator('#added')).toContainText("Entirely new setup instructions.");
-  await expect(frame.locator('#removed')).toContainText("Retired installation instructions.");
+  await expect(frame.locator('[data-mardoc-diff="removed"]').filter({ hasText: "Retired installation instructions." })).toBeVisible();
   expect(await frame.locator('#added').evaluate(el => !!el.closest('[data-mardoc-diff="added"]'))).toBe(true);
-  expect(await frame.locator('#removed').evaluate(el => !!el.closest('[data-mardoc-diff="removed"]'))).toBe(true);
   await expect(frame.locator('#intro strong')).toHaveText("capture");
   await expect(frame.locator('#guide')).toHaveText("the guide");
   await expect(frame.locator('#unchanged em')).toHaveText("formatting");
@@ -110,11 +109,14 @@ test("clean revisions and source diff remain available alongside inline review",
   await page.getByRole("button", { name: "Head (new)", exact: true }).click();
   await expect(htmlFrame(page).locator('#intro')).toHaveText("The desktop app owns capture and the guide.");
   await expect(htmlFrame(page).locator('[data-mardoc-diff]')).toHaveCount(0);
-  await expect(htmlFrame(page).locator('#removed')).toHaveCount(0);
+  await expect(htmlFrame(page).getByText("Retired installation instructions.", { exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Base (old)", exact: true }).click();
   await expect(htmlFrame(page).locator('#intro')).toHaveText("The tray app owns capture and the guide.");
   await expect(htmlFrame(page).locator('[data-mardoc-diff]')).toHaveCount(0);
   await expect(htmlFrame(page).locator('#added')).toHaveCount(0);
+  await selectElement(page, '#intro');
+  await htmlFrame(page).locator("body").evaluate(() => new Promise<void>(resolve => setTimeout(resolve, 0)));
+  await expect(page.getByPlaceholder("Write your comment...")).toHaveCount(0);
   await page.getByRole("button", { name: "Inline Diff", exact: true }).click();
   await expect(htmlFrame(page).locator('#intro [data-mardoc-diff="added"]')).toHaveText("desktop");
   await page.getByRole("button", { name: "Source Diff", exact: true }).click();
@@ -154,7 +156,7 @@ test("head-only selection retains source lines and removed or mixed selections c
       if (event.data?.type === "mardoc-html-selection") (window as any).__selectionMessages.push(event.data);
     });
   });
-  for (const selector of ['#intro [data-mardoc-diff="removed"]', '#intro']) {
+  for (const selector of ['#intro [data-mardoc-diff="removed"]', '[data-mardoc-diff="removed"]:text-is("Retired installation instructions.")', '#intro']) {
     await selectElement(page, selector);
     // The frame's event is deferred by one task. Round-trip a sentinel after it
     // to assert rejection without an arbitrary delay.
