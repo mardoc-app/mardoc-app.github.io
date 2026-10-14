@@ -226,11 +226,17 @@ describe("DiffViewer — HTML commenting flow (parent side)", () => {
     expect(source()).not.toContain("mardoc-html-selection");
   });
 
-  it("surfaces metadata differences separately from rendered text changes", () => {
+  it("keeps metadata changes collapsed until requested", () => {
     const file = {...makeHtmlFile(), baseContent: '<title>Old title</title><p><a href="old.html">Guide</a></p>',
       headContent: '<title>New title</title><p><a href="new.html">Guide</a></p>'};
     render(<DiffViewer file={file} repoFullName="owner/repo" baseBranch="main" headBranch="topic"
       comments={[]} onAddComment={vi.fn()} onResolveComment={vi.fn()} />);
+    const disclosure = screen.getByText(/^Metadata changes/);
+    const details = disclosure.closest("details")!;
+    expect(details.open).toBe(false);
+    expect(screen.queryByText("Style, script, and other source changes are available in Source Diff.")).toBeNull();
+    fireEvent.click(disclosure);
+    expect(details.open).toBe(true);
     const summary = screen.getByRole("region", {name: "Nonvisual HTML changes"});
     expect(summary.textContent).toContain("Old title");
     expect(summary.textContent).toContain("New title");

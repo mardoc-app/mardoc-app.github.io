@@ -6,7 +6,7 @@ Status: implemented core; browser validation pending in this environment.
 
 - HTML PRs default to one rendered document with word and block additions/deletions.
 - Head styles and structure are retained; removed content is inserted in context. Revision-specific assets and source markers are retained.
-- SVG text uses valid SVG markers. Titles, descriptions, alternative text, accessible names, link targets and constrained form text appear in a nonvisual change summary.
+- SVG text uses valid SVG markers. Titles, descriptions, alternative text, accessible names, link targets and constrained form text appear in a Metadata changes disclosure, collapsed by default.
 - Persistent review controls provide a legend, region count, previous/next focus and scrolling, clean head/base previews, and navigation across changed HTML pages.
 - Selections containing removed text are rejected for new comments. Existing comment jumps select the appropriate clean revision.
 - Source Diff uses an ordered line comparison, including changes without visible text equivalents.

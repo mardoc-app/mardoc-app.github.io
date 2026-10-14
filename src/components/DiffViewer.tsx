@@ -1176,12 +1176,12 @@ export default function DiffViewer({
             /* HTML file rendering */
             <>
               <div className="h-full flex flex-col" style={{display: htmlViewMode === "rendered" ? undefined : "none"}} aria-hidden={htmlViewMode !== "rendered"}>
-                <p className="shrink-0 px-4 py-1 text-[11px] text-[var(--text-muted)]">
-                  Style, script, and other source changes are available in Source Diff.
-                </p>
                 {htmlDiffMode === "diff" && htmlDiff.hiddenChanges.length > 0 && (
-                  <section aria-label="Nonvisual HTML changes" className="shrink-0 max-h-48 overflow-auto mx-4 my-2 p-3 rounded border border-[var(--border)] text-xs">
-                    <h3 className="font-semibold mb-2">Nonvisual HTML changes</h3>
+                  <details key={file.path} className="shrink-0 px-4 py-2 text-xs border-b border-[var(--border)]">
+                    <summary className="cursor-pointer text-[var(--text-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]">
+                      Metadata changes ({htmlDiff.hiddenChanges.length})
+                    </summary>
+                    <section aria-label="Nonvisual HTML changes" className="max-h-48 overflow-auto pt-3">
                     <ul className="space-y-2">
                       {htmlDiff.hiddenChanges.map((change, index) => (
                         <li key={index}>
@@ -1191,7 +1191,8 @@ export default function DiffViewer({
                         </li>
                       ))}
                     </ul>
-                  </section>
+                    </section>
+                  </details>
                 )}
                 <div className="flex-1 overflow-auto">
                   {htmlReady && <iframe

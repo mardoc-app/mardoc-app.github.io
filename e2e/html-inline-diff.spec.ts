@@ -130,6 +130,8 @@ test("SVG labels and nonvisual metadata changes are reviewable", async ({ page }
   await expect(htmlFrame(page).locator('#diagram-label [data-mardoc-diff="added"]')).toHaveText("Settings");
   await expect(htmlFrame(page).locator('#diagram-label [data-mardoc-diff="removed"]')).toHaveText("Tray");
   const summary = page.getByRole("region", { name: "Nonvisual HTML changes", exact: true });
+  await expect(summary).toBeHidden();
+  await page.locator("summary").filter({hasText:"Metadata changes"}).click();
   await expect(summary).toBeVisible();
   for (const text of ["Old architecture title", "New architecture title", "Old screen reader description", "New screen reader description", "#old-guide", "#new-guide"]) {
     await expect(summary.getByText(text, { exact: false })).toBeVisible();
