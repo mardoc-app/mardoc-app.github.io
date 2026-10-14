@@ -211,4 +211,46 @@ describe("DiffViewer — HTML commenting flow (parent side)", () => {
       6
     );
   });
+  it("defaults to combined HTML and switches to clean revisions without diff markers", () => {
+    render(<DiffViewer file={makeHtmlFile()} repoFullName="owner/repo" baseBranch="main" headBranch="topic"
+      comments={[]} onAddComment={vi.fn()} onResolveComment={vi.fn()} />);
+    const source = () => document.querySelector("iframe")!.getAttribute("srcdoc")!;
+    expect(screen.getByRole("button", {name: "Inline Diff"}).getAttribute("aria-pressed")).toBe("true");
+    expect(source()).toContain('data-mardoc-diff="added"');
+    expect(source()).toContain('data-mardoc-diff="removed"');
+    fireEvent.click(screen.getByRole("button", {name: "Head (new)"}));
+    expect(source()).toContain("New text to comment on.");
+    expect(source()).not.toContain('data-mardoc-diff="added"');
+    fireEvent.click(screen.getByRole("button", {name: "Base (old)"}));
+    expect(source()).toContain("Original text.");
+    expect(source()).not.toContain("mardoc-html-selection");
+  });
+
+  it("surfaces metadata differences separately from rendered text changes", () => {
+    const file = {...makeHtmlFile(), baseContent: '<title>Old title</title><p><a href="old.html">Guide</a></p>',
+      headContent: '<title>New title</title><p><a href="new.html">Guide</a></p>'};
+    render(<DiffViewer file={file} repoFullName="owner/repo" baseBranch="main" headBranch="topic"
+      comments={[]} onAddComment={vi.fn()} onResolveComment={vi.fn()} />);
+    const summary = screen.getByRole("region", {name: "Nonvisual HTML changes"});
+    expect(summary.textContent).toContain("Old title");
+    expect(summary.textContent).toContain("New title");
+    expect(summary.textContent).toContain("old.html");
+    expect(summary.textContent).toContain("new.html");
+    fireEvent.click(screen.getByRole("button", {name: "Head (new)"}));
+    expect(screen.queryByRole("region", {name: "Nonvisual HTML changes"})).toBeNull();
+  });
+
+  it("clears a pending head quote when a mixed-revision selection is rejected", async () => {
+    render(<DiffViewer file={makeHtmlFile()} repoFullName="owner/repo" baseBranch="main" headBranch="topic"
+      comments={[]} onAddComment={vi.fn()} onResolveComment={vi.fn()} />);
+    const source = document.querySelector("iframe")!.contentWindow!;
+    act(() => window.dispatchEvent(new MessageEvent("message", {source,
+      data: {type:"mardoc-html-selection", text:"New text", startLine:1, endLine:1}})));
+    expect(screen.getByPlaceholderText("Write your comment...")).toBeTruthy();
+    act(() => window.dispatchEvent(new MessageEvent("message", {source,
+      data: {type:"mardoc-html-selection-rejected"}})));
+    expect(screen.queryByPlaceholderText("Write your comment...")).toBeNull();
+    expect(screen.getByText(/Select only current text/)).toBeTruthy();
+  });
+
 });

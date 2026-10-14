@@ -63,6 +63,25 @@ describe("rendered HTML diff", () => {
     expect(result.hiddenChanges).toEqual([]);
     expect(result.doc.querySelector("em")?.textContent).toBe("world");
   });
+  it("preserves form values and raw-text content without serializing diff markup into them", () => {
+    const { doc, hiddenChanges } = diff('<textarea>Old text</textarea><select><option>Old choice</option></select>',
+      '<textarea>New text</textarea><select><option>New choice</option></select>');
+    expect(doc.querySelector("textarea")?.value).toBe("New text");
+    expect(doc.querySelector("select")?.options).toHaveLength(1);
+    expect(doc.querySelector("option")?.textContent).toBe("New choice");
+    expect(doc.querySelector("textarea [data-mardoc-diff], select [data-mardoc-diff]")).toBeNull();
+    expect(hiddenChanges).toEqual(expect.arrayContaining([
+      {label: "textarea content", before: "Old text", after: "New text"},
+      {label: "select content", before: "Old choice", after: "New choice"},
+    ]));
+  });
+  it("marks meaningful whitespace changes in code and preformatted text", () => {
+    const { doc, changes } = diff('<pre>a  b</pre><pre>  </pre>', '<pre>a b</pre><pre> </pre>');
+    expect(changes).toHaveLength(2);
+    expect(doc.querySelector('pre [data-mardoc-diff="removed"]')?.textContent).toBe("  ");
+    expect(doc.querySelector('pre [data-mardoc-diff="added"]')?.textContent).toBe(" ");
+    expect(diff('<p>a  b</p>', '<p>a b</p>').changes).toHaveLength(0);
+  });
   it("renders all-added and all-removed documents with a readable shell", () => {
     expect(diff("", '<p>New</p>').doc.querySelector('[data-mardoc-diff="added"]')?.textContent).toBe("New");
     const removed = diff('<style>p{font-size:20px}</style><p>Old</p><script>old()</script>', "");

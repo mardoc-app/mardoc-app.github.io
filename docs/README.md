@@ -26,3 +26,5 @@ Keep proposals visibly marked as planned. Do not claim full browser/extension pa
 ## Fixtures and prototypes
 
 `docs/design/mobile-prototype.html` and `public/mobile-prototype.html` are design prototypes, not specifications for the shipped interface. `public/demo.html`, the in-app data in `src/lib/mock-data.ts`, and E2E fixtures are sample content. Text embedded in sample content can lag the reference documentation and should not be used as setup guidance.
+
+The [rendered HTML inline diff delivery plan](html-inline-diff-delivery-plan.md) records the implementation streams, worktrees, acceptance criteria and validation evidence for the HTML review upgrade.

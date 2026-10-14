@@ -24,7 +24,7 @@ it("wraps in both directions, focuses targets and clears previous active state",
 it("opens nested details and skips missing and hidden markers", () => {
   document.body.innerHTML = '<p hidden data-mardoc-change-id="one">Hidden</p><div style="display:none"><p data-mardoc-change-id="two">Hidden ancestor</p></div><details><summary>Outer</summary><details><summary>Inner</summary><p data-mardoc-change-id="three">Visible after expanding</p></details></details>';
   expect(navigateHtmlDiff(document, changes, -1, "next")).toBe(2);
-  expect([...document.querySelectorAll("details")].every(element => element.open)).toBe(true);
+  expect(Array.from(document.querySelectorAll("details")).every(element => element.open)).toBe(true);
   expect(navigateHtmlDiff(document, [{ id: "missing" }], -1, "next")).toBe(-1);
   expect(document.querySelector('[data-mardoc-active-change]')).toBeNull();
 });

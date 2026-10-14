@@ -24,7 +24,7 @@ export default function HtmlDiffToolbar({
   const buttonClass = "min-h-11 rounded px-3 text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] disabled:opacity-40";
 
   return <section aria-label="HTML diff review controls"
-    className="sticky bottom-0 z-20 mx-2 mb-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2 text-[var(--text)] shadow-lg sm:mx-4">
+    className="sticky bottom-0 z-20 mx-2 mb-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2 text-[var(--text-primary)] shadow-lg sm:mx-4">
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
       <div role="group" aria-label="HTML preview version" className="flex flex-wrap gap-1">
         {([['diff', 'Inline Diff'], ['head', 'Head (new)'], ['base', 'Base (old)']] as const).map(([value, label]) =>

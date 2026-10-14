@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo, useState, useRef, useCallback, useEffect } from "react";
+import { diffLines } from "diff";
 import {
   parseBlocks,
   computeBlockLineRanges,
@@ -40,6 +41,9 @@ import { rewriteHtmlAssetUrls } from "@/lib/html-assets";
 import { injectSourceLineAttributes } from "@/lib/html-source-lines";
 import { buildIframeResizeScript } from "@/lib/iframe-resize";
 import { buildIframeSelectionScript } from "@/lib/html-selection";
+import { buildHtmlDiff } from "@/lib/html-diff";
+import HtmlDiffToolbar, { type HtmlDiffMode } from "./HtmlDiffToolbar";
+import { navigateHtmlDiff } from "@/lib/html-diff-navigation";
 import { useIsMobile } from "@/lib/use-viewport";
 import BottomSheet from "./BottomSheet";
 import MobileCommentButton from "./MobileCommentButton";
@@ -306,12 +310,16 @@ export default function DiffViewer({
 }: DiffViewerProps) {
   const [viewMode, setViewMode] = useState<"rendered" | "split" | "suggest" | "preview">("rendered");
   const [htmlViewMode, setHtmlViewMode] = useState<"rendered" | "source">("rendered");
-  const [htmlShowBase, setHtmlShowBase] = useState(false);
+  const [htmlDiffMode, setHtmlDiffMode] = useState<HtmlDiffMode>("diff");
+  const htmlShowBase = htmlDiffMode === "base";
+  const [activeHtmlChange, setActiveHtmlChange] = useState(-1);
+  const [htmlReady, setHtmlReady] = useState(false);
+  useEffect(() => { setHtmlReady(true); }, []);
   const fileIsHtml = isHtmlFile(file.path);
   const [showPanel, setShowPanel] = useState(true);
   const [showLineNumbers, setShowLineNumbers] = useState(false);
   const { wide, toggle: toggleWide } = useWideFormat();
-  const { isEmbedded, selectedPR, prFiles } = useApp();
+  const { isEmbedded, selectedPR, prFiles, setSelectedPRFileIdx } = useApp();
   const isMobile = useIsMobile();
 
   // On mobile the comment panel lives in a slide-up bottom sheet
@@ -402,7 +410,14 @@ export default function DiffViewer({
         return;
       }
 
+      if (data.type === "mardoc-html-selection-rejected" && event.source === iframe?.contentWindow) {
+        setPendingSelection(null);
+        setPendingSelectionRange(null);
+        setJumpMessage("Select only current text to comment. Removed text belongs to the base revision.");
+        return;
+      }
       if (data.type === "mardoc-html-selection" && typeof data.text === "string") {
+        if (htmlShowBase) return;
         // If we have a live iframe ref, only accept messages from it.
         // If we don't (stale ref, timing issue), accept on the basis of
         // the message type alone — the structural check above already
@@ -423,58 +438,66 @@ export default function DiffViewer({
     return () => window.removeEventListener("message", handleMessage);
   }, [fileIsHtml, htmlViewMode, htmlShowBase]);
 
-  // Source markers cover both revisions; the head alone accepts new selections.
-  const htmlAnnotatedSource = useMemo(() => fileIsHtml
-    ? injectSourceLineAttributes(htmlShowBase ? file.baseContent : file.headContent, true) : "",
-    [fileIsHtml, file.baseContent, file.headContent, htmlShowBase]);
+  // Preserve revision source markers before merging rendered content. Rewrite
+  // each revision's assets separately so removed images use base URLs.
+  const htmlSources = useMemo(() => {
+    if (!fileIsHtml) return { base: "", head: "" };
+    const prepare = (source: string, base: boolean) => {
+      const tagged = injectSourceLineAttributes(source, true);
+      const repo = (base ? file.baseRepo : file.headRepo) || repoFullName;
+      const ref = base ? file.baseRef || baseBranch : file.headRef || headBranch;
+      return repo ? rewriteHtmlAssetUrls(tagged, repo, ref, base ? file.basePath || file.path : file.path) : tagged;
+    };
+    return { base: prepare(file.baseContent, true), head: prepare(file.headContent, false) };
+  }, [fileIsHtml, file, repoFullName, baseBranch, headBranch]);
+  const htmlDiff = useMemo(() => htmlReady && fileIsHtml
+    ? buildHtmlDiff(htmlSources.base, htmlSources.head)
+    : { html: htmlSources.head, changes: [], hiddenChanges: [] }, [htmlReady, fileIsHtml, htmlSources]);
+  const htmlAnnotatedSource = htmlShowBase ? htmlSources.base : htmlSources.head;
   const htmlSrcdoc = useMemo(() => {
     if (!fileIsHtml) return "";
-    const assetRepo = (htmlShowBase ? file.baseRepo : file.headRepo) || repoFullName;
-    const assetRef = htmlShowBase ? file.baseRef || baseBranch : file.headRef || headBranch;
-    const tagged = assetRepo ? rewriteHtmlAssetUrls(htmlAnnotatedSource, assetRepo, assetRef,
-      htmlShowBase ? file.basePath || file.path : file.path) : htmlAnnotatedSource;
+    const tagged = htmlDiffMode === "diff" ? htmlDiff.html : htmlAnnotatedSource;
     const resizeScript = `<script>${buildIframeResizeScript()}</script>`;
     const selectionScript = htmlShowBase ? "" : `<script>${buildIframeSelectionScript()}</script>`;
     const injected = resizeScript + selectionScript;
-    if (tagged.includes("</body>")) return tagged.replace("</body>", `${injected}</body>`);
+    if (/<\/body\s*>/i.test(tagged)) return tagged.replace(/<\/body\s*>/i, `${injected}</body>`);
     return tagged + injected;
-  }, [fileIsHtml, file, htmlAnnotatedSource, htmlShowBase, repoFullName, baseBranch, headBranch]);
+  }, [fileIsHtml, htmlDiffMode, htmlDiff.html, htmlAnnotatedSource, htmlShowBase]);
 
-  // Simple source diff for HTML files
+  useEffect(() => {
+    setHtmlDiffMode("diff");
+    setActiveHtmlChange(-1);
+    setPendingSelection(null);
+    setPendingSelectionRange(null);
+    setPendingCommentInput("");
+  }, [file.path, file.baseContent, file.headContent]);
+
+  const changeHtmlMode = (mode: HtmlDiffMode) => {
+    setHtmlDiffMode(mode);
+    setActiveHtmlChange(-1);
+    setJumpRequest(null);
+    setJumpMessage("");
+    setPendingSelection(null);
+    setPendingSelectionRange(null);
+    setPendingCommentInput("");
+  };
+  const navigateHtmlChange = (direction: "previous" | "next") => {
+    const doc = htmlIframeRef.current?.contentDocument;
+    if (doc) setActiveHtmlChange(navigateHtmlDiff(doc, htmlDiff.changes, activeHtmlChange, direction));
+  };
+  const changedHtmlPages = (prFiles || []).filter(item => isHtmlFile(item.path)).map(item => ({
+    path: item.path,
+    href: selectedPR ? buildPRHash(repoFullName, selectedPR.number, (prFiles || []).indexOf(item)) : "#",
+  }));
+
+  // Ordered source diff includes changes that have no visible text equivalent.
   const htmlSourceDiff = useMemo(() => {
     if (!fileIsHtml) return [];
-    const baseLines = file.baseContent.split("\n");
-    const headLines = file.headContent.split("\n");
-    const result: { type: "context" | "add" | "remove"; text: string }[] = [];
-
-    // Simple line-by-line diff (good enough for source view)
-    const baseSet = new Set(baseLines);
-    const headSet = new Set(headLines);
-
-    let bi = 0, hi = 0;
-    while (bi < baseLines.length || hi < headLines.length) {
-      if (bi < baseLines.length && hi < headLines.length && baseLines[bi] === headLines[hi]) {
-        result.push({ type: "context", text: headLines[hi] });
-        bi++; hi++;
-      } else if (hi < headLines.length && !baseSet.has(headLines[hi])) {
-        result.push({ type: "add", text: headLines[hi] });
-        hi++;
-      } else if (bi < baseLines.length && !headSet.has(baseLines[bi])) {
-        result.push({ type: "remove", text: baseLines[bi] });
-        bi++;
-      } else {
-        // Modified line — show as remove + add
-        if (bi < baseLines.length) {
-          result.push({ type: "remove", text: baseLines[bi] });
-          bi++;
-        }
-        if (hi < headLines.length) {
-          result.push({ type: "add", text: headLines[hi] });
-          hi++;
-        }
-      }
-    }
-    return result;
+    return diffLines(file.baseContent, file.headContent).flatMap(part => {
+      const lines = part.value.split("\n");
+      if (lines.at(-1) === "") lines.pop();
+      return lines.map(text => ({ type: part.added ? "add" : part.removed ? "remove" : "context", text }));
+    });
   }, [fileIsHtml, file.baseContent, file.headContent]);
 
   // Map PR comments into panel format, filtered to the current file.
@@ -823,7 +846,10 @@ export default function DiffViewer({
     if (fileIsHtml) {
       const comment = allPanelComments.find(item => item.id === id);
       setHtmlViewMode("rendered");
-      setHtmlShowBase(comment?.target?.side === "LEFT" || (!file.headContent && !!file.baseContent));
+      setHtmlDiffMode(comment?.target?.side === "LEFT" || (!file.headContent && !!file.baseContent) ? "base" : "head");
+      setActiveHtmlChange(-1);
+      setPendingSelection(null);
+      setPendingSelectionRange(null);
       setJumpMessage("Locating HTML comment…");
       setJumpRequest({id});
       return;
@@ -1150,34 +1176,25 @@ export default function DiffViewer({
             /* HTML file rendering */
             <>
               <div className="h-full flex flex-col" style={{display: htmlViewMode === "rendered" ? undefined : "none"}} aria-hidden={htmlViewMode !== "rendered"}>
-                {/* Base/Head toggle for rendered HTML */}
-                {file.baseContent && file.headContent && (
-                  <div className="flex items-center gap-2 px-4 py-2 border-b border-[var(--border)] bg-[var(--bg-secondary,var(--surface))]">
-                    <span className="text-[10px] text-[var(--text-muted)]">Showing:</span>
-                    <button
-                      onClick={() => setHtmlShowBase(false)}
-                      className={`text-xs px-2 py-0.5 rounded transition-colors ${
-                        !htmlShowBase
-                          ? "bg-[var(--diff-add)] text-[var(--diff-add-text)] font-medium"
-                          : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
-                      }`}
-                    >
-                      Head (new)
-                    </button>
-                    <button
-                      onClick={() => setHtmlShowBase(true)}
-                      className={`text-xs px-2 py-0.5 rounded transition-colors ${
-                        htmlShowBase
-                          ? "bg-[var(--diff-remove)] text-[var(--diff-remove-text)] font-medium"
-                          : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
-                      }`}
-                    >
-                      Base (old)
-                    </button>
-                  </div>
+                <p className="shrink-0 px-4 py-1 text-[11px] text-[var(--text-muted)]">
+                  Style, script, and other source changes are available in Source Diff.
+                </p>
+                {htmlDiffMode === "diff" && htmlDiff.hiddenChanges.length > 0 && (
+                  <section aria-label="Nonvisual HTML changes" className="shrink-0 max-h-48 overflow-auto mx-4 my-2 p-3 rounded border border-[var(--border)] text-xs">
+                    <h3 className="font-semibold mb-2">Nonvisual HTML changes</h3>
+                    <ul className="space-y-2">
+                      {htmlDiff.hiddenChanges.map((change, index) => (
+                        <li key={index}>
+                          <span className="font-medium">{change.label}</span>
+                          <div>Before: <del className="bg-[var(--diff-remove)] text-[var(--diff-remove-text)]">{change.before || "(empty)"}</del></div>
+                          <div>After: <ins className="bg-[var(--diff-add)] text-[var(--diff-add-text)] no-underline">{change.after || "(empty)"}</ins></div>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
                 )}
                 <div className="flex-1 overflow-auto">
-                  <iframe
+                  {htmlReady && <iframe
                     ref={htmlIframeRef}
                     onLoad={() => { onHtmlLoad(); onHtmlCommentLoad(); if (anchor && htmlIframeRef.current?.contentDocument) scrollToDocumentAnchor(htmlIframeRef.current.contentDocument, anchor); }}
                     srcDoc={htmlSrcdoc}
@@ -1185,7 +1202,15 @@ export default function DiffViewer({
                     title={file.path}
                     className="w-full border-0"
                     style={{ minHeight: "100%", height: "100%" }}
-                  />
+                  />}
+                </div>
+                <div className="shrink-0 sticky bottom-0 z-10">
+                  <HtmlDiffToolbar mode={htmlDiffMode} onModeChange={changeHtmlMode}
+                    changes={htmlDiff.changes} activeChange={activeHtmlChange} onNavigate={navigateHtmlChange}
+                    changedPages={changedHtmlPages} onNavigatePage={path => {
+                      const index = (prFiles || []).findIndex(item => item.path === path);
+                      if (index >= 0) setSelectedPRFileIdx?.(index);
+                    }} />
                 </div>
               </div>
             {htmlViewMode === "source" && (

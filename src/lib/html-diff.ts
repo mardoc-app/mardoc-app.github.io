@@ -1,4 +1,4 @@
-import { diffWords } from "diff";
+import { diffWords, diffWordsWithSpace } from "diff";
 
 export interface HtmlDiffChange {
   id: string;
@@ -22,6 +22,7 @@ const key = (node: Node) => element(node) && node.id
   : `${tag(node)}:${compact(node.textContent || "")}`;
 const compatible = (a: Node, b: Node) => tag(a) === tag(b) &&
   !(element(a) && element(b) && a.id && b.id && a.id !== b.id);
+const preservesWhitespace = (parent: Element) => !!parent.closest('pre,code,[xml\\:space="preserve"]');
 
 /** Match exact siblings first so an inserted paragraph does not shift every later paragraph.
  * The bounded matrix handles normal documents; wide generated tables use linear lookahead. */
@@ -111,13 +112,20 @@ export function buildHtmlDiff(baseSource: string, headSource: string): HtmlDiffR
       region(node, kind, node.textContent || node.getAttribute("alt") || node.localName);
       return node;
     }
-    if (!compact(node.textContent || "")) return node;
+    if (!compact(node.textContent || "") && !preservesWhitespace(parent)) return node;
     const mark = marker(parent, node.textContent || "", kind);
     region(mark, kind, node.textContent || "");
     return mark;
   }
   function compare(oldNode: Node, newNode: Node, parent: Element): Node[] {
     if (element(oldNode) && element(newNode)) {
+      // Raw text and form-control content cannot contain annotation spans.
+      // Inserting them would turn markup into the control's literal value
+      // after srcdoc is reparsed, or change a select's available options.
+      if (["textarea", "select", "option", "iframe", "xmp", "noembed", "plaintext"].includes(newNode.localName)) {
+        hiddenChange(`${newNode.localName} content`, oldNode.textContent || "", newNode.textContent || "");
+        return [newNode];
+      }
       if (hidden(newNode)) {
         hiddenChange(newNode.localName, oldNode.textContent || "", newNode.textContent || "");
         return [newNode];
@@ -130,14 +138,16 @@ export function buildHtmlDiff(baseSource: string, headSource: string): HtmlDiffR
     }
     if (oldNode.nodeType === 3 && newNode.nodeType === 3) {
       if (oldNode.textContent === newNode.textContent) return [newNode];
-      if (!compact(oldNode.textContent || "") && !compact(newNode.textContent || "")) return [newNode];
-      textRegion(parent, newNode.textContent || oldNode.textContent || "");
+      const preserveSpace = preservesWhitespace(parent);
+      if (!preserveSpace && !compact(oldNode.textContent || "") && !compact(newNode.textContent || "")) return [newNode];
       // Bound expensive token comparison for generated or minified text nodes.
       const oldText = oldNode.textContent || "", newText = newNode.textContent || "";
       const fallback = [{ value: oldText, removed: true, added: false }, { value: newText, added: true, removed: false }];
       const parts = oldText.length + newText.length > 100_000
         ? fallback
-        : diffWords(oldText, newText, { maxEditLength: 2000 }) || fallback;
+        : (preserveSpace ? diffWordsWithSpace : diffWords)(oldText, newText, { maxEditLength: 2000 }) || fallback;
+      if (!parts.some(part => part.added || part.removed)) return [newNode];
+      textRegion(parent, newNode.textContent || oldNode.textContent || "");
       return parts.map(part => part.added || part.removed
         ? marker(parent, part.value, part.added ? "added" : "removed")
         : after.createTextNode(part.value));
@@ -148,6 +158,14 @@ export function buildHtmlDiff(baseSource: string, headSource: string): HtmlDiffR
     const oldNodes = Array.from(oldParent.childNodes).filter(node => !skip(node));
     const newNodes = Array.from(newParent.childNodes).filter(node => !skip(node));
     const pairs = [...anchors(oldNodes, newNodes), [oldNodes.length, newNodes.length] as [number, number]];
+    const replaceMatched = (oldNode: Node, current: Node) => {
+      const replacement = compare(oldNode, current, newParent);
+      if (replacement.length !== 1 || replacement[0] !== current) {
+        const fragment = after.createDocumentFragment();
+        fragment.append(...replacement);
+        newParent.replaceChild(fragment, current);
+      }
+    };
     let oldStart = 0, newStart = 0;
     for (const [oldEnd, newEnd] of pairs) {
       // Pair edited nodes between unchanged anchors, retaining the new node's markup.
@@ -161,12 +179,7 @@ export function buildHtmlDiff(baseSource: string, headSource: string): HtmlDiffR
             const removed = annotate(after.importNode(oldNodes[oldIndex++], true), newParent, "removed");
             if (removed) newParent.insertBefore(removed, current);
           }
-          const replacement = compare(oldNodes[oldIndex++], current, newParent);
-          if (replacement.length !== 1 || replacement[0] !== current) {
-            const fragment = after.createDocumentFragment();
-            fragment.append(...replacement);
-            newParent.replaceChild(fragment, current);
-          }
+          replaceMatched(oldNodes[oldIndex++], current);
         } else {
           const added = annotate(current, newParent, "added");
           if (added !== current && added) newParent.replaceChild(added, current);
@@ -177,7 +190,7 @@ export function buildHtmlDiff(baseSource: string, headSource: string): HtmlDiffR
         const removed = annotate(after.importNode(oldNodes[oldIndex++], true), newParent, "removed");
         if (removed) newParent.insertBefore(removed, reference);
       }
-      if (oldEnd < oldNodes.length) compare(oldNodes[oldEnd], newNodes[newEnd], newParent);
+      if (oldEnd < oldNodes.length) replaceMatched(oldNodes[oldEnd], newNodes[newEnd]);
       oldStart = oldEnd + 1; newStart = newEnd + 1;
     }
   }
