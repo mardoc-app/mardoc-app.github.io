@@ -136,10 +136,10 @@ test("SVG labels and nonvisual metadata changes are reviewable", async ({ page }
 
 test("changed page index opens another HTML page", async ({ page }) => {
   await setup(page);
-  await page.getByRole("button", { name: "All changed pages", exact: true }).click();
-  const index = page.getByRole("navigation", { name: "Changed HTML pages", exact: true });
+  await page.getByRole("button", { name: /^All changed pages/ }).click();
+  const index = page.getByRole("navigation", { name: "All changed HTML pages", exact: true });
   await expect(index).toBeVisible();
-  await index.getByRole("button", { name: /second\.html/ }).click();
+  await index.getByRole("link", { name: /second\.html/ }).click();
   await expect(htmlFrame(page, "second.html").getByRole("heading", { name: "Second changed page" })).toBeVisible();
   await expect(htmlFrame(page, "second.html").locator('[data-mardoc-diff="added"]')).toContainText("New");
 });
