@@ -37,6 +37,11 @@ export function resolveSelectionSourceLines(
 ): SourceLineRange | null {
   if (!anchor || !focus) return null;
 
+  if ([anchor, focus].some(node => {
+    const element = node.nodeType === 1 ? node as Element : node.parentElement;
+    return element?.closest('[data-mardoc-diff="removed"]');
+  })) return null;
+
   const anchorLine = findSourceLine(anchor);
   const focusLine = findSourceLine(focus);
 
@@ -109,6 +114,19 @@ export function buildIframeSelectionScript(): string {
     if (!sel || sel.isCollapsed) return;
     var text = sel.toString();
     if (!text || !text.trim()) return;
+
+    // A range may begin and end in head text but cross a deletion. Never
+    // assign that mixed quote to head source lines.
+    var removed = document.querySelectorAll('[data-mardoc-diff="removed"]');
+    for (var i = 0; i < sel.rangeCount; i++) {
+      var range = sel.getRangeAt(i);
+      for (var j = 0; j < removed.length; j++) {
+        if (range.intersectsNode(removed[j])) {
+          window.parent.postMessage({type:'mardoc-html-selection-rejected'}, '*');
+          return;
+        }
+      }
+    }
 
     var anchorLine = findLine(sel.anchorNode);
     var focusLine = findLine(sel.focusNode);

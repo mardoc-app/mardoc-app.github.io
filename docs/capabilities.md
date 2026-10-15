@@ -11,7 +11,7 @@ The file picker and repository filters recognize `.md`, `.mdx`, `.html`, and `.h
 | Render repository or local files | Yes | Yes, including document CSS/scripts |
 | Rich editing | TipTap editor | Not implemented |
 | Source view | Editable Markdown code view | Read-only HTML source view |
-| PR comparison | Inline Diff, Split, Suggest, Preview | Rendered base/head toggle and Source Diff |
+| PR comparison | Inline Diff, Split, Suggest, Preview | Rendered Inline Diff (default), clean head/base previews, and Source Diff |
 | Select text and queue PR comments | Yes | Yes, source-line attributes reported from iframe |
 | PR replies, resolution, review submission | Shared PR review flow | Shared PR review flow |
 | Propose paragraph suggestions | Yes | No equivalent HTML workflow |
@@ -19,6 +19,10 @@ The file picker and repository filters recognize `.md`, `.mdx`, `.html`, and `.h
 | Draft recovery | Existing repository Markdown files | No HTML editor draft flow |
 
 ## Review an existing PR
+
+HTML PR review opens with word and block additions in green and removed text in red with strikethrough, inside the page's current layout. The review controls show a change-region count, previous/next navigation, clean head/base previews, and a list of changed HTML pages. Navigation opens containing disclosure sections and focuses the change. SVG text uses SVG annotations. A collapsed Metadata changes disclosure shows changed titles, descriptions, alternative text, accessible names, link destinations, and form-control text that cannot safely contain inline markers. Style, script, other attribute, canvas, and raster-image changes remain available through Source Diff; there is no pixel comparison or comparison of runtime-generated DOM. Moved content can appear as a deletion and an addition.
+
+New HTML comments accept current text only: selections containing deletions are rejected, and base preview is read-only. Existing comment jumps open the appropriate clean revision; switching revision previews reloads that document and its scripts. Switching between Rendered and Source Diff retains the current iframe. Inline comparison preserves source-line markers and uses revision-specific asset URLs.
 
 Open the PR, select a document, choose a view, and select a passage to comment. File panels filter inline comments to the selected file; general PR comments have no file association and are excluded from these panels. Pending inline comments remain local until you finish the review. Refreshing or leaving the review can lose unsubmitted work; there is no cross-device pending queue.
 
