@@ -54,3 +54,5 @@ Two legacy stories use 010. Refer to their full slugs (`010-comment-reply-thread
 | [038-cellphone-mode-viewer](done/038-cellphone-mode-viewer.md) | Partial | Responsive navigation and review sheets exist. Swipe-file navigation and tablet override are unfinished; pending reviews do not synchronize across devices. |
 | [039-per-file-comment-filtering](039-per-file-comment-filtering.md) | Implemented core | Per-file filtering and path metadata are present, with unit/component and E2E coverage files. The bug diagnosis and implementation plan below describe the pre-fix state. |
 | [040-embed-reload-shortcut](040-embed-reload-shortcut.md) | App side implemented; extension unverified | Reload helpers, UI actions, message handling, nonce, and tests exist. Extension commands/watchers are not verified here. Local-file dirty tracking limits the intended unsaved-edit guard; see DATA-01. |
+
+| [041-rendered-html-inline-diff](041-rendered-html-inline-diff.md) | Implemented core; browser validation pending | DOM word/block/SVG annotations, metadata summary, navigation, previews and source-aware comments; browser execution blocked by local socket permissions. |
