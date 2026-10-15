@@ -35,8 +35,9 @@ import { transformGitHubAlerts } from "@/lib/github-alerts";
 import { transformFootnotes } from "@/lib/footnotes";
 import RepositoryReference, { type ReferenceTarget } from "./RepositoryReference";
 import { resolveReviewLink } from "@/lib/review-links";
-import { isHtmlFile } from "@/lib/file-types";
+import { isHtmlFile, isDocumentFile } from "@/lib/file-types";
 import DiffViewer from "./DiffViewer";
+import SourceDiffViewer from "./SourceDiffViewer";
 import ReviewDock from "./ReviewDock";
 import PRCommentNavigator from "./PRCommentNavigator";
 import Showdown from "showdown";
@@ -614,13 +615,17 @@ export default function PRDetail({ pr, onBack }: PRDetailProps) {
 
       {/* Keep the originating deck mounted while reviewing a linked file. */}
       <div className="flex-1 overflow-hidden relative">
-        {prFiles.length === 0 && <p className="p-6">No document files changed in this PR.</p>}
+        {prFiles.length === 0 && <p className="p-6">No files changed in this PR.</p>}
         {Array.from(new Set([...(returnFileIdx === null ? [] : [returnFileIdx]), selectedPRFileIdx])).map(idx => {
           const file = prFiles[idx];
           if (!file) return null;
           const active = idx === selectedPRFileIdx;
           return <div key={idx} className="absolute inset-0 isolate" style={{visibility:active && !reference ? "visible" : "hidden"}} aria-hidden={!active || !!reference}>
-            {file.loadState === "pending" ? <p role="status" className="p-6">Loading document…</p>
+            {!isDocumentFile(file.path) ? <SourceDiffViewer file={file} repoFullName={currentRepo || ""} prNumber={pr.number}
+                returnPath={returnFileIdx !== null ? prFiles[returnFileIdx]?.path : undefined}
+                onReturn={returnFileIdx !== null && returnFileIdx !== idx ? () => { setSelectedPRFileIdx(returnFileIdx); setReturnFileIdx(null); } : undefined}
+                reviewDetails={close => renderReviewDetails(close, idx)} />
+              : file.loadState === "pending" ? <p role="status" className="p-6">Loading document…</p>
               : file.loadState === "error" ? <div role="alert" className="p-6">{file.loadError}
                 <button className="toolbar-btn" onClick={() => setSelectedPRFileIdx(idx)}>Retry document</button></div>
               : <DiffViewer file={file} repoFullName={currentRepo || ""} baseBranch={pr.baseBranch} headBranch={pr.headBranch}
