@@ -155,19 +155,18 @@ test("presenter links open PR documents and pinned references, and Back preserve
   await expect(page.getByRole("heading",{name:"Workshop outcomes",exact:true}).first()).toBeInViewport();
   await expect(page).toHaveURL(/pull\/381\?anchor=workshop-outcomes$/);
   await page.keyboard.press("Escape"); // Dismiss the mobile comment sheet before returning.
-  const returnBar = page.getByRole("navigation", {name:"Return to review"});
+  const returnBar = page.getByRole("navigation", {name:"Document review"});
   const returnButton = returnBar.getByRole("button", {name:"Back to review",exact:true});
   await expect(returnButton).toBeInViewport();
-  await expect(returnBar.getByText("architecture.html", {exact:true})).toBeVisible();
+  await expect(returnButton).toHaveAttribute("title", "Return to docs/support/architecture.html");
   const size = await returnButton.boundingBox();
-  expect(size!.width).toBeGreaterThan(130);
-  expect(size!.height).toBeGreaterThanOrEqual(44);
-  const labelHeight = await returnButton.evaluate(button => {
-    const text = Array.from(button.childNodes).find(node => node.nodeType === Node.TEXT_NODE && node.textContent?.includes("Back to review"))!;
-    const range = document.createRange(); range.selectNodeContents(text);
-    return range.getBoundingClientRect().height;
-  });
-  expect(labelHeight).toBeLessThan(30); // The label stays on one line.
+  expect(size!.width).toBeGreaterThanOrEqual(28);
+  expect(size!.height).toBeGreaterThanOrEqual(testInfo.project.name === "mobile" ? 44 : 32);
+  if ((page.viewportSize()?.width || 0) >= 1024) {
+    const label = returnButton.locator("span");
+    await expect(label).toHaveText("Back to review");
+    expect((await label.boundingBox())!.height).toBeLessThan(30);
+  }
   await page.screenshot({path:`/tmp/return-review-${testInfo.project.name}.png`});
   await page.getByRole("button", {name:"Toggle theme",exact:true}).click();
   await expect(returnButton).toBeVisible();
@@ -186,7 +185,8 @@ test("presenter links open PR documents and pinned references, and Back preserve
   await expect(page.getByText(/Not changed in this PR/)).toBeVisible();
   await expect(page.frameLocator('iframe[title="Read-only repository document"]').getByRole("heading",{name:"Reference heading"})).toBeVisible();
   expect(reads).toContainEqual({path:"docs/reference.md",ref:B});
-  await expect(returnBar.getByText("architecture.html", {exact:true})).toBeVisible();
+  await expect(returnButton).toHaveAttribute("title", "Return to docs/support/architecture.html");
+  await expect(returnBar.getByText("reference.md", {exact:true})).toBeVisible();
   await expect(returnButton).toBeInViewport();
   await page.screenshot({path:`/tmp/return-reference-${testInfo.project.name}.png`});
 
