@@ -126,4 +126,24 @@ describe("iframe selection script — postMessage contract", () => {
 
     expect(postMessageSpy).not.toHaveBeenCalled();
   });
+  it("rejects selections crossing deleted text even when both endpoints are head text", async () => {
+    document.body.innerHTML = '<p data-mardoc-line="8">Current <span data-mardoc-diff="removed">old</span> text</p>';
+    const p = document.querySelector("p")!;
+    runScript();
+    selectNodes(p.firstChild!, p.lastChild!);
+    dispatchMouseUp();
+    await new Promise(r => setTimeout(r, 10));
+    expect(postMessageSpy).toHaveBeenCalledExactlyOnceWith({type: "mardoc-html-selection-rejected"}, "*");
+  });
+
+  it("accepts added words with the containing head source location", async () => {
+    document.body.innerHTML = '<p data-mardoc-line="9">Read <span data-mardoc-diff="added">new words</span></p>';
+    const text = document.querySelector("span")!.firstChild!;
+    runScript();
+    selectNodes(text, text);
+    dispatchMouseUp();
+    await new Promise(r => setTimeout(r, 10));
+    expect(postMessageSpy).toHaveBeenCalledExactlyOnceWith({type: "mardoc-html-selection", text: "new words", startLine: 9, endLine: 9}, "*");
+  });
+
 });

@@ -54,6 +54,9 @@ async function setup(page: Page, source = html) {
   });
   await page.goto("/#/acme/docs/pull/12");
   await expect(page.getByRole("button",{name:"12 comments",exact:true})).toBeVisible();
+  // These tests exercise the live revision and its script/node identity.
+  // Inline Diff is now the default; select the clean head explicitly.
+  await page.getByRole("button",{name:"Head (new)",exact:true}).click();
   await expect(frame(page).locator("#second")).toHaveText("Same phrase.");
   await page.keyboard.press("Escape");
 }
