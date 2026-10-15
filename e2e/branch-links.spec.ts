@@ -185,7 +185,8 @@ test("presenter links open PR documents and pinned references, and Back preserve
   await expect(page.getByText(/Not changed in this PR/)).toBeVisible();
   await expect(page.frameLocator('iframe[title="Read-only repository document"]').getByRole("heading",{name:"Reference heading"})).toBeVisible();
   expect(reads).toContainEqual({path:"docs/reference.md",ref:B});
-  await expect(returnBar.getByText("architecture.html", {exact:true})).toBeVisible();
+  await expect(returnButton).toHaveAttribute("title", "Return to docs/support/architecture.html");
+  await expect(returnBar.getByText("reference.md", {exact:true})).toBeVisible();
   await expect(returnButton).toBeInViewport();
   await page.screenshot({path:`/tmp/return-reference-${testInfo.project.name}.png`});
 
