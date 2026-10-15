@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import type { PRComment, PRFile } from "@/types";
 import { commentFileIndex, commentTargetForFile } from "@/lib/comment-target";
 
@@ -8,6 +8,7 @@ import { commentFileIndex, commentTargetForFile } from "@/lib/comment-target";
 export default function PRCommentNavigator({comments, files, onJump}: {
   comments: PRComment[]; files: PRFile[]; onJump: (comment: PRComment, index: number) => void;
 }) {
+  const indexId = useId();
   const [open, setOpen] = useState(false);
   const groups = useMemo(() => {
     const result = new Map<string, PRComment[]>();
@@ -22,10 +23,10 @@ export default function PRCommentNavigator({comments, files, onJump}: {
   }, [comments, files]);
   return <section className="shrink-0 border-b border-[var(--border)] bg-[var(--surface)]" aria-label="PR comment navigator">
     <button type="button" className="px-4 min-h-11 text-sm text-[var(--accent)]" aria-expanded={open}
-      aria-controls="pr-comment-index" onClick={() => setOpen(value => !value)}>
+      aria-controls={indexId} onClick={() => setOpen(value => !value)}>
       <span aria-hidden="true">{open ? "▾" : "▸"}</span> All PR comments ({comments.length})
     </button>
-    {open && <div id="pr-comment-index" className="max-h-[35vh] overflow-y-auto px-4 pb-3">
+    {open && <div id={indexId} className="max-h-[35vh] overflow-y-auto px-4 pb-3">
       {!comments.length && <p className="text-sm">No comments yet.</p>}
       {Array.from(groups, ([path, group]) => <div key={path} className="mb-3">
         <h2 className="text-xs font-semibold break-all">{path || "General discussion"}</h2>

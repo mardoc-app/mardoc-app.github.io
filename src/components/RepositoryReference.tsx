@@ -9,7 +9,7 @@ import { resolveReviewLink, scrollToDocumentAnchor } from "@/lib/review-links";
 import { useHtmlReviewLinks } from "@/lib/use-html-review-links";
 import { buildFileHash } from "@/lib/hash-router";
 import { useApp } from "@/lib/app-context";
-import ReviewReturnBar from "./ReviewReturnBar";
+import ReviewDock from "./ReviewDock";
 import { openExternal } from "@/lib/open-external";
 
 export interface ReferenceTarget { repo: string; ref: string; path: string; anchor: string; label: string }
@@ -47,11 +47,7 @@ export default function RepositoryReference({target, returnPath, onClose}: {targ
       + rewriteImageUrls(blockToHtml(content), current.repo, current.ref, current.path);
   }, [content, current]);
   return <section className="absolute inset-0 z-20 bg-[var(--bg-primary)] flex flex-col" aria-label="Repository reference">
-    <ReviewReturnBar path={returnPath} onReturn={onClose}/>
-    <div className="shrink-0 px-4 py-2 border-b border-[var(--border)] bg-[var(--surface)]">
-      <span className="text-xs text-[var(--text-secondary)]">{current.label} · Read-only · {current.ref.slice(0,7)}</span>
-      <div className="truncate text-sm font-mono" title={current.path}>{current.path}</div>
-    </div>
+
     {error ? <p role="alert" className="p-4">{error}</p> : content === null ? <p role="status" className="p-4">Loading reference…</p> :
       <iframe title="Read-only repository document" className="flex-1 w-full border-0 bg-white" ref={iframe} srcDoc={srcdoc}
         sandbox="allow-scripts allow-same-origin" onLoad={() => {
@@ -60,5 +56,12 @@ export default function RepositoryReference({target, returnPath, onClose}: {targ
           if (doc) { void loadAuthenticatedImages(doc.body); scrollToDocumentAnchor(doc, current.anchor); }
         }}/>
     }
+    <ReviewDock path={current.path} returnPath={returnPath} onReturn={onClose}
+      controls={<span className="text-xs text-[var(--text-muted)]">{current.label} · Read-only</span>}>
+      {() => <div className="px-4 py-3">
+        <p className="break-all font-mono text-xs">{current.path}</p>
+        <p className="mt-1 text-xs text-[var(--text-muted)]">{current.label} · Read-only · {current.ref.slice(0,7)}</p>
+      </div>}
+    </ReviewDock>
   </section>;
 }

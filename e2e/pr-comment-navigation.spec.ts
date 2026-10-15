@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { openReviewTools } from "./fixtures/helpers";
 
 async function setup(page: Page, slow = false, fail = false) {
   await page.addInitScript(() => localStorage.setItem("mardoc_github_token", "fake"));
@@ -28,7 +29,7 @@ async function setup(page: Page, slow = false, fail = false) {
     await route.fulfill({contentType:"application/json",body:JSON.stringify(data)});
   });
   await page.goto("/#/acme/docs/pull/12");
-  await expect(page.getByRole("button",{name:/All PR comments/})).toBeVisible();
+  await expect(page.getByRole("button",{name:"Review tools",exact:true})).toBeVisible();
   await dismissInitialComments(page);
   return release;
 }
@@ -42,12 +43,14 @@ async function dismissInitialComments(page: Page) {
   }
 }
 async function openComment(page: Page, path: string) {
+  await openReviewTools(page);
   await page.getByRole("button",{name:/All PR comments/}).click();
   await page.getByRole("button",{name:`Open comment in ${path}`,exact:true}).click();
 }
 
 test("PR index includes general/unavailable comments and jumps to renamed, resolved, removed documents",async ({page})=>{
   const release=await setup(page,true);
+  await openReviewTools(page);
   await page.getByRole("button",{name:/All PR comments/}).click();
   const navigator=page.getByRole("region",{name:"PR comment navigator"});
   await expect(navigator.getByText("General feedback",{exact:true})).toBeVisible();

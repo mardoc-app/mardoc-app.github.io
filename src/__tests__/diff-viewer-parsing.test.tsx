@@ -69,3 +69,30 @@ it("reuses parsed blocks across diff rendering and comment updates, invalidating
   expect(screen.getAllByText(/Revised/).length).toBeGreaterThan(0);
   vi.restoreAllMocks();
 });
+
+it("keeps Markdown diff, preview, line numbers and suggestions reachable from the dock", async () => {
+  const file: PRFile = {
+    path: "docs/guide.md", status: "modified",
+    baseContent: "# Guide\n\nOld paragraph.\n\n- Stable list item",
+    headContent: "# Guide\n\nNew paragraph.\n\n- Stable list item",
+  };
+  render(<DiffViewer file={file} repoFullName="acme/docs" baseBranch="main" headBranch="topic"
+    comments={[]} onAddComment={vi.fn()} onResolveComment={vi.fn()} />);
+  expect(screen.getByRole("button", { name: "Inline Diff" }).getAttribute("aria-pressed")).toBe("true");
+  expect(document.querySelectorAll(".line-gutter")).toHaveLength(0);
+  fireEvent.click(screen.getByRole("button", { name: "Review tools" }));
+  fireEvent.click(screen.getByTitle("Show line numbers"));
+  expect(document.querySelectorAll(".line-gutter").length).toBeGreaterThan(0);
+  fireEvent.click(screen.getByRole("button", { name: "Close review tools" }));
+  fireEvent.click(screen.getByRole("button", { name: "Side by Side" }));
+  expect(screen.getByRole("button", { name: "Side by Side" }).getAttribute("aria-pressed")).toBe("true");
+  expect(document.querySelector('[data-review-side="LEFT"][data-review-start="3"]')?.textContent).toBe("Old paragraph.");
+  fireEvent.click(screen.getByRole("button", { name: "Preview" }));
+  expect(document.querySelector('[data-review-side="LEFT"]')).toBeNull();
+  expect(screen.getByText("New paragraph.")).toBeTruthy();
+  expect(document.querySelectorAll(".line-gutter").length).toBeGreaterThan(0);
+  fireEvent.click(screen.getByRole("button", { name: "Suggest" }));
+  await waitFor(() => expect(screen.getByText(/Click any block to edit/)).toBeTruthy());
+  fireEvent.click(screen.getByRole("button", { name: "Inline Diff" }));
+  expect(screen.getAllByText(/New/).length).toBeGreaterThan(0);
+});

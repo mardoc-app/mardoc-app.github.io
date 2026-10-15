@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { openReviewTools } from "./fixtures/helpers";
 
 const html = [
   '<!doctype html>',
@@ -61,6 +62,7 @@ async function setup(page: Page, source = html) {
   await page.keyboard.press("Escape");
 }
 async function jump(page: Page, body: string, keyboard=false) {
+  await openReviewTools(page);
   await page.getByRole("button",{name:"All PR comments (12)",exact:true}).click();
   const button=page.getByRole("region",{name:"PR comment navigator"}).locator("article").filter({hasText:body}).getByRole("button",{name:"Open comment in deck.html"});
   if (keyboard) {await button.focus(); await page.keyboard.press("Enter");}

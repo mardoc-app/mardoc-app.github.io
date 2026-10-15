@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { openReviewTools } from "./fixtures/helpers";
 const path="docs/support/architecture.html";
 const html='<html><body>\n<h1>Training</h1>\n<p id="first">Dashboard answers specific questions.</p>\n<p id="second">Second training passage.</p>\n</body></html>';
 async function setup(page: Page, mode: "success" | "partial" | "review" = "success") {
@@ -67,6 +68,7 @@ test("oversized HTML comments post with context and can jump after reload",async
   await page.reload();
   await expect(page.getByRole("button",{name:"1 comment",exact:true})).toBeVisible();
   await page.keyboard.press("Escape");
+  await openReviewTools(page);
   await page.getByRole("button",{name:"All PR comments (1)",exact:true}).click();
   await page.getByRole("button",{name:`Open comment in ${path}`,exact:true}).click();
   await expect(page.frameLocator("iframe").locator("#first")).toBeFocused();
@@ -74,6 +76,7 @@ test("oversized HTML comments post with context and can jump after reload",async
   await page.reload();
   await expect(page.getByRole("button",{name:"1 comment",exact:true})).toBeVisible();
   await page.keyboard.press("Escape");
+  await openReviewTools(page);
   await page.getByRole("button",{name:"All PR comments (1)",exact:true}).click();
   await expect(page.getByRole("region",{name:"PR comment navigator"}).getByText("Outdated",{exact:true})).toBeVisible();
   await page.getByRole("button",{name:`Open comment in ${path}`,exact:true}).click();
