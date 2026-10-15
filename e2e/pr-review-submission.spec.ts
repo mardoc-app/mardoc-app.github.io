@@ -21,7 +21,7 @@
  * side of that path here.
  */
 import { test, expect } from "@playwright/test";
-import { openPullRequest } from "./fixtures/helpers";
+import { openPullRequest, openReviewTools } from "./fixtures/helpers";
 
 // Each test opens its own PR via page.goto, so running in parallel
 // (the Playwright default) gives every test a fresh browser context
@@ -132,44 +132,24 @@ test.describe("PR review submission — Request Changes flow", () => {
   });
 });
 
-test.describe("PR detail — description collapse toggle", () => {
-  // The "Description" button in the PR header used to be a broken
-  // <details> element with no children. This test guards against the
-  // regression by proving that clicking the button actually hides the
-  // description body.
-
-  test("description body is expanded by default on a PR with a description", async ({
-    page,
-  }) => {
+test.describe("PR detail — description in review tools", () => {
+  test("description stays out of the reading area until requested", async ({ page }) => {
     await openPullRequest(page, /architecture overview/i);
-    await expect(page.locator("#pr-description-body")).toBeVisible({
-      timeout: 3_000,
-    });
-    // And the toggle button reflects the expanded state
-    await expect(
-      page.locator('button[aria-controls="pr-description-body"]')
-    ).toHaveAttribute("aria-expanded", "true");
-  });
-
-  test("clicking the Description button collapses and re-expands the body", async ({
-    page,
-  }) => {
-    await openPullRequest(page, /architecture overview/i);
-    const toggle = page.locator('button[aria-controls="pr-description-body"]');
-    const body = page.locator("#pr-description-body");
-
-    // Start expanded
+    await expect(page.getByRole("button", { name: "Description", exact: true })).toHaveCount(0);
+    await openReviewTools(page);
+    const toggle = page.getByRole("button", { name: "Description", exact: true });
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await toggle.click();
+    const body = page.locator('[id^="pr-description-body-"]');
     await expect(body).toBeVisible();
-
-    // Collapse
     await toggle.click();
     await expect(body).toHaveCount(0);
     await expect(toggle).toHaveAttribute("aria-expanded", "false");
-
-    // Re-expand
     await toggle.click();
     await expect(body).toBeVisible();
-    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("region", { name: "Review tools", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Review tools", exact: true })).toBeFocused();
   });
 });
 

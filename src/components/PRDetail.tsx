@@ -37,8 +37,8 @@ import RepositoryReference, { type ReferenceTarget } from "./RepositoryReference
 import { resolveReviewLink } from "@/lib/review-links";
 import { isHtmlFile } from "@/lib/file-types";
 import DiffViewer from "./DiffViewer";
+import ReviewDock from "./ReviewDock";
 import PRCommentNavigator from "./PRCommentNavigator";
-import ReviewReturnBar from "./ReviewReturnBar";
 import Showdown from "showdown";
 
 const descriptionConverter = new Showdown.Converter({
@@ -106,7 +106,7 @@ export default function PRDetail({ pr, onBack }: PRDetailProps) {
   }, [prFiles, selectedPRFileIdx, setSelectedPRFileIdx, currentRepo]);
 
   const [comments, setComments] = useState<PRComment[]>(prComments);
-  const [descriptionOpen, setDescriptionOpen] = useState(true);
+  const [descriptionOpen, setDescriptionOpen] = useState(false);
   const [reviewStatus, setReviewStatus] = useState<
     "pending" | "approved" | "changes-requested" | null
   >(null);
@@ -484,11 +484,56 @@ export default function PRDetail({ pr, onBack }: PRDetailProps) {
     }
   }, [comments, currentRepo, isDemoMode, pr.headBranch, prFiles, selectedPRFileIdx]);
 
+  const renderReviewDetails = (close: () => void, idx: number) => <>
+    <p className="border-b border-[var(--border)] px-4 py-2 text-xs text-[var(--text-secondary)]">
+      PR #{pr.number} · {pr.author} · {pr.headBranch} → {pr.baseBranch}
+    </p>
+    {pr.description && (
+      <div className="border-b border-[var(--border)] px-4 py-3">
+        <button
+          type="button"
+          onClick={() => setDescriptionOpen((v) => !v)}
+          aria-expanded={descriptionOpen}
+          aria-controls={`pr-description-body-${idx}`}
+          className="flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors cursor-pointer py-0.5"
+        >
+          {descriptionOpen ? (
+            <ChevronDown size={12} />
+          ) : (
+            <ChevronRight size={12} />
+          )}
+          Description
+        </button>
+        {descriptionOpen && (
+          <div
+            id={`pr-description-body-${idx}`}
+            className="mt-1 text-sm text-[var(--text-secondary)] prose prose-sm dark:prose-invert max-w-none max-h-40 overflow-y-auto"
+            dangerouslySetInnerHTML={{
+              __html: transformGitHubAlerts(
+                descriptionConverter.makeHtml(transformFootnotes(pr.description))
+              ),
+            }}
+          />
+        )}
+      </div>
+    )}
+    <PRCommentNavigator comments={comments} files={prFiles} onJump={(comment, index) => {
+      close();
+      setReference(null);
+      if (selectedFile && isHtmlFile(selectedFile.path) && index !== selectedPRFileIdx) {
+        setReturnFileIdx(old => old ?? selectedPRFileIdx);
+      }
+      setSelectedPRFileIdx(index);
+      setCommentJump({id: comment.id, path: prFiles[index].path, sequence: ++jumpSequence.current, hash: window.location.hash});
+    }}/>
+
+  </>;
+
   return (
     <div className="h-full flex flex-col">
       {/* PR Header */}
       <div className="border-b border-[var(--border)] bg-[var(--surface)]">
-        <div className="px-6 py-3">
+        <div className="px-4 py-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 min-w-0">
               <button
@@ -510,29 +555,11 @@ export default function PRDetail({ pr, onBack }: PRDetailProps) {
                   {pr.title}{" "}
                   <span className="text-[var(--text-muted)] font-normal">#{pr.number}</span>
                 </h1>
-                <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
-                  <span>
-                    <strong>{pr.author}</strong>{" "}
-                    <span className="font-mono text-[10px] bg-[var(--surface-secondary)] px-1 py-0.5 rounded">
-                      {pr.headBranch}
-                    </span>
-                    {" → "}
-                    <span className="font-mono text-[10px] bg-[var(--surface-secondary)] px-1 py-0.5 rounded">
-                      {pr.baseBranch}
-                    </span>
-                  </span>
-                </div>
               </div>
             </div>
 
             {/* Review actions */}
             <div className="flex items-center gap-2 shrink-0">
-              {selectedFile && (
-                <span className="text-xs text-[var(--text-muted)] font-mono hidden sm:block">
-                  {selectedFile.path}
-                </span>
-              )}
-
               <div className="flex items-center gap-1 text-xs text-[var(--text-muted)]">
                 <MessageSquare size={12} />
                 {comments.filter((c) => !c.resolved).length}
@@ -580,55 +607,11 @@ export default function PRDetail({ pr, onBack }: PRDetailProps) {
               )}
             </div>
           </div>
-
-          {/* Description section — toggle + body. Lives on its own
-              row below the header meta so the full-width click target
-              is safe on mobile (the review actions on the right don't
-              overlap it). */}
-          {pr.description && (
-            <div className="mt-2 border-t border-[var(--border)] pt-2">
-              <button
-                type="button"
-                onClick={() => setDescriptionOpen((v) => !v)}
-                aria-expanded={descriptionOpen}
-                aria-controls="pr-description-body"
-                className="flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors cursor-pointer py-0.5"
-              >
-                {descriptionOpen ? (
-                  <ChevronDown size={12} />
-                ) : (
-                  <ChevronRight size={12} />
-                )}
-                Description
-              </button>
-              {descriptionOpen && (
-                <div
-                  id="pr-description-body"
-                  className="mt-1 text-sm text-[var(--text-secondary)] prose prose-sm dark:prose-invert max-w-none max-h-40 overflow-y-auto"
-                  dangerouslySetInnerHTML={{
-                    __html: transformGitHubAlerts(
-                      descriptionConverter.makeHtml(transformFootnotes(pr.description))
-                    ),
-                  }}
-                />
-              )}
-            </div>
-          )}
         </div>
       </div>
 
       {reviewNotice && <p role="status" className="shrink-0 border-b border-[var(--border)] px-4 py-2 text-sm">{reviewNotice}</p>}
-      <PRCommentNavigator comments={comments} files={prFiles} onJump={(comment, index) => {
-        setReference(null);
-        if (selectedFile && isHtmlFile(selectedFile.path) && index !== selectedPRFileIdx) {
-          setReturnFileIdx(old => old ?? selectedPRFileIdx);
-        }
-        setSelectedPRFileIdx(index);
-        setCommentJump({id: comment.id, path: prFiles[index].path, sequence: ++jumpSequence.current, hash: window.location.hash});
-      }}/>
-      {!reference && returnFileIdx !== null && returnFileIdx !== selectedPRFileIdx && (
-        <ReviewReturnBar path={prFiles[returnFileIdx]?.path} onReturn={() => setSelectedPRFileIdx(returnFileIdx)}/>
-      )}
+
       {/* Keep the originating deck mounted while reviewing a linked file. */}
       <div className="flex-1 overflow-hidden relative">
         {prFiles.length === 0 && <p className="p-6">No document files changed in this PR.</p>}
@@ -636,13 +619,16 @@ export default function PRDetail({ pr, onBack }: PRDetailProps) {
           const file = prFiles[idx];
           if (!file) return null;
           const active = idx === selectedPRFileIdx;
-          return <div key={idx} className="absolute inset-0" style={{visibility:active ? "visible" : "hidden"}} aria-hidden={!active}>
+          return <div key={idx} className="absolute inset-0 isolate" style={{visibility:active && !reference ? "visible" : "hidden"}} aria-hidden={!active || !!reference}>
             {file.loadState === "pending" ? <p role="status" className="p-6">Loading document…</p>
               : file.loadState === "error" ? <div role="alert" className="p-6">{file.loadError}
                 <button className="toolbar-btn" onClick={() => setSelectedPRFileIdx(idx)}>Retry document</button></div>
               : <DiffViewer file={file} repoFullName={currentRepo || ""} baseBranch={pr.baseBranch} headBranch={pr.headBranch}
                 externalJump={active && commentJump?.path === file.path ? commentJump : undefined}
                 anchor={active ? documentAnchor : undefined} onNavigateLink={navigateReviewLink}
+                returnPath={returnFileIdx !== null && returnFileIdx !== idx ? prFiles[returnFileIdx]?.path : undefined}
+                onReturn={returnFileIdx !== null && returnFileIdx !== idx ? () => { setSelectedPRFileIdx(returnFileIdx); setReturnFileIdx(null); } : undefined}
+                reviewDetails={close => renderReviewDetails(close, idx)}
                 comments={comments} onAddComment={handleAddComment} onResolveComment={handleResolveComment}
                 onReplyComment={handleReplyComment} onSubmitSuggestions={handleSubmitSuggestions}
                 onAcceptSuggestion={handleAcceptSuggestion} onDiscardPendingComment={handleDiscardPending}/>
@@ -651,6 +637,14 @@ export default function PRDetail({ pr, onBack }: PRDetailProps) {
         })}
         {reference && <RepositoryReference target={reference} returnPath={prFiles[selectedPRFileIdx]?.path} onClose={() => window.history.back()}/>}
       </div>
+
+      {(!selectedFile || selectedFile.loadState === "pending" || selectedFile.loadState === "error") && <ReviewDock
+        path={selectedFile?.path || `PR #${pr.number}`}
+        returnPath={returnFileIdx !== null ? prFiles[returnFileIdx]?.path : undefined}
+        onReturn={returnFileIdx !== null && returnFileIdx !== selectedPRFileIdx ? () => { setSelectedPRFileIdx(returnFileIdx); setReturnFileIdx(null); } : undefined}
+        controls={<span className="text-xs text-[var(--text-muted)]">PR context</span>}>
+        {close => renderReviewDetails(close, selectedPRFileIdx)}
+      </ReviewDock>}
 
       {reviewModalOpen && (
         <div

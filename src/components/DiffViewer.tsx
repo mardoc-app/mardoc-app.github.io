@@ -42,6 +42,7 @@ import { injectSourceLineAttributes } from "@/lib/html-source-lines";
 import { buildIframeResizeScript } from "@/lib/iframe-resize";
 import { buildIframeSelectionScript } from "@/lib/html-selection";
 import { buildHtmlDiff } from "@/lib/html-diff";
+import ReviewDock from "./ReviewDock";
 import HtmlDiffToolbar, { type HtmlDiffMode } from "./HtmlDiffToolbar";
 import { navigateHtmlDiff } from "@/lib/html-diff-navigation";
 import { useIsMobile } from "@/lib/use-viewport";
@@ -55,6 +56,9 @@ import { commentFileIndex, commentTargetForFile } from "@/lib/comment-target";
 import { locateMarkdownComment, markCommentLocation, clearCommentMarks, commentLocationMessages } from "@/lib/markdown-comment-location";
 
 interface DiffViewerProps {
+  reviewDetails?: (close: () => void) => React.ReactNode;
+  returnPath?: string;
+  onReturn?: () => void;
   file: PRFile;
   anchor?: string;
   externalJump?: {id: string; sequence: number};
@@ -293,6 +297,9 @@ function FloatingToolbar({
 // ─── Main DiffViewer ───────────────────────────────────────────────────────
 
 export default function DiffViewer({
+  reviewDetails,
+  returnPath,
+  onReturn,
   file,
   anchor,
   externalJump,
@@ -964,136 +971,55 @@ export default function DiffViewer({
     }
   }, [file, onNavigateLink, isEmbedded]);
 
+  const modeButtonClass = "min-h-11 sm:min-h-8 rounded px-2 text-xs whitespace-nowrap focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]";
+  const revisionControls = fileIsHtml ? (
+    <div role="group" aria-label="HTML display" className="flex shrink-0 items-center gap-0.5">
+      {htmlViewMode === "source" && <button type="button" onClick={() => setHtmlViewMode("rendered")}
+        className={modeButtonClass}><Eye size={14} className="inline mr-1" />Rendered</button>}
+      <button type="button" onClick={() => setHtmlViewMode("source")} aria-pressed={htmlViewMode === "source"}
+        className={modeButtonClass + (htmlViewMode === "source" ? " bg-[var(--accent)] text-white" : " hover:bg-[var(--surface-hover)]")}>
+        <FileCode size={14} className="inline mr-1" />Source Diff
+      </button>
+    </div>
+  ) : (
+    <div role="group" aria-label="Markdown preview version" className="flex flex-wrap items-center gap-0.5">
+      {([["rendered", "Inline Diff"], ["split", "Side by Side"], ["suggest", "Suggest"], ["preview", "Preview"]] as const).map(([value, label]) =>
+        <button key={value} type="button" onClick={() => setViewMode(value)} aria-pressed={viewMode === value}
+          className={modeButtonClass + (value === "split" ? " hidden md:block" : "") +
+            (viewMode === value ? " bg-[var(--accent)] text-white" : " hover:bg-[var(--surface-hover)]")}>
+          {value === "suggest" && <Pencil size={10} className="inline mr-1" />}
+          {label}
+          {value === "suggest" && pendingSuggestions.length > 0 && <span className="ml-1 rounded-full bg-[var(--accent-muted)] px-1 text-[var(--accent)]">{pendingSuggestions.length}</span>}
+        </button>)}
+    </div>
+  );
+  const documentOptions = <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
+    <div className="min-w-0 flex-1">
+      <p className="break-all font-mono text-xs text-[var(--text-secondary)]">{file.path}</p>
+      <span className="text-xs text-[var(--text-muted)]">{file.status} · {baseBranch} → {headBranch}</span>
+    </div>
+    <div className="flex items-center gap-2">
+      {!fileIsHtml && <button type="button" onClick={() => setShowLineNumbers(!showLineNumbers)}
+        className={modeButtonClass} aria-pressed={showLineNumbers} title={showLineNumbers ? "Hide line numbers" : "Show line numbers"}>
+        <Hash size={14} className="inline mr-1" />Line numbers
+      </button>}
+      <button type="button" onClick={toggleWide} className={modeButtonClass} aria-pressed={wide}
+        title={wide ? "Normal width" : "Wide format"}>
+        {wide ? <Minimize2 size={14} className="inline mr-1" /> : <Maximize2 size={14} className="inline mr-1" />}Width
+      </button>
+    </div>
+  </div>;
+  const unresolvedCount = allPanelComments.filter(comment => !comment.resolved).length;
+  const commentToggle = <button type="button" aria-pressed={showPanel}
+    onClick={() => setShowPanel(!showPanel)}
+    className={modeButtonClass + " inline-flex shrink-0 items-center gap-1 " +
+      (showPanel ? "text-[var(--accent)]" : "text-[var(--text-muted)] hover:text-[var(--accent)]")}>
+    <MessageSquare size={14} />
+    {unresolvedCount > 0 ? `${unresolvedCount} comment${unresolvedCount === 1 ? "" : "s"}` : "Comments"}
+  </button>;
+
   return (
     <div className="h-full flex flex-col">
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-[var(--surface)] border-b border-[var(--border)] px-4 py-2.5 flex items-center justify-between gap-2 flex-wrap md:flex-nowrap">
-        <div className="flex items-center gap-3 min-w-0">
-          <span className="text-sm font-mono text-[var(--text-secondary)] truncate">{file.path}</span>
-          <span
-            className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-              file.status === "added"
-                ? "bg-[var(--diff-add)] text-[var(--diff-add-text)]"
-                : file.status === "deleted"
-                ? "bg-[var(--diff-remove)] text-[var(--diff-remove-text)]"
-                : "bg-[var(--accent-muted)] text-[var(--accent)]"
-            }`}
-          >
-            {file.status}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {/* Comment count + toggle */}
-          <button
-            onClick={() => setShowPanel(!showPanel)}
-            className={`flex items-center gap-1 text-xs transition-colors ${
-              showPanel ? "text-[var(--accent)]" : "text-[var(--text-muted)] hover:text-[var(--accent)]"
-            }`}
-          >
-            <MessageSquare size={12} />
-            {allPanelComments.filter((c) => !c.resolved).length > 0
-              ? `${allPanelComments.filter((c) => !c.resolved).length} comment${
-                  allPanelComments.filter((c) => !c.resolved).length > 1 ? "s" : ""
-                }`
-              : "Comments"}
-          </button>
-
-          {!fileIsHtml && (
-            <button
-              onClick={() => setShowLineNumbers(!showLineNumbers)}
-              className={`toolbar-btn ${showLineNumbers ? "active" : ""}`}
-              title={showLineNumbers ? "Hide line numbers" : "Show line numbers"}
-            >
-              <Hash size={14} />
-            </button>
-          )}
-
-          <button
-            onClick={toggleWide}
-            className={`toolbar-btn ${wide ? "active" : ""}`}
-            title={wide ? "Normal width" : "Wide format"}
-          >
-            {wide ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
-          </button>
-
-          {fileIsHtml ? (
-            <div className="flex items-center gap-1 bg-[var(--surface-secondary)] rounded-md p-0.5">
-              <button
-                onClick={() => setHtmlViewMode("rendered")}
-                className={`text-xs px-2.5 py-1 rounded transition-colors flex items-center gap-1 ${
-                  htmlViewMode === "rendered"
-                    ? "bg-[var(--surface)] text-[var(--text-primary)] shadow-sm"
-                    : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
-                }`}
-              >
-                <Eye size={10} />
-                Rendered
-              </button>
-              <button
-                onClick={() => setHtmlViewMode("source")}
-                className={`text-xs px-2.5 py-1 rounded transition-colors flex items-center gap-1 ${
-                  htmlViewMode === "source"
-                    ? "bg-[var(--surface)] text-[var(--text-primary)] shadow-sm"
-                    : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
-                }`}
-              >
-                <FileCode size={10} />
-                Source Diff
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1 bg-[var(--surface-secondary)] rounded-md p-0.5">
-              <button
-                onClick={() => setViewMode("rendered")}
-                className={`text-xs px-2.5 py-1 rounded transition-colors ${
-                  viewMode === "rendered"
-                    ? "bg-[var(--surface)] text-[var(--text-primary)] shadow-sm"
-                    : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
-                }`}
-              >
-                Inline Diff
-              </button>
-              <button
-                onClick={() => setViewMode("split")}
-                className={`text-xs px-2.5 py-1 rounded transition-colors hidden md:block ${
-                  viewMode === "split"
-                    ? "bg-[var(--surface)] text-[var(--text-primary)] shadow-sm"
-                    : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
-                }`}
-              >
-                Side by Side
-              </button>
-              <button
-                onClick={() => setViewMode("suggest")}
-                className={`text-xs px-2.5 py-1 rounded transition-colors flex items-center gap-1 ${
-                  viewMode === "suggest"
-                    ? "bg-[var(--surface)] text-[var(--text-primary)] shadow-sm"
-                    : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
-                }`}
-              >
-                <Pencil size={10} />
-                Suggest
-                {pendingSuggestions.length > 0 && (
-                  <span className="ml-0.5 px-1.5 py-0 text-[9px] rounded-full bg-[var(--accent)] text-white font-medium">
-                    {pendingSuggestions.length}
-                  </span>
-                )}
-              </button>
-              <button
-                onClick={() => setViewMode("preview")}
-                className={`text-xs px-2.5 py-1 rounded transition-colors ${
-                  viewMode === "preview"
-                    ? "bg-[var(--surface)] text-[var(--text-primary)] shadow-sm"
-                    : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
-                }`}
-              >
-                Preview
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
 
       {jumpMessage && <p role="status" className="shrink-0 px-4 py-2 text-sm bg-[var(--accent-muted)] text-[var(--text-primary)]">{jumpMessage}</p>}
 
@@ -1195,10 +1121,7 @@ export default function DiffViewer({
                     style={{ minHeight: "100%", height: "100%" }}
                   />}
                 </div>
-                <div className="shrink-0 sticky bottom-0 z-10">
-                  <HtmlDiffToolbar mode={htmlDiffMode} onModeChange={changeHtmlMode}
-                    changes={htmlDiff.changes} activeChange={activeHtmlChange} onNavigate={navigateHtmlChange} />
-                </div>
+
               </div>
             {htmlViewMode === "source" && (
               /* Source diff for HTML files */
@@ -1597,6 +1520,23 @@ export default function DiffViewer({
           />
         )}
       </div>
+
+      <ReviewDock path={file.path} returnPath={returnPath} onReturn={onReturn}
+        controls={<>
+          {fileIsHtml && htmlViewMode === "rendered" && <HtmlDiffToolbar embedded mode={htmlDiffMode}
+            onModeChange={changeHtmlMode} changes={htmlDiff.changes} activeChange={activeHtmlChange} onNavigate={navigateHtmlChange} />}
+          {revisionControls}
+        </>}
+        actions={commentToggle}>
+        {close => <>
+          {documentOptions}
+          {fileIsHtml && htmlViewMode === "rendered" && <div className="flex flex-wrap items-center gap-3 border-b border-[var(--border)] px-4 py-2">
+            <span className="rounded bg-green-100 px-1 text-xs text-green-900">added</span>
+            <span className="rounded bg-red-100 px-1 text-xs text-red-900 line-through">removed</span>
+          </div>}
+          {reviewDetails?.(close)}
+        </>}
+      </ReviewDock>
 
       {/* Mobile: comment panel lives in a slide-up sheet */}
       {isMobile && (
