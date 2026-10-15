@@ -172,6 +172,10 @@ test("head-only selection retains source lines and removed or mixed selections c
   await htmlFrame(page).locator("body").evaluate(() => window.getSelection()!.removeAllRanges());
   await page.getByPlaceholder("Write your comment...").fill("Explain the desktop ownership change");
   await page.getByRole("button", { name: "Comment", exact: true }).last().click();
+  await expect(page.getByRole("button", { name: "Finish Review (1)", exact: true })).toBeVisible();
+  // Queuing a comment opens the mobile sheet over the review controls.
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog", { name: "Comments", exact: true })).toBeHidden();
   await page.getByRole("button", { name: "Finish Review (1)", exact: true }).click();
   await page.getByRole("button", { name: "Submit review", exact: true }).click();
   await expect.poll(() => reviews.length).toBe(1);
