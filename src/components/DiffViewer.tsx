@@ -319,7 +319,7 @@ export default function DiffViewer({
   const [showPanel, setShowPanel] = useState(true);
   const [showLineNumbers, setShowLineNumbers] = useState(false);
   const { wide, toggle: toggleWide } = useWideFormat();
-  const { isEmbedded, selectedPR, prFiles, setSelectedPRFileIdx } = useApp();
+  const { isEmbedded, selectedPR, prFiles } = useApp();
   const isMobile = useIsMobile();
 
   // On mobile the comment panel lives in a slide-up bottom sheet
@@ -486,11 +486,6 @@ export default function DiffViewer({
     const doc = htmlIframeRef.current?.contentDocument;
     if (doc) setActiveHtmlChange(navigateHtmlDiff(doc, htmlDiff.changes, activeHtmlChange, direction));
   };
-  const changedHtmlPages = (prFiles || []).filter(item => isHtmlFile(item.path)).map(item => ({
-    path: item.path,
-    href: selectedPR ? buildPRHash(repoFullName, selectedPR.number, (prFiles || []).indexOf(item)) : "#",
-  }));
-
   // Ordered source diff includes changes that have no visible text equivalent.
   const htmlSourceDiff = useMemo(() => {
     if (!fileIsHtml) return [];
@@ -1189,24 +1184,6 @@ export default function DiffViewer({
             /* HTML file rendering */
             <>
               <div className="h-full flex flex-col" style={{display: htmlViewMode === "rendered" ? undefined : "none"}} aria-hidden={htmlViewMode !== "rendered"}>
-                {htmlDiffMode === "diff" && htmlDiff.hiddenChanges.length > 0 && (
-                  <details key={file.path} className="shrink-0 px-4 py-2 text-xs border-b border-[var(--border)]">
-                    <summary className="cursor-pointer text-[var(--text-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]">
-                      Metadata changes ({htmlDiff.hiddenChanges.length})
-                    </summary>
-                    <section aria-label="Nonvisual HTML changes" className="max-h-48 overflow-auto pt-3">
-                    <ul className="space-y-2">
-                      {htmlDiff.hiddenChanges.map((change, index) => (
-                        <li key={index}>
-                          <span className="font-medium">{change.label}</span>
-                          <div>Before: <del className="bg-[var(--diff-remove)] text-[var(--diff-remove-text)]">{change.before || "(empty)"}</del></div>
-                          <div>After: <ins className="bg-[var(--diff-add)] text-[var(--diff-add-text)] no-underline">{change.after || "(empty)"}</ins></div>
-                        </li>
-                      ))}
-                    </ul>
-                    </section>
-                  </details>
-                )}
                 <div className="flex-1 overflow-auto">
                   {htmlReady && <iframe
                     ref={htmlIframeRef}
@@ -1220,11 +1197,7 @@ export default function DiffViewer({
                 </div>
                 <div className="shrink-0 sticky bottom-0 z-10">
                   <HtmlDiffToolbar mode={htmlDiffMode} onModeChange={changeHtmlMode}
-                    changes={htmlDiff.changes} activeChange={activeHtmlChange} onNavigate={navigateHtmlChange}
-                    changedPages={changedHtmlPages} onNavigatePage={path => {
-                      const index = (prFiles || []).findIndex(item => item.path === path);
-                      if (index >= 0) setSelectedPRFileIdx?.(index);
-                    }} />
+                    changes={htmlDiff.changes} activeChange={activeHtmlChange} onNavigate={navigateHtmlChange} />
                 </div>
               </div>
             {htmlViewMode === "source" && (

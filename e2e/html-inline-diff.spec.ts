@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { openSidebar, clickVisibleText } from "./fixtures/helpers";
 
 const baseSha = "a".repeat(40);
 const headSha = "b".repeat(40);
@@ -81,7 +82,7 @@ test("inline HTML marks word and block changes while retaining formatting and pa
   await expect(frame.locator('#intro')).toHaveCSS("border-left-width", "7px");
   await expect(frame.locator('body')).toHaveCSS("color", "rgb(23, 45, 67)");
   expect(await frame.locator('[data-mardoc-change-id]').count()).toBeGreaterThan(0);
-  await expect(page.getByText(/\d+ changed spots/).first()).toBeVisible();
+  await expect(page.getByRole("status", { name: /\d+ changes/ })).toBeVisible();
 });
 
 test("next and previous change controls focus and reveal distinct regions", async ({ page }) => {
@@ -129,21 +130,20 @@ test("SVG labels and nonvisual metadata changes are reviewable", async ({ page }
   await setup(page);
   await expect(htmlFrame(page).locator('#diagram-label [data-mardoc-diff="added"]')).toHaveText("Settings");
   await expect(htmlFrame(page).locator('#diagram-label [data-mardoc-diff="removed"]')).toHaveText("Tray");
-  const summary = page.getByRole("region", { name: "Nonvisual HTML changes", exact: true });
-  await expect(summary).toBeHidden();
-  await page.locator("summary").filter({hasText:"Metadata changes"}).click();
-  await expect(summary).toBeVisible();
+  await expect(page.getByText(/^Metadata changes/)).toHaveCount(0);
+  await expect(htmlFrame(page).locator("svg title")).toHaveText("New architecture title");
+  await expect(htmlFrame(page).locator("svg desc")).toHaveText("New screen reader description");
+  await page.getByRole("button", { name: "Source Diff", exact: true }).click();
   for (const text of ["Old architecture title", "New architecture title", "Old screen reader description", "New screen reader description", "#old-guide", "#new-guide"]) {
-    await expect(summary.getByText(text, { exact: false })).toBeVisible();
+    await expect(page.locator("pre")).toContainText(text);
   }
 });
 
-test("changed page index opens another HTML page", async ({ page }) => {
+test("file sidebar opens another HTML page without a duplicate page index", async ({ page }) => {
   await setup(page);
-  await page.getByRole("button", { name: /^All changed pages/ }).click();
-  const index = page.getByRole("navigation", { name: "All changed HTML pages", exact: true });
-  await expect(index).toBeVisible();
-  await index.getByRole("link", { name: /second\.html/ }).click();
+  await expect(page.getByRole("button", { name: /^All changed pages/ })).toHaveCount(0);
+  await openSidebar(page);
+  await clickVisibleText(page, /second\.html/);
   await expect(htmlFrame(page, "second.html").getByRole("heading", { name: "Second changed page" })).toBeVisible();
   await expect(htmlFrame(page, "second.html").locator('[data-mardoc-diff="added"]')).toContainText("New");
 });
