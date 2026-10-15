@@ -133,3 +133,16 @@ export async function selectTextInsideIframe(
     maxLength
   );
 }
+
+/** Open the nonmodal tools tray without toggling an already open tray closed. */
+export async function openReviewTools(page: Page): Promise<void> {
+  const commentsSheet = page.getByRole("dialog", { name: "Comments", exact: true });
+  if (await commentsSheet.isVisible()) {
+    await page.keyboard.press("Escape");
+    await expect(commentsSheet).toBeHidden();
+  }
+  const toggle = page.getByRole("button", { name: "Review tools", exact: true });
+  await expect(toggle).toBeVisible();
+  if (await toggle.getAttribute("aria-expanded") !== "true") await toggle.click();
+  await expect(page.getByRole("region", { name: "Review tools", exact: true })).toBeVisible();
+}

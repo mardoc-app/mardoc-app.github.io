@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { openPullRequest } from "./fixtures/helpers";
+import { openPullRequest, openReviewTools } from "./fixtures/helpers";
 
 test.describe("Line numbers toggle in diff views", () => {
   test.setTimeout(60_000);
@@ -7,6 +7,7 @@ test.describe("Line numbers toggle in diff views", () => {
   test.beforeEach(async ({ page, isMobile }) => {
     test.skip(!!isMobile, "line numbers button uses toolbar-btn layout");
     await openPullRequest(page, /getting started guide/i);
+    await openReviewTools(page);
   });
 
   test("Hash button toggles line numbers on in inline diff view", async ({ page }) => {

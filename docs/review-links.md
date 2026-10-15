@@ -11,7 +11,7 @@ suggestions remain attached to that changed file. Browser Back returns within
 the same loaded PR without refetching its manifest.
 
 The originating HTML deck stays mounted when following a link to another PR
-file. **Back to review** returns to it with its slide, presenter notes and other
+file. **Back to review** in the bottom dock returns to it with its slide, presenter notes and other
 in-frame state retained. Only one originating deck is retained; this is not a
 persistent browser session across reloads or different PRs.
 
