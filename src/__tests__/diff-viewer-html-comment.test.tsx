@@ -226,24 +226,19 @@ describe("DiffViewer — HTML commenting flow (parent side)", () => {
     expect(source()).not.toContain("mardoc-html-selection");
   });
 
-  it("keeps metadata changes collapsed until requested", () => {
+  it("keeps metadata in Source Diff without a separate rendered panel", () => {
     const file = {...makeHtmlFile(), baseContent: '<title>Old title</title><p><a href="old.html">Guide</a></p>',
       headContent: '<title>New title</title><p><a href="new.html">Guide</a></p>'};
     render(<DiffViewer file={file} repoFullName="owner/repo" baseBranch="main" headBranch="topic"
       comments={[]} onAddComment={vi.fn()} onResolveComment={vi.fn()} />);
-    const disclosure = screen.getByText(/^Metadata changes/);
-    const details = disclosure.closest("details")!;
-    expect(details.open).toBe(false);
-    expect(screen.queryByText("Style, script, and other source changes are available in Source Diff.")).toBeNull();
-    fireEvent.click(disclosure);
-    expect(details.open).toBe(true);
-    const summary = screen.getByRole("region", {name: "Nonvisual HTML changes"});
-    expect(summary.textContent).toContain("Old title");
-    expect(summary.textContent).toContain("New title");
-    expect(summary.textContent).toContain("old.html");
-    expect(summary.textContent).toContain("new.html");
-    fireEvent.click(screen.getByRole("button", {name: "Head (new)"}));
+    expect(screen.queryByText(/^Metadata changes/)).toBeNull();
     expect(screen.queryByRole("region", {name: "Nonvisual HTML changes"})).toBeNull();
+    expect(document.querySelector("iframe")!.getAttribute("srcdoc")).toContain("New title");
+    fireEvent.click(screen.getByRole("button", {name: "Source Diff"}));
+    const source = document.querySelector("pre")!.textContent;
+    for (const text of ["Old title", "New title", "old.html", "new.html"]) {
+      expect(source).toContain(text);
+    }
   });
 
   it("clears a pending head quote when a mixed-revision selection is rejected", async () => {
