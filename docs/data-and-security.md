@@ -37,3 +37,7 @@ Markdown and PR-description rendering also place generated HTML into the applica
 ## Intended boundary and verification
 
 The intended product model remains a statically hosted app with credentials and local drafts under browser control, direct GitHub communication, and rendered document content isolated from application credentials. Any repair should preserve rendering/commenting while proving that embedded content cannot read parent storage or impersonate trusted host messages. These are acceptance goals, not claims of completed verification.
+
+## Optional feedback AI connection
+
+Feedback polishing sends only the user-triggered draft to the configured HTTPS endpoint (HTTP is permitted for localhost). No repository or thread context is added. The API key is held in module memory, excluded from localStorage, and sent only as an Authorization header to that endpoint. URL credentials, queries, and fragments are rejected. Requests omit cookies/referrers and reject redirects. Endpoint/model settings persist in browser storage; **Clear AI connection** removes them and the in-memory key. Existing HTML iframe isolation limitations documented above also apply to this browser application. Users must choose an endpoint whose permissions, billing, retention, and browser CORS behavior suit their use.
