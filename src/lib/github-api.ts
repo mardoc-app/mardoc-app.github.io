@@ -389,16 +389,20 @@ async function fetchPRFileManifestUnmeasured(repoFullName: string, prNumber: num
     octokit.paginate(octokit.pulls.listFiles, { owner, repo, pull_number: prNumber, per_page: 100, request: { signal } }),
     octokit.pulls.get({ owner, repo, pull_number: prNumber, request: { signal } }),
   ]);
-  return files.filter(f => isDocumentFile(f.filename)).map(file => ({
+  // Preserve existing document-index URLs while exposing the remaining files.
+  const ordered = [...files.filter(file => isDocumentFile(file.filename)), ...files.filter(file => !isDocumentFile(file.filename))];
+  return ordered.map(file => ({
+    changeType: file.status, patch: file.patch, additions: file.additions, deletions: file.deletions,
     path: file.filename, basePath: file.previous_filename || file.filename,
     baseRef: pr.base.sha, headRef: pr.head.sha,
     baseRepo: pr.base.repo.full_name, headRepo: pr.head.repo?.full_name || repoFullName,
-    baseContent: "", headContent: "", loadState: "pending",
+    baseContent: "", headContent: "", loadState: isDocumentFile(file.filename) ? "pending" : "ready",
     status: file.status === "added" ? "added" : file.status === "removed" ? "deleted" : "modified",
   }));
 }
 
 export async function fetchPRFile(file: PRFile, signal?: AbortSignal): Promise<PRFile> {
+  if (!isDocumentFile(file.path)) return { ...file, loadState: "ready" };
   const [baseContent, headContent] = await Promise.all([
     file.status === "added" ? "" : fetchFileContent(file.baseRepo!, file.basePath || file.path, file.baseRef, signal),
     file.status === "deleted" ? "" : fetchFileContent(file.headRepo!, file.path, file.headRef, signal),
