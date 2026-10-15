@@ -618,7 +618,7 @@ export default function PRDetail({ pr, onBack }: PRDetailProps) {
           const file = prFiles[idx];
           if (!file) return null;
           const active = idx === selectedPRFileIdx;
-          return <div key={idx} className="absolute inset-0 isolate" style={{visibility:active ? "visible" : "hidden"}} aria-hidden={!active}>
+          return <div key={idx} className="absolute inset-0 isolate" style={{visibility:active && !reference ? "visible" : "hidden"}} aria-hidden={!active || !!reference}>
             {file.loadState === "pending" ? <p role="status" className="p-6">Loading document…</p>
               : file.loadState === "error" ? <div role="alert" className="p-6">{file.loadError}
                 <button className="toolbar-btn" onClick={() => setSelectedPRFileIdx(idx)}>Retry document</button></div>
