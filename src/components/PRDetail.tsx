@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useEffect, useRef } from "react";
+import FeedbackPolisher from "./FeedbackPolisher";
 import {
   GitPullRequest,
   GitMerge,
@@ -37,7 +38,6 @@ import RepositoryReference, { type ReferenceTarget } from "./RepositoryReference
 import { resolveReviewLink } from "@/lib/review-links";
 import { isHtmlFile } from "@/lib/file-types";
 import DiffViewer from "./DiffViewer";
-import FeedbackPolisher from "./FeedbackPolisher";
 import ReviewDock from "./ReviewDock";
 import PRCommentNavigator from "./PRCommentNavigator";
 import Showdown from "showdown";
