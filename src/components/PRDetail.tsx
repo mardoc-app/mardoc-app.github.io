@@ -37,6 +37,7 @@ import RepositoryReference, { type ReferenceTarget } from "./RepositoryReference
 import { resolveReviewLink } from "@/lib/review-links";
 import { isHtmlFile } from "@/lib/file-types";
 import DiffViewer from "./DiffViewer";
+import ReviewDock from "./ReviewDock";
 import PRCommentNavigator from "./PRCommentNavigator";
 import Showdown from "showdown";
 
@@ -636,6 +637,14 @@ export default function PRDetail({ pr, onBack }: PRDetailProps) {
         })}
         {reference && <RepositoryReference target={reference} returnPath={prFiles[selectedPRFileIdx]?.path} onClose={() => window.history.back()}/>}
       </div>
+
+      {(!selectedFile || selectedFile.loadState === "pending" || selectedFile.loadState === "error") && <ReviewDock
+        path={selectedFile?.path || `PR #${pr.number}`}
+        returnPath={returnFileIdx !== null ? prFiles[returnFileIdx]?.path : undefined}
+        onReturn={returnFileIdx !== null && returnFileIdx !== selectedPRFileIdx ? () => { setSelectedPRFileIdx(returnFileIdx); setReturnFileIdx(null); } : undefined}
+        controls={<span className="text-xs text-[var(--text-muted)]">PR context</span>}>
+        {close => renderReviewDetails(close, selectedPRFileIdx)}
+      </ReviewDock>}
 
       {reviewModalOpen && (
         <div
