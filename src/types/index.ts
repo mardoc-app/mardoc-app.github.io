@@ -59,6 +59,11 @@ export interface PullRequest {
 }
 
 export interface PRFile {
+  changeType?: string;
+  patch?: string;
+  additions?: number;
+  deletions?: number;
+
   loadState?: "pending" | "ready" | "error";
   loadError?: string;
   baseRef?: string;
