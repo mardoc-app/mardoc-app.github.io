@@ -25,6 +25,7 @@ import {
   Hash,
 } from "lucide-react";
 import ContextMenu from "./ContextMenu";
+import FeedbackPolisher from "./FeedbackPolisher";
 import { mapSelectionToLines, rewriteImageUrls, loadAuthenticatedImages, loadEmbedLocalImages } from "@/lib/github-api";
 import { useHtmlCommentJump } from "@/lib/use-html-comment-jump";
 import { useHtmlReviewLinks } from "@/lib/use-html-review-links";
@@ -1045,7 +1046,7 @@ export default function DiffViewer({
           <div
             className="
               bg-[var(--accent-muted)] border-b border-[var(--accent)] px-4 py-2.5
-              flex items-start gap-3
+              max-h-[75dvh] md:max-h-[50dvh] overflow-y-auto flex items-start gap-3
               md:static
               fixed left-0 right-0 bottom-0 z-50 md:z-auto
               md:border-b border-t border-[var(--accent)] md:border-t-0
@@ -1097,6 +1098,7 @@ export default function DiffViewer({
                 Cancel
               </button>
             </div>
+            <FeedbackPolisher value={pendingCommentInput} onChange={setPendingCommentInput} />
           </div>
           </div>
         </>
