@@ -270,6 +270,19 @@ export async function fetchFileContent(repoFullName: string, path: string, ref?:
   return measureOperation("document-fetch", async () => base64ToUtf8((await fetchContentData(repoFullName, path, ref, signal)).content));
 }
 
+/** Fetch an image at the selected revision, including private repository assets. */
+export async function fetchReviewImage(repo: string, path: string, ref: string, mime: string, signal?: AbortSignal): Promise<Blob> {
+  const { content } = await fetchContentData(repo, path, ref, signal);
+  signal?.throwIfAborted();
+  // Bound decoding and preview memory; unavailable previews retain the GitHub handoff.
+  const encoded = content.replace(/\s/g, "");
+  if (encoded.length > 14_000_000) throw new Error("This image is too large to preview (10 MB limit). Review it on GitHub.");
+  const binary = atob(encoded);
+  if (binary.length > 10_000_000) throw new Error("This image is too large to preview (10 MB limit). Review it on GitHub.");
+  const bytes = Uint8Array.from(binary, character => character.charCodeAt(0));
+  return new Blob([bytes], { type: mime });
+}
+
 export async function fetchPullRequests(
   repoFullName: string,
   state: "open" | "closed" | "all" = "open",

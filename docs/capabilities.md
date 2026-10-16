@@ -103,3 +103,9 @@ response still cannot prove whether a write happened; check GitHub before manual
 retrying such an error. Pending drafts are not restored after reloading the tab.
 
 AI feedback polishing is optional and off by default. Enable it under Settings → AI feedback to reveal polishing controls. Hosted providers usually require a provider API key; reviewing and commenting never require AI. Disabling the feature cancels active polishing and forgets its in-memory key.
+
+### Image review
+
+Changed SVG, PNG, JPEG, GIF, and WebP files open as images in PR review. Head/Base switches use the PR commit revisions, fork repositories, and previous paths for renames. Added files have only Head; deleted files have only Base. Review tools provides fit-to-view, actual size, zoom, dimensions, and the existing review details. SVG also offers Source Diff. Image comments continue through the file-specific Review on GitHub link.
+
+Images load only when selected, through authenticated repository content fetching. Preview decoding is limited to 10 MB; loading/decoding failures offer retry and GitHub review. SVG is loaded in an image element, never injected as document markup. Object URLs are revoked when changing revision, source view, or leaving the viewer. Raster changes support revision switching; image overlays and pixel comparisons are not included.

@@ -8,6 +8,7 @@ import ReviewOnGitHub from "./ReviewOnGitHub";
 
 export interface SourceDiffViewerProps {
   file: PRFile;
+  viewControls?: ReactNode;
   repoFullName: string;
   prNumber: number;
   returnPath?: string;
@@ -16,7 +17,7 @@ export interface SourceDiffViewerProps {
 }
 
 /** Non-document files are visible without entering the Markdown rendering path. */
-export default function SourceDiffViewer({ file, repoFullName, prNumber, returnPath, onReturn, reviewDetails }: SourceDiffViewerProps) {
+export default function SourceDiffViewer({ file, repoFullName, prNumber, returnPath, onReturn, reviewDetails, viewControls }: SourceDiffViewerProps) {
   const diff = useMemo(() => parseSourceDiff(file.patch, file.additions, file.deletions), [file.patch, file.additions, file.deletions]);
   const [visibleLines, setVisibleLines] = useState(SOURCE_DIFF_PAGE_SIZE);
   const [wrap, setWrap] = useState(false);
@@ -55,7 +56,7 @@ export default function SourceDiffViewer({ file, repoFullName, prNumber, returnP
       </p>}
     </div>
     <ReviewDock path={file.path} returnPath={returnPath} onReturn={onReturn}
-      controls={<span className="text-xs text-[var(--text-muted)]">Source diff</span>}
+      controls={viewControls || <span className="text-xs text-[var(--text-muted)]">Source diff</span>}
       actions={<ReviewOnGitHub repo={repoFullName} pr={prNumber} path={file.path} />}>
       {close => <>
         <p className="break-all border-b border-[var(--border)] px-4 py-3 font-mono text-xs">{file.path}</p>
