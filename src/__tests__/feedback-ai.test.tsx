@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { clearFeedbackConnection, getFeedbackConnection, saveFeedbackConnection, polishFeedback, validateFeedbackConnection } from "@/lib/feedback-ai";
+import { setFeedbackAIEnabled, clearFeedbackConnection, getFeedbackConnection, saveFeedbackConnection, polishFeedback, validateFeedbackConnection } from "@/lib/feedback-ai";
 import FeedbackPolisher from "@/components/FeedbackPolisher";
 
 const connection = { endpoint: "https://ai.example/v1/chat/completions", model: "review-model", apiKey: "test-secret" };
-beforeEach(() => { localStorage.clear(); clearFeedbackConnection(); });
+beforeEach(() => { localStorage.clear(); clearFeedbackConnection(); setFeedbackAIEnabled(true); });
 afterEach(() => { cleanup(); clearFeedbackConnection(); vi.unstubAllGlobals(); vi.useRealTimers(); });
 
 it("remembers only endpoint/model and rejects insecure or credential-bearing URLs", () => {
