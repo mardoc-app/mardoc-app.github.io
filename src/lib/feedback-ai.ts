@@ -5,6 +5,16 @@ export interface FeedbackAIConnection { endpoint: string; model: string; apiKey:
 const SETTINGS_KEY = "mardoc_feedback_ai";
 let sessionConnection: FeedbackAIConnection | null = null; // Credentials stay memory-only.
 
+/** Feedback polishing is opt-in; disabling also forgets the session credential. */
+export function isFeedbackAIEnabled(): boolean {
+  return storage.getItem("mardoc_feedback_ai_enabled") === "true";
+}
+export function setFeedbackAIEnabled(enabled: boolean): void {
+  storage.setItem("mardoc_feedback_ai_enabled", String(enabled));
+  if (!enabled) sessionConnection = null;
+  window.dispatchEvent(new Event("mardoc-feedback-ai-change"));
+}
+
 export function validateFeedbackConnection(connection: FeedbackAIConnection): FeedbackAIConnection {
   let url: URL;
   try { url = new URL(connection.endpoint.trim()); } catch { throw new Error("Enter a complete chat completions URL."); }
