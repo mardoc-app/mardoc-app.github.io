@@ -99,3 +99,5 @@ when the final approval/review event fails. Authentication errors and uncertain
 network errors do not trigger a second comment type automatically. A lost server
 response still cannot prove whether a write happened; check GitHub before manually
 retrying such an error. Pending drafts are not restored after reloading the tab.
+
+AI feedback polishing is optional and off by default. Enable it under Settings → AI feedback to reveal polishing controls. Hosted providers usually require a provider API key; reviewing and commenting never require AI. Disabling the feature cancels active polishing and forgets its in-memory key.

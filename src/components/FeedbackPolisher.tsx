@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
-import { getFeedbackConnection, polishFeedback, type PolishStyle } from "@/lib/feedback-ai";
+import { getFeedbackConnection, isFeedbackAIEnabled, polishFeedback, type PolishStyle } from "@/lib/feedback-ai";
 import FeedbackAISettings from "./FeedbackAISettings";
 
 interface Rewrite { original: string; text: string }
@@ -10,12 +10,13 @@ export default function FeedbackPolisher({ value, onChange }: { value: string; o
   const [style, setStyle] = useState<PolishStyle>("clearer");
   const [rewrite, setRewrite] = useState<Rewrite | null>(null), [error, setError] = useState("");
   const [connection, setConnection] = useState(getFeedbackConnection);
+  const [enabled, setEnabled] = useState(isFeedbackAIEnabled);
   const request = useRef<AbortController | null>(null);
   const currentValue = useRef(value); currentValue.current = value;
   useEffect(() => {
     const update = () => {
       request.current?.abort(); request.current = null;
-      setBusy(false); setRewrite(null); setError(""); setConnection(getFeedbackConnection());
+      setBusy(false); setRewrite(null); setError(""); setConnection(getFeedbackConnection()); setEnabled(isFeedbackAIEnabled()); if (!isFeedbackAIEnabled()) setOpen(false);
     };
     window.addEventListener("mardoc-feedback-ai-change", update);
     return () => { request.current?.abort(); window.removeEventListener("mardoc-feedback-ai-change", update); };
@@ -36,6 +37,7 @@ export default function FeedbackPolisher({ value, onChange }: { value: string; o
     } finally { if (request.current === controller) { request.current = null; setBusy(false); } }
   };
   const button = "min-h-9 rounded border border-[var(--border)] px-2 text-xs disabled:opacity-40";
+  if (!enabled) return null;
   return <div className="mt-2">
     <button type="button" disabled={!value.trim()} onClick={() => open ? close() : setOpen(true)}
       aria-expanded={open} className="inline-flex min-h-9 items-center gap-1 text-xs text-[var(--accent)] disabled:opacity-40">

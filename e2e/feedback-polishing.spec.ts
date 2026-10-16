@@ -9,6 +9,7 @@ test("polishes a review draft with explicit preview and acceptance, without subm
       choices: [{ message: { content: "Could you explain how this handles retries?" }, finish_reason: "stop" }],
     }) });
   });
+  await page.addInitScript(() => localStorage.setItem("mardoc_feedback_ai_enabled", "true"));
   await openPullRequest(page, /getting started guide/i);
   await page.getByRole("button", { name: "Approve", exact: true }).click();
   const draft = page.getByPlaceholder("Leave a comment (optional)");
