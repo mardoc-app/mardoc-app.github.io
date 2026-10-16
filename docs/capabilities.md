@@ -34,6 +34,12 @@ Finish the review with a comment, approval, or request for changes. Normally the
 
 Accepting a suggestion applies one line-range replacement to the current PR branch. Batch acceptance in one commit and reliable outdated-suggestion protection remain unfinished. GitHub permissions and branch rules still govern writes.
 
+## Polish review feedback
+
+**Polish feedback** is available for new inline comments, replies, and review summaries. Configure a browser-accessible chat completions URL and model under **Settings → AI feedback**, or from the polishing panel. The request follows the [Chat Completions message/response contract](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create); compatible gateways must support browser CORS requests.
+
+Only the draft feedback is sent after **Generate rewrite** is clicked. Repository files, the selected passage, thread history, and GitHub credentials are not included automatically. The original and proposal are shown together; **Use rewrite** explicitly replaces the draft without posting it. Draft edits, cancellation, connection changes, errors, or timeout discard pending results. The URL/model are remembered in this browser; the AI API key remains in memory until reload or **Clear AI connection**. Provider billing and retention policies still apply. Requests and responses have size limits, and the feature does not research or fact-check feedback.
+
 ## Edit or create Markdown
 
 Open a file and edit in rich or code view. The editor offers an edit-to-PR action, but its existing-file save path currently calls the new-file helper without the SHA required for an update; treat this as an open save bug, not a reliable overwrite workflow. A new document can create a branch and PR; the add-file-to-PR flow commits to the existing PR head branch. See [EDIT-02](known-issues.md#edit-02-existing-file-edit-to-pr-save-path).
@@ -95,3 +101,5 @@ when the final approval/review event fails. Authentication errors and uncertain
 network errors do not trigger a second comment type automatically. A lost server
 response still cannot prove whether a write happened; check GitHub before manually
 retrying such an error. Pending drafts are not restored after reloading the tab.
+
+AI feedback polishing is optional and off by default. Enable it under Settings → AI feedback to reveal polishing controls. Hosted providers usually require a provider API key; reviewing and commenting never require AI. Disabling the feature cancels active polishing and forgets its in-memory key.

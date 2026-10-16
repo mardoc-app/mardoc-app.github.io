@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { X, MessageSquare, Check, Send } from "lucide-react";
 import type { CommentTarget } from "@/lib/comment-target";
+import FeedbackPolisher from "./FeedbackPolisher";
 import { parseSuggestionBody } from "@/lib/suggestion-body";
 
 // ─── Comment panel — the one and only place PR comments render ──────────
@@ -267,6 +268,7 @@ export default function CommentPanel({
                       <Send size={12} />
                     </button>
                   </div>
+                  <FeedbackPolisher value={replyText[comment.id] || ""} onChange={text => setReplyText(previous => ({ ...previous, [comment.id]: text }))} />
                   {comment.conversation ? <p className="text-[10px] text-[var(--text-muted)] mt-1.5">Replies are posted in the PR conversation. GitHub does not provide thread resolution here.</p> : <button
                     onClick={() => onResolve(comment.id)}
                     className="flex items-center gap-1 text-[10px] text-[var(--text-muted)] hover:text-green-600 mt-1.5 transition-colors"
