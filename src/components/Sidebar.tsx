@@ -31,7 +31,8 @@ function fileTypeChip(name: string): { label: string; color: string } | null {
   if (isHtmlFile(name)) return { label: "HTM", color: "text-[var(--accent)]" };
   if (name.endsWith(".tsx")) return { label: "TSX", color: "text-[var(--inline-code)]" };
   if (name.endsWith(".ts")) return { label: "TS", color: "text-[var(--inline-code)]" };
-  return null;
+  const extension = name.split(".").pop();
+  return { label: extension && extension !== name ? extension.slice(0, 5).toUpperCase() : "FILE", color: "text-[var(--text-muted)]" };
 }
 
 function prRailColor(status: string): string {
