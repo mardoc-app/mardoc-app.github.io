@@ -36,6 +36,7 @@ export default function Home() {
     setCurrentView,
     selectedFile,
     selectedPR,
+    selectedPRFileIdx,
     setSelectedPR,
     fileContent,
     fileRevision,
@@ -75,7 +76,7 @@ export default function Home() {
   // committing to a navigation intent.
   useEffect(() => {
     if (isMobile) setMobileNavOpen(false);
-  }, [selectedFile, selectedPR, currentView, isMobile]);
+  }, [selectedFile, selectedPR, selectedPRFileIdx, currentView, isMobile]);
 
   // Palette command registry. Built here because the commands close over
   // the state setters and context actions available at the page level —
