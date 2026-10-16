@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Settings, X, Github, LogIn, LogOut, RefreshCw, Lock, Globe, Search, FolderOpen } from "lucide-react";
 import { useApp } from "@/lib/app-context";
 import { fetchUserRepos } from "@/lib/github-api";
+import FeedbackAISettings from "./FeedbackAISettings";
 import * as safeStorage from "@/lib/safe-storage";
 import {
   getImageUploadFolder,
@@ -35,7 +36,7 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   >([]);
   const [loadingRepos, setLoadingRepos] = useState(false);
   const [repoFilter, setRepoFilter] = useState("");
-  const [activeTab, setActiveTab] = useState<"connect" | "repo">(
+  const [activeTab, setActiveTab] = useState<"connect" | "repo" | "ai">(
     isAuthenticated ? "repo" : "connect"
   );
 
@@ -162,11 +163,13 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
           >
             Repository
           </button>
+          <button type="button" onClick={() => setActiveTab("ai")}
+            className={`px-3 py-2.5 text-sm font-medium ${activeTab === "ai" ? "border-b-2 border-[var(--accent)] text-[var(--text-primary)]" : "text-[var(--text-muted)]"}`}>AI feedback</button>
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-5">
-          {activeTab === "connect" ? (
+          {activeTab === "ai" ? <FeedbackAISettings /> : activeTab === "connect" ? (
             <div className="space-y-4">
               {isAuthenticated ? (
                 <div>

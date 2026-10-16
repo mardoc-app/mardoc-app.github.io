@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useEffect, useRef } from "react";
+import FeedbackPolisher from "./FeedbackPolisher";
 import {
   GitPullRequest,
   GitMerge,
@@ -657,7 +658,7 @@ export default function PRDetail({ pr, onBack }: PRDetailProps) {
           onClick={() => !submittingReview && setReviewModalOpen(false)}
         >
           <div
-            className="w-full max-w-lg bg-[var(--surface)] border border-[var(--border)] rounded-lg shadow-xl p-5"
+            className="w-full max-w-lg max-h-[90dvh] overflow-y-auto bg-[var(--surface)] border border-[var(--border)] rounded-lg shadow-xl p-5"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-3">
@@ -691,6 +692,8 @@ export default function PRDetail({ pr, onBack }: PRDetailProps) {
               className="w-full min-h-[100px] p-3 text-sm bg-[var(--surface-secondary)] border border-[var(--border)] rounded-md text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
               disabled={submittingReview}
             />
+
+            {!submittingReview && <FeedbackPolisher value={reviewBody} onChange={setReviewBody} />}
 
             <div className="mt-3 space-y-2">
               <label className="flex items-start gap-2 text-xs text-[var(--text-primary)] cursor-pointer">
