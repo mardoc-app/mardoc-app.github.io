@@ -12,3 +12,16 @@ export function isHtmlFile(name: string): boolean {
 export function isDocumentFile(name: string): boolean {
   return isMarkdownFile(name) || isHtmlFile(name);
 }
+
+const IMAGE_MIME_TYPES: Record<string, string> = {
+  svg: "image/svg+xml", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg",
+  gif: "image/gif", webp: "image/webp",
+};
+
+export function imageMimeType(path: string): string | undefined {
+  return IMAGE_MIME_TYPES[path.split(".").pop()?.toLowerCase() || ""];
+}
+
+export function isImageFile(path: string): boolean {
+  return !!imageMimeType(path);
+}

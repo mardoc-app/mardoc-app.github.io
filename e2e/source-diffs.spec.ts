@@ -17,8 +17,8 @@ test("mixed PRs retain document review and show code, renamed, deleted and binar
     else if (path.endsWith("/comments")) data = [];
     else if (path === "/graphql") data = { data: { repository: { pullRequest: { reviewThreads: { nodes: [] } } } } };
     else if (path.includes("/contents/")) {
-      if (!path.endsWith("guide.md")) sourceDownloads++;
-      data = { encoding: "base64", content: Buffer.from("# Guide\n\nReview this document.").toString("base64") };
+      if (!path.endsWith("guide.md") && !path.endsWith("image.png")) sourceDownloads++;
+      data = { encoding: "base64", content: path.endsWith("image.png") ? "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=" : Buffer.from("# Guide\n\nReview this document.").toString("base64") };
     } else data = { number: 12, title: "Mixed files", user: { login: "author" }, state: "open",
       base: { ref: "main", sha: "a".repeat(40), repo: { full_name: "acme/repo" } },
       head: { ref: "topic", sha: "b".repeat(40), repo: { full_name: "acme/repo" } } };
@@ -33,7 +33,7 @@ test("mixed PRs retain document review and show code, renamed, deleted and binar
     if (name === "guide.md") await expect(page.getByRole("heading", { name: "Guide", exact: true })).toBeVisible();
     if (name === "new.rs") await expect(page.getByText("Renamed without textual changes.")).toBeVisible();
     if (name === "removed.py") await expect(page.getByRole("table")).toContainText("print('old')");
-    if (name === "image.png") await expect(page.getByText(/No text preview is available/)).toBeVisible();
+    if (name === "image.png") await expect(page.getByRole("img", { name: "Head (new): image.png" })).toBeVisible();
   }
   expect(sourceDownloads).toBe(0);
 });
