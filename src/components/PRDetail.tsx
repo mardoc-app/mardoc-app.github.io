@@ -36,9 +36,10 @@ import { transformGitHubAlerts } from "@/lib/github-alerts";
 import { transformFootnotes } from "@/lib/footnotes";
 import RepositoryReference, { type ReferenceTarget } from "./RepositoryReference";
 import { resolveReviewLink } from "@/lib/review-links";
-import { isHtmlFile, isDocumentFile } from "@/lib/file-types";
+import { isHtmlFile, isDocumentFile, isImageFile } from "@/lib/file-types";
 import DiffViewer from "./DiffViewer";
 import SourceDiffViewer from "./SourceDiffViewer";
+import ImageDiffViewer from "./ImageDiffViewer";
 import ReviewDock from "./ReviewDock";
 import PRCommentNavigator from "./PRCommentNavigator";
 import Showdown from "showdown";
@@ -622,7 +623,11 @@ export default function PRDetail({ pr, onBack }: PRDetailProps) {
           if (!file) return null;
           const active = idx === selectedPRFileIdx;
           return <div key={idx} className="absolute inset-0 isolate" style={{visibility:active && !reference ? "visible" : "hidden"}} aria-hidden={!active || !!reference}>
-            {!isDocumentFile(file.path) ? <SourceDiffViewer file={file} repoFullName={currentRepo || ""} prNumber={pr.number}
+            {isImageFile(file.path) ? <ImageDiffViewer file={file} repoFullName={currentRepo || ""} prNumber={pr.number}
+                returnPath={returnFileIdx !== null ? prFiles[returnFileIdx]?.path : undefined}
+                onReturn={returnFileIdx !== null && returnFileIdx !== idx ? () => { setSelectedPRFileIdx(returnFileIdx); setReturnFileIdx(null); } : undefined}
+                reviewDetails={close => renderReviewDetails(close, idx)} />
+              : !isDocumentFile(file.path) ? <SourceDiffViewer file={file} repoFullName={currentRepo || ""} prNumber={pr.number}
                 returnPath={returnFileIdx !== null ? prFiles[returnFileIdx]?.path : undefined}
                 onReturn={returnFileIdx !== null && returnFileIdx !== idx ? () => { setSelectedPRFileIdx(returnFileIdx); setReturnFileIdx(null); } : undefined}
                 reviewDetails={close => renderReviewDetails(close, idx)} />
