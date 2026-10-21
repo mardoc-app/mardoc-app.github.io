@@ -1,0 +1,20 @@
+# DISPOSABLE SPIKE CONFIG (SP-1 / SP-2). The owner deploys; see
+# docs/spikes/sp-1-github-sign-in.md for the runbook.
+name = "mardoc-auth-sp1"
+main = "worker.mjs"
+compatibility_date = "2026-10-01"
+
+routes = [{ pattern = "mardoc.app/api/auth/*", zone_name = "mardoc.app" }]
+
+[vars]
+# Fill in from the test GitHub App's settings page (the Client ID, not a secret).
+CLIENT_ID = ""
+# "owner/repo" where the App IS installed.
+INSTALLED_REPO = ""
+# "owner/repo" where the App is NOT installed (a repo your account can read).
+UNINSTALLED_REPO = ""
+# Leave empty until the org check (runbook step 6), then "org/repo".
+ORG_REPO = ""
+
+# Secrets are set with `npx wrangler secret put <NAME>`, never in this file:
+#   CLIENT_SECRET_A, CLIENT_SECRET_B
