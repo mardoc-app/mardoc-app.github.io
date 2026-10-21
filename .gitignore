@@ -24,3 +24,7 @@ npm-debug.log*
 /test-results/
 /playwright-report/
 /playwright/.cache/
+# sdlc
+.sdlc/state/
+.sdlc/worktrees/
+.claude/settings.local.json
