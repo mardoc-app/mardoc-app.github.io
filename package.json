@@ -10,7 +10,10 @@
     "lint": "next lint",
     "test": "vitest",
     "e2e": "playwright test",
-    "e2e:ui": "playwright test --ui"
+    "e2e:ui": "playwright test --ui",
+    "check": "vitest --run",
+    "ci": "vitest --run && next build && playwright test",
+    "demo": "sh scripts/demo.sh"
   },
   "dependencies": {
     "@octokit/rest": "^21.1.1",
