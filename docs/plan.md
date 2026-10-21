@@ -12,12 +12,14 @@ in requirements.md, T-n in design.md, SP-n in `spikes/`, R-n in `reviews/`,
 ADRs in `adr/`. Backlog rows keep the ID of the finding or issue that raised
 them. This file carries history: rows are updated, never silently deleted.
 
-- **Status:** No milestone is active. The L0 direction for GitHub web sign-in
-  (#146) is approved as direction plus spike only (D-1, 2026-10-20;
-  [ADR 0001](adr/0001-web-sign-in-github-app-worker-route.md), Proposed). ⭐ SP-1
-  is next and blocks the L1 design for sign-in. Open owner questions: Q-1, Q-2,
-  Q-3, Q-5 and Q-8 in [requirements.md](design/mardoc/requirements.md#open-questions).
-- **Last updated:** 2026-10-20
+- **Status:** No milestone is active. SP-1 passed and is accepted (2026-10-21),
+  so [ADR 0001](adr/0001-web-sign-in-github-app-worker-route.md) is Accepted.
+  ⭐ The L1 design for sign-in (stage 1) is drafted and in independent review
+  (GSI-L1); SP-3 is the shaping spike it adds. Open owner questions: Q-1,
+  Q-2, Q-3, Q-5 and Q-8 in [requirements.md](design/mardoc/requirements.md#open-questions),
+  and Q-19 to Q-28 in [github-sign-in requirements](design/github-sign-in/requirements.md#open-questions)
+  (Q-19 is a one-way door).
+- **Last updated:** 2026-10-21
 
 ## How work is done
 
@@ -101,7 +103,10 @@ time-boxed and ends in a yes or no, plus an ADR where a decision follows.
 | GSI | L0 strategy review, GitHub web sign-in ([report](reviews/2026-10-20-github-sign-in-l0.md)) | L0 `github-sign-in` is safe for an owner decision | D-1 | Sonnet (fresh agent) | ACCEPTED 2026-10-20 (direction plus spike only) | DONE: 13 findings fixed or closed, re-reviewed |
 | R-1 | Baseline: system as-is at `2b94d90` ([page](design/mardoc/architecture.html), [review](reviews/2026-10-20-as-is-baselines.md)) | Type `baseline`: accurate description of the code at the SHA, not an endorsed design | L2 pages and the designed system L1 | Sonnet (fresh agent) fact-check | ACCEPTED 2026-10-21 (accurate as-is, not an endorsed design) | DONE: re-review 2026-10-21 accepted it as a baseline; the residues were closed by the lead afterwards |
 | R-2 | Baseline: GitHub connection and credentials as-is at `2b94d90` ([page](design/github-connection/architecture.html), [review](reviews/2026-10-20-as-is-baselines.md)) | Type `baseline`: accurate description of the code at the SHA, not an endorsed design | L1 `github-sign-in` (parent for its L2 pages) | Sonnet (fresh agent) fact-check | ACCEPTED 2026-10-21 (accurate as-is, not an endorsed design) | DONE: re-review 2026-10-21 accepted it as a baseline; the residues were closed by the lead afterwards |
-| SP-1 | Reversing proof for L0 proofs 1 and 2: does a sign-in round trip through `mardoc.app/api/auth/callback` work on the live zone with Pages serving every other path, and does a user token reach only repos where the test app is installed (including a non-owner org install)? Time-boxed to 2 days. Report: `spikes/sp-1-github-sign-in-route.md` | ADR 0001; L0 proofs 1 and 2 | L1 `github-sign-in` | Sonnet + **owner** (owner registers the test GitHub App and sets up the Cloudflare route) | — | PENDING |
+| SP-1 | Reversing proof for L0 proofs 1 and 2: does a sign-in round trip through `mardoc.app/api/auth/callback` work on the live zone with Pages serving every other path, and does a user token reach only repos where the test app is installed (including a non-owner org install)? Time-boxed to 2 days. Report: [sp-1-github-sign-in.md](spikes/sp-1-github-sign-in.md) | ADR 0001; L0 proofs 1 and 2 | L1 `github-sign-in` | Sonnet + **owner** (owner registers the test GitHub App and sets up the Cloudflare route) | ACCEPTED 2026-10-21 (owner reports PASS) | DONE: the owner ran the runbook on the live zone and reports PASS. ⭐ Owner: paste the probe output and callback JSON into the report's Results |
+| SP-2 | Can two GitHub App client secrets be live at once, so the secret can be rotated without downtime? Same Worker, runbook step 7. Report: [sp-2-client-secret-rotation.md](spikes/sp-2-client-secret-rotation.md) | L0 operating commitment (secret rotation) | Nothing; informs the rotation procedure | Sonnet + **owner** (owner generates secret B) | — | ⭐ Built with SP-1; waiting for the owner to deploy |
+| GSI-L1 | L1 design review, GitHub sign-in stage 1: [intent](design/github-sign-in/intent.md), [requirements](design/github-sign-in/requirements.md), [architecture](design/github-sign-in/architecture.html), [design.md](design/github-sign-in/design.md) | The Gate 0 package is accurate, buildable and safe for owner acceptance | M1 (sign-in) work packages | Opus (fresh reviewer + security reviewer) | — | ⭐ In review |
+| SP-3 | Shaping proof for Q-8: does `window.opener` survive the pop-up's trip through github.com, so the callback page can post the result to the tab, in current Chrome, Firefox and Safari on desktop, Safari on iOS and Chrome on Android? Also records whether a returning user skips the consent screen. Time-boxed to 1 day | A-10, NF-20 | The sign-in hand-off WP | Sonnet + **owner** (owner deploys the spike route) | — | PENDING: github.com sent no `Cross-Origin-Opener-Policy` header on `/login` or `/login/oauth/authorize` (curl, 2026-10-21) |
 
 Add one row per design review (R-n, via `sdlc:review`) and spike (SP-n, via
 `sdlc:spike`). For a design review, the Owner review cell starts `PENDING`;
