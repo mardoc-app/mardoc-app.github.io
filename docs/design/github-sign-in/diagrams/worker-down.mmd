@@ -6,6 +6,7 @@ sequenceDiagram
   participant C as GitHub client
   R->>S: Click Sign in with GitHub
   S->>A: startSignIn()
+  A->>W: Pop-up GET /api/auth/login?n=nonce
   A->>W: fetch /api/auth/health
   W--xA: 5xx, Pages 404 or no answer in 5 s
   A->>A: Close pop-up, failed worker_unavailable
