@@ -1,0 +1,2 @@
+# Case-insensitive literal strings that must not appear in added PR lines.
+# One string per line; blank lines and lines beginning with # are ignored.

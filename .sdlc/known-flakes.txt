@@ -1,0 +1,2 @@
+# Exact flaky test selectors only, one per line.
+# Integration verifiers may rerun a listed test once after its first failure.

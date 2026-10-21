@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MarDoc — Experience blueprint</title>
+  <style>
+    :root { color-scheme: light; font: 16px/1.55 system-ui, sans-serif; color: #202733; background: #f2f4f7; }
+    * { box-sizing: border-box; }
+    body { max-width: 1180px; margin: 0 auto; padding: 2rem; }
+    header, main > section { background: #fff; border: 1px solid #d0d5dd; border-radius: 12px; padding: clamp(1rem, 3vw, 2rem); margin: 1rem 0; }
+    h1, h2, h3 { line-height: 1.2; }
+    h1 { margin: .25rem 0; font-size: clamp(2rem, 5vw, 3.25rem); }
+    h2 { margin-top: 0; }
+    h3 { margin-bottom: .4rem; }
+    .eyebrow, .meta, .muted { color: #596579; }
+    .eyebrow { text-transform: uppercase; letter-spacing: .08em; font-size: .8rem; }
+    .lead { font-size: 1.2rem; max-width: 72ch; }
+    .spine { display: flex; gap: .5rem; align-items: center; overflow-x: auto; padding: 1rem 0; }
+    .beat { min-width: 8rem; padding: .75rem; border: 1px solid #98a2b3; border-radius: 8px; text-align: center; }
+    .beat.changed { border: 2px solid #175cd3; background: #eff8ff; }
+    .arrow { color: #667085; }
+    article, .evidence, .decision { border: 1px solid #d0d5dd; border-radius: 8px; padding: 1rem; margin: 1rem 0; }
+    .screen { background: #101828; color: #f2f4f7; border: 1px solid #475467; border-radius: 12px; padding: 1rem; max-width: 760px; }
+    .screen .surface { background: #1d2939; padding: 1rem; border-radius: 8px; margin: .75rem 0; }
+    .screen button { font: inherit; padding: .6rem .9rem; border-radius: 6px; border: 1px solid #84caff; color: #101828; background: #b2ddff; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; vertical-align: top; border-bottom: 1px solid #d0d5dd; padding: .65rem; }
+    img, video, iframe { max-width: 100%; }
+    :focus-visible { outline: 3px solid #175cd3; outline-offset: 3px; }
+    @media (max-width: 640px) { body { padding: .75rem; } }
+    @media print { body { max-width: none; padding: 0; } header, main > section { break-inside: avoid; } }
+  </style>
+</head>
+<body>
+  <header>
+    <p class="eyebrow">MarDoc · UX blueprint · mardoc</p>
+    <h1>{{EXPERIENCE_OR_CAPABILITY}}</h1>
+    <p class="lead">{{THE_USER_OUTCOME_AND_THE_EXPERIENCE_PROPOSED_TO_ENABLE_IT}}</p>
+    <p class="meta">Scope: {{REQUIREMENT_RANGE}} · Status: {{DRAFT_OR_REVIEWED}} · Related: <a href="requirements.md">requirements</a> · <a href="design.md">system design</a></p>
+  </header>
+
+  <main>
+    <section id="at-a-glance">
+      <h2>The experience at a glance</h2>
+      <p>{{WHO_IS_HERE_AND_WHAT_THEY_ARE_TRYING_TO_DO}}</p>
+      <p><strong>Success looks like:</strong> {{USER_VISIBLE_COMPLETION_OR_OUTCOME}}</p>
+      <div class="spine" aria-label="Experience path from entry to outcome">
+        <div class="beat">{{ENTRY_BEAT}}</div><span class="arrow" aria-hidden="true">→</span>
+        <div class="beat changed">{{CHANGED_BEAT}}</div><span class="arrow" aria-hidden="true">→</span>
+        <div class="beat">{{OUTCOME_BEAT}}</div>
+      </div>
+      <p class="muted">The changed part is highlighted. Link each beat to its screen or detailed artifact when useful.</p>
+    </section>
+
+    <section id="stories">
+      <h2>Who this serves</h2>
+      <article>
+        <h3>{{USER_OR_SCENARIO}} · F-1</h3>
+        <p>As <strong>{{USER}}</strong>, I want <strong>{{CAPABILITY}}</strong>, so I can <strong>{{OUTCOME}}</strong>.</p>
+        <p><strong>Situation:</strong> {{CONTEXT}} · <strong>Needs:</strong> {{USER_NEEDS}} · <strong>Evidence of success:</strong> {{SUCCESS_SIGNAL}}</p>
+      </article>
+      <!-- Add only the stories and situations that change a design decision. -->
+    </section>
+
+    <section id="evidence">
+      <h2>What exists today</h2>
+      <p>{{BRIEF_SUMMARY_OF_CURRENT_PRODUCT_AND_REFERENCES_EXAMINED}}</p>
+      <table>
+        <thead><tr><th>Evidence</th><th>What it shows</th><th>How this design uses it</th></tr></thead>
+        <tbody><tr><td><a href="{{RELATIVE_PATH_TO_SCREENSHOT_OR_PROTOTYPE}}">{{SOURCE_NAME}}</a></td><td>{{OBSERVED_FACT}}</td><td>{{CURRENT_STATE_REFERENCE_OR_GAP}}</td></tr></tbody>
+      </table>
+    </section>
+
+    <section id="screens">
+      <h2>What the user sees and does</h2>
+      <article id="w1">
+        <p class="eyebrow">W-1 · {{SCREEN_NAME}} · F-1</p>
+        <h3>{{SCREEN_PURPOSE_OR_USER_QUESTION}}</h3>
+        <p><strong>Entry:</strong> {{HOW_USER_ARRIVES}} · <strong>Hierarchy:</strong> {{WHAT_NEEDS_ATTENTION_FIRST}}</p>
+        <div class="screen" aria-label="Proposed screen: {{SCREEN_NAME}}">
+          <div class="surface"><strong>{{REALISTIC_SCREEN_TITLE}}</strong><p>{{ACTUAL_OR_PROPOSED_INTERFACE_COPY}}</p></div>
+          <div class="surface">{{CONTENT_GROUP_OR_VISUAL_PLACEHOLDER}}</div>
+          <button type="button">{{PRIMARY_ACTION_LABEL}}</button>
+        </div>
+        <p><strong>Actions and destinations</strong></p>
+        <table>
+          <thead><tr><th>User action</th><th>What happens / what appears</th><th>Next screen or state</th></tr></thead>
+          <tbody><tr><td>{{ACTION}}</td><td>{{RESULT_AND_FEEDBACK}}</td><td>{{DESTINATION_OR_STATE}}</td></tr></tbody>
+        </table>
+        <p><strong>Meaningful variants:</strong> {{EMPTY_LOADING_VALIDATION_SUCCESS_OR_FAILURE_AND_RECOVERY}}</p>
+        <p class="muted">{{WHY_THIS_LAYOUT_AND_COPY_SERVE_THE_USER_GOAL}} · Requirements: F-1, NF-1</p>
+      </article>
+      <!-- Duplicate for materially changed screens. For a real HTML prototype or screenshot, link/embed the local artifact and identify it as proposed or current evidence. -->
+    </section>
+
+    <section id="journeys">
+      <h2>End-to-end journeys</h2>
+      <article>
+        <h3>J-1 · {{JOURNEY_NAME}} · F-1</h3>
+        <p><strong>Starting situation:</strong> {{CONTEXT}} · <strong>Goal:</strong> {{OUTCOME}}</p>
+        <ol>
+          <li><strong>Does:</strong> {{ACTION}} · <strong>Sees:</strong> {{VISIBLE_RESPONSE}} · <strong>Chooses:</strong> {{DECISION}} · <strong>Continues to:</strong> <a href="#w1">W-1</a></li>
+          <li><strong>Does:</strong> {{NEXT_ACTION}} · <strong>Sees:</strong> {{NEXT_RESPONSE}} · <strong>Outcome:</strong> {{RESULT}}</li>
+        </ol>
+        <p><strong>Recovery:</strong> If {{FAILURE}}, the user sees “{{EXACT_MESSAGE}}” and can {{RECOVERY_ACTION}}.</p>
+      </article>
+    </section>
+
+    <section id="decisions">
+      <h2>Design decisions and gaps</h2>
+      <article class="decision">
+        <h3>{{DECISION_OR_OPEN_QUESTION}} · {{REQUIREMENT_IDS}}</h3>
+        <p><strong>Options that matter:</strong> {{ALTERNATIVES_AND_USER_IMPACT}}</p>
+        <p><strong>Recommendation:</strong> {{CHOICE_AND_RATIONALE}}</p>
+        <p><strong>Prototype or product gap:</strong> {{WHAT_CANNOT_YET_BE_SHOWN_OR_VERIFIED}}</p>
+      </article>
+      <p><strong>Out of scope:</strong> {{WHAT_THIS_EXPERIENCE_DOES_NOT_COVER}}</p>
+    </section>
+
+    <section id="details">
+      <h2>Interaction, accessibility, and visual language</h2>
+      <p><strong>Wording:</strong> {{KEY_LABELS_MESSAGES_AND_CONTENT_RULES}}</p>
+      <p><strong>Accessibility (NF-{{N}}):</strong> {{KEYBOARD_SCREEN_READER_CONTRAST_AND_CHECKS}}</p>
+      <p><strong>Design principles:</strong> {{ONLY_IF_THEY_RESOLVE_A_CHOICE}}</p>
+      <p><strong>Visual language:</strong> {{EXISTING_PRODUCT_STYLE_OR_PLATFORM_DEFAULTS}}</p>
+    </section>
+
+    <section id="traceability">
+      <h2>Requirements and open questions</h2>
+      <table>
+        <thead><tr><th>ID</th><th>Experience element</th><th>Evidence or status</th></tr></thead>
+        <tbody><tr><td>F-1</td><td>Story, W-1, J-1</td><td>{{CHECK_OR_UQ_STATUS}}</td></tr></tbody>
+      </table>
+      <p><strong>UQ-1:</strong> {{OPEN_CHOICE}} · <strong>Default:</strong> {{RECOMMENDED_DEFAULT_AND_REASON}} · <strong>Status:</strong> PENDING</p>
+    </section>
+
+    <section id="artifacts">
+      <h2>Related artifacts</h2>
+      <ul>
+        <li><a href="{{RELATIVE_PATH}}">{{HTML_PROTOTYPE_OR_SCREEN_DETAIL}}</a> — {{WHAT_IT_COVERS_AND_STATUS}}</li>
+        <li><a href="{{RELATIVE_PATH}}">{{TRANSITION_MAP_OR_EVIDENCE_LOG}}</a> — {{WHAT_IT_COVERS}}</li>
+      </ul>
+    </section>
+  </main>
+</body>
+</html>
