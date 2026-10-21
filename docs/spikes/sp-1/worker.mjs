@@ -70,13 +70,13 @@ async function callback(req, url, env) {
   const secret = which === "b" ? env.CLIENT_SECRET_B : env.CLIENT_SECRET_A;
   const tokRes = await fetch("https://github.com/login/oauth/access_token", {
     method: "POST",
-    headers: { accept: "application/json", "content-type": "application/json", "user-agent": "mardoc-sp1" },
-    body: JSON.stringify({
+    headers: { accept: "application/json", "content-type": "application/x-www-form-urlencoded", "user-agent": "mardoc-sp1" },
+    body: new URLSearchParams({
       client_id: env.CLIENT_ID,
       client_secret: secret,
       code,
       redirect_uri: CB,
-      code_verifier: c.sp1_verifier,
+      code_verifier: c.sp1_verifier || "",
     }),
   });
   let tok = {};
@@ -92,7 +92,10 @@ async function callback(req, url, env) {
   for (const repo of [env.INSTALLED_REPO, env.UNINSTALLED_REPO, env.ORG_REPO]) {
     if (!repo) continue;
     const r = await fetch(`https://api.github.com/repos/${repo}`, { headers: GH_HEADERS(token) });
-    checks.push({ repo, status: r.status });
+    // A public repo answers 200 to any token, so the evidence records visibility.
+    let isPrivate = null;
+    if (r.ok) { try { isPrivate = (await r.json()).private === true; } catch { /* ignore */ } }
+    checks.push({ repo, status: r.status, private: isPrivate });
   }
   return json({
     login: user.login ?? null,

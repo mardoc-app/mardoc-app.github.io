@@ -24,7 +24,7 @@ function stubFetch() {
     if (u === "https://github.com/login/oauth/access_token")
       return Response.json({ access_token: TOKEN, expires_in: 28800, refresh_token: REFRESH });
     if (u === "https://api.github.com/user") return Response.json({ login: "octo" });
-    if (u === "https://api.github.com/repos/o/in") return Response.json({}, { status: 200 });
+    if (u === "https://api.github.com/repos/o/in") return Response.json({ private: true }, { status: 200 });
     return Response.json({ message: "Not Found" }, { status: 404 });
   };
   return calls;
@@ -87,18 +87,19 @@ test("callback happy path: login, statuses, no token leaked", async () => {
   assert.equal(body.login, "octo");
   assert.equal(body.secret_used, "a");
   assert.deepEqual(body.checks, [
-    { repo: "o/in", status: 200 },
-    { repo: "o/out", status: 404 },
-    { repo: "org/r", status: 404 },
+    { repo: "o/in", status: 200, private: true },
+    { repo: "o/out", status: 404, private: null },
+    { repo: "org/r", status: 404, private: null },
   ]);
   assert.equal(body.token_expires_in_present, true);
   assert.equal(body.refresh_token_present, true);
   const all = text + [...r.headers].map(([k, v]) => k + v).join("") + r.headers.getSetCookie().join("");
   for (const s of [TOKEN, REFRESH, "thecode", env.CLIENT_SECRET_A, env.CLIENT_SECRET_B])
     assert.ok(!all.includes(s), "leaked " + s);
-  const ex = JSON.parse(calls[0].init.body);
-  assert.equal(ex.client_secret, "secretAAAA");
-  assert.ok(ex.code_verifier.length > 20);
+  const ex = new URLSearchParams(calls[0].init.body);
+  assert.equal(calls[0].init.headers["content-type"], "application/x-www-form-urlencoded");
+  assert.equal(ex.get("client_secret"), "secretAAAA");
+  assert.ok(ex.get("code_verifier").length > 20);
   assert.equal(calls[0].init.headers.accept, "application/json");
   assert.equal(calls[1].init.headers.authorization, "Bearer " + TOKEN);
   assert.ok(r.headers.getSetCookie().every((s) => s.includes("Max-Age=0")));
@@ -109,7 +110,7 @@ test("secret=b uses CLIENT_SECRET_B", async () => {
   const { cookie, loc } = await doLogin("b");
   const r = await call("/api/auth/callback?code=c&state=" + loc.searchParams.get("state"), { cookie });
   assert.equal((await r.json()).secret_used, "b");
-  assert.equal(JSON.parse(calls[0].init.body).client_secret, "secretBBBB");
+  assert.equal(new URLSearchParams(calls[0].init.body).get("client_secret"), "secretBBBB");
 });
 
 test("GitHub error maps to the error code only", async () => {
