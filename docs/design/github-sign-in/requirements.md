@@ -90,6 +90,7 @@ The full list, with sources, is in [intent.md](intent.md#owners-statements).
 |---|---|---|---|---|---|
 | F-10 | When no credential is active, Settings shall offer **Sign in with GitHub** as the first option. | S-10, S-11 | Must | 1 | Playwright: open Settings with empty storage; the first button in GitHub Connection reads "Sign in with GitHub". |
 | F-17 | Settings shall keep the personal-access-token form behind a "Use a personal access token" control. | S-11 | Must | 1 | Playwright: with empty storage the token input is hidden until "Use a personal access token" is activated. |
+| F-18 | With a personal access token active, Settings shall still offer Sign in with GitHub. | S-10 | Should | 1 | Playwright: seed `mardoc_github_token`; Settings shows "Connected with a personal access token" and a "Sign in with GitHub" button. |
 | F-11 | A user who has already installed MarDoc shall be signed in after clicking Sign in with GitHub and approving the GitHub consent screen, with no other step. | S-12 | Must | 1 | Owner demo: a test account with the App installed counts its clicks from Settings to "Signed in as `<login>`": at most 2 the first time, and 1 when GitHub has already recorded the authorisation. |
 | F-12 | Signing in shall leave the user on the hash route and open document they started from. | S-16 | Must | 1 | Playwright with a mocked exchange: start at a deep link to a file, sign in; `location.hash` is unchanged and the same file is open. |
 | F-13 | Once signed in, Settings shall show the GitHub login and that the connection is a GitHub sign-in. | Derived from S-10, F-11 | Should | 1 | Playwright with a mocked exchange: Settings shows "Signed in with GitHub as `octo`". |
@@ -144,6 +145,7 @@ The full list, with sources, is in [intent.md](intent.md#owners-statements).
 | F-51 | When the Worker is unreachable or not routed, Sign in with GitHub shall fail within 5 s† with a message that offers the personal-access-token option. | S-26 | Must | 1 | Playwright with `/api/auth/health` returning a Pages 404, a 503, or a network error: the message and the token form appear within 5 s. |
 | F-52 | When sign-in fails at GitHub or at the exchange (consent denied, `state` mismatch, GitHub error), the app shall show what failed and offer the personal-access-token option. | Derived from F-51 | Must | 1 | Playwright with the mocked exchange returning each error code: a distinct message and the token option. |
 | F-53 | Signing in with GitHub while a personal access token is saved shall keep the saved token, unused until the sign-in session ends. | S-17; Q-21 | Must | 1 | Playwright: seed `mardoc_github_token`, sign in; requests carry the sign-in token, the key is unchanged, and after Disconnect the PAT is active again. |
+| F-55 | While signed in with a saved personal access token, Settings shall say that the token will be used after Disconnect and offer to remove it. | Derived from F-53 (GSI-SEC-7) | Must | 1 | Playwright: seed a PAT, sign in; the view shows the sentence, "Remove saved token" and "Disconnect and remove saved token"; the last leaves no credential. |
 | F-54 | The in-app personal-access-token instructions shall match setup-github-pat.md. | Q-15 (ADO-3) | Should | 1 | Reviewer compares the panel text with the guide; `grep -n "read:org" src/components/SettingsPanel.tsx` prints nothing unless the guide lists it. |
 
 ### Disconnect
@@ -212,7 +214,7 @@ the default shown. If an assumption turns out wrong, only the parts named in
 
 **When it goes wrong:** they deny consent; the window closes and Settings says sign-in was cancelled, with the token option.
 
-**Covers:** F-10, F-11, F-12, F-13, F-14, F-17, F-20, F-21, F-23, F-24, F-28, F-30, F-40, NF-11, NF-16
+**Covers:** F-10, F-11, F-12, F-13, F-14, F-17, F-18, F-20, F-21, F-23, F-24, F-28, F-30, F-40, NF-11, NF-16
 
 ### An org member asks for an install
 
@@ -248,7 +250,7 @@ the default shown. If an assumption turns out wrong, only the parts named in
 
 **When it goes wrong:** the health check passes but the exchange fails; the callback reports the error and the same message appears (F-52).
 
-**Covers:** F-27, F-50, F-51, F-52, F-53, F-54, F-71, NF-13
+**Covers:** F-27, F-50, F-51, F-52, F-53, F-54, F-55, F-71, NF-13
 
 ### Stage 1 release gate
 
@@ -296,7 +298,7 @@ is recorded as an assumption above. Q-8 comes from the L0 and keeps its ID.
 
 | ID | Question | Recommended default | Status |
 |---|---|---|---|
-| Q-8 | How does the Worker hand the token to the app, and where are `state` and PKCE kept? | The callback page posts the token to the pop-up's opener, with the target origin fixed to `https://mardoc.app` and the attempt's one-time value. `state`, the PKCE verifier and the one-time value live in HttpOnly cookies on `/api/auth` for 10 minutes. No refresh token in stage 1. SP-3 checks the opener survives github.com (A-10). | PENDING |
+| Q-8 | How does the Worker hand the token to the app, and where are `state` and PKCE kept? | The callback page posts the token to the pop-up's opener, with the target origin fixed to `https://mardoc.app` and the attempt's one-time value. The one-time value travels inside `state`; `state` and the PKCE verifier live in one HttpOnly cookie per attempt on `/api/auth`, for 10 minutes†. No refresh token in stage 1. SP-3 checks the opener survives github.com (A-10). | PENDING |
 | Q-19 | What is the production GitHub App's name, and which permissions does it request? **One-way door:** the name and slug are public, and the install URL appears in docs and the app. | "MarDoc"; Contents read and write, Pull requests read and write, Metadata read; expiring user tokens on; "Request user authorization during installation" off; callback `https://mardoc.app/api/auth/callback`. The owner registers it (A-11). | PENDING |
 | Q-20 | May the app keep a non-secret marker to offer Sign in again after a reload? | Yes: `mardoc_auth_method = "github-app"`, holding no token (A-12). | PENDING |
 | Q-21 | What happens to a saved PAT when the user signs in with GitHub? | Keep it, unused while signed in; it becomes active again on Disconnect or after a reload (A-13). | PENDING |

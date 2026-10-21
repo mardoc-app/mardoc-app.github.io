@@ -17,7 +17,7 @@ The direction is sound and the package is unusually complete: the S-n quotes fro
 
 ## Findings
 
-| ID | Sev | Pass | Location | Finding (short) |
+| ID | Severity | Pass | Location | Finding (short) |
 |---|---|---|---|---|
 | GSI-L1-1 | Medium | Bugs | design.md Session status; `app-context.tsx:182,286-308,764-784` | The state the whole app gates on (`githubToken`) is not specified; one natural build loses edits on same-login sign-in again (F-35) |
 | GSI-L1-2 | Medium | Bugs | design.md Session status table, Hard cases | "Same login as current" is undefined for a PAT or after expiry; several events have no row |
@@ -264,3 +264,85 @@ I wrote these before opening the record, and answered them from `architecture.ht
 ## Owner steps
 
 Live checks I could not and should not run: (1) SP-3 with the production App settings, a signed-in GitHub account and the real callback page, in the five browsers (GSI-L1-4, 6, 10); (2) the A-16 repository-list check against a real user token; (3) browser render checks for `architecture.html` (dark and light contrast, 375/1280/1800 px grids, keyboard selection, reduced motion, print), which are document-only and need a browser.
+
+## Re-review
+
+- **Date:** 2026-10-21
+- **Fix commit:** `90b9de9` on `design/github-sign-in-l1`. The copy of this report committed there is the original; this section is in the scratch copy.
+- **Baseline:** docs-only. `sdlc-doclint docs/design/github-sign-in` at 90b9de9: 0 errors, 0 warnings. `sdlc-trace`: no sign-in requirement missing from the traceability table. Local anchors and links added by the fixes resolve (`#app-state-by-session-status`, `strategy.html#decisions`, `plan.md#gate-0-review-and-spikes`). `npm run ci` not run.
+- **How:** read requirements.md, design.md, architecture.html (diff), intent.md and the plan.md rows at 90b9de9 against each finding, and walked the new session table as a builder, including the new rows.
+
+### Verdict
+
+**Acceptable for owner acceptance once NI-GSI-L1-1 is fixed** (one change to the session table). 0 High. Of the 27 original findings, 26 are closed and one (18) is partly closed. The fixes introduce 1 Medium (NI-GSI-L1-1), 2 Low and 1 Nit. Q-27, Q-19 and the intent.md correction remain owner decisions, as the lead intends.
+
+### Original findings
+
+| ID | Status | Evidence |
+|---|---|---|
+| GSI-L1-1 | Closed | design.md "App state by session status": `sessionKey`, `hasCredential`, `isDemoMode` per status; hash effect keyed on `sessionKey`; `applySignInCredential` is separate from `setGithubToken` (which persists at `:297`); T-14 uses a dirty editor and asserts no re-fetch. |
+| GSI-L1-2 | Closed, with NI-1 and NI-2 | Session table is total by rule and adds `user`, `user-failed`, late `result`, `connect-pat`, `continue-without` and per-kind `disconnect`; `lastLogin` defined (PAT or fresh tab has none); marker and `mardoc_user_repos` cleared on key change. Gaps in the new rows are NI-GSI-L1-1 and NI-GSI-L1-2. |
+| GSI-L1-3 | Closed | GitHub client recap: expiry hook throws `status: 401`; `onAuthError()` fires once per credential; `formatApiError` reads the recorded kind. |
+| GSI-L1-4 | Closed | A-11 and Q-19: option off, no Setup URL; F-29, a Worker route row and callback step 1 for `installation_id` without `state`; install link `rel="noopener noreferrer"` (T-16); SP-3 runs with production settings. |
+| GSI-L1-5 | Closed | F-44 (Must) with acceptance, in the org story and T-16. |
+| GSI-L1-6 | Closed, with NI-1 | `state = <nonce>.<r>`, so the callback names the attempt without the cookie; `state_mismatch` copy mentions cookies; `window_closed` after a 1 s grace with the PAT option (F-52). The grace row is the source of NI-GSI-L1-1. |
+| GSI-L1-7 | Closed | F-53 keeps the PAT, unused while signed in; I-14 narrowed; Disconnect re-activates it; intent.md lists it for the owner. |
+| GSI-L1-8 | Closed (owner decision open) | F-16 (Must) with T-15; X-28 records the Q-11 conflict; A-19 and Q-27 scope it to `init`; Q-27 stays PENDING and RK-3 stays open until decided. |
+| GSI-L1-9 | Closed | F-54 (Should), T-33. |
+| GSI-L1-10 | Closed | SP-3 row widened (real callback page, live zone, signed-in account, production settings, zone rewriting settings, A-16, runs before the hand-off WP); T-32 drives the real Worker under `wrangler dev`. |
+| GSI-L1-11 | Closed | "Build prerequisites (first work package)": `worker/tsconfig.json`, root exclude, layout script, dependency review; LR-10 and LR-11 review-only until then. It is not yet a plan.md row, which is fine until M1 is cut. |
+| GSI-L1-12 | Closed as process; owner action outstanding | intent.md stays Draft and gains a table of six lead-derived decisions; the Gate 0 row says acceptance needs intent corrected or accepted. |
+| GSI-L1-13 | Closed | `margin = min(60 s, expiresIn·100 ms)`; the test uses `expires_in: 90` (9 s margin, 81 s lifetime); worked example given. |
+| GSI-L1-14 | Closed | Per-attempt cookie `__Secure-mardoc_auth_<nonce>`; hard-cases sentence corrected; `__Host-` trade-off explained. |
+| GSI-L1-15 | Closed | Callback order is nonce, cookie and `state`, then `error`; allow-list `^[a-z_]{1,40}$` else `exchange_failed`; I-17 and escaped-JSON template; T-21 checks a hostile value. |
+| GSI-L1-16 | Closed | A-10 "if wrong" states no `event.source`, nonce-only I-11, token heard by every same-origin context, RK-1 grows, own ADR first. |
+| GSI-L1-17 | Closed | Revoke 404 maps to 204; missing `Origin` is 403; value lengths given; free-plan exhaustion and the 50% usage notification described. |
+| GSI-L1-18 | Partly closed | Sign-in banner part with F-37 and F-38, F-42 shown in the main pane, PAT-active Settings view described. Residue (Low): the PAT-active Settings view is in design.md only, with no F row; F-10 still reads "when no credential is active". Add one clause to F-10 or F-17. |
+| GSI-L1-19 | Closed | architecture.html adds "Operating it", "What must happen before stage 1 ships", the reload edit behaviour and the saved-PAT cheat-sheet row. |
+| GSI-L1-20 | Closed | F-10/F-17, F-26/F-28, NF-18/NF-22 split; NF-16 is each of five runs; † on the 10-minute figures; the release-gate story covers F-15, F-16, F-22, F-25, F-26, F-60, F-70, F-72, F-73. F-42, F-51, F-52, F-60 and F-70 each remain one user-visible obligation (a message with its escape hatch; end of session; one documentation statement) and I accept them as written. |
+| GSI-L1-21 | Closed | S-25 to S-27 kept on the lead's statement that they are verbatim from the owner's message; my brief paraphrased them, so I withdraw that part. F-15 cites A-20; X-27 added for S-19. |
+| GSI-L1-22 | Closed | SP-1 claims labelled owner-reported; `expires_in` 28800 now cited to GitHub docs. |
+| GSI-L1-23 | Closed | F-73 and T-33 (storage-table row for `mardoc_auth_method`; known-issues 401 path). |
+| GSI-L1-24 | Closed | doclint: 0 warnings. |
+| GSI-L1-25 | Closed | Reality table cites `rate-limit.ts:149-152`. |
+| GSI-L1-26 | Closed | F-27 and T-23 require JSON containing `ok: true`. |
+| GSI-L1-27 | Closed | worker-down.mmd and svg show the pop-up request before the health fetch. |
+
+### New findings
+
+| ID | Severity | Pass | Location | Finding |
+|---|---|---|---|---|
+| NI-GSI-L1-1 | Medium | Bugs | design.md Session status: `popup-closed` rows, `result(ok)` row | The 1 s grace for a closed pop-up also runs while the app awaits `GET /user`, so a slow `/user` turns a successful sign-in into `window_closed` |
+| NI-GSI-L1-2 | Low | Bugs | design.md Session status: `lastLogin`, `result(error)`, App state table | `lastLogin` is not cleared on disconnect or connect-PAT; a failed attempt forgets the earlier status |
+| NI-GSI-L1-3 | Low | Bugs | design.md Session status: `user(other login)` | A PAT user has no `lastLogin`, so the first sign-in runs a full reset with no dirty-editor guard |
+| NI-GSI-L1-4 | Nit | Compliance | design.md:100, architecture.html auth-state card, requirements Q-8 | Stale wording after the one-cookie change; F-17 is listed before F-11 |
+
+**NI-GSI-L1-1 (Medium).** `result(ok)` moves to "`signing-in` (awaiting login)", which is not a separate status, and the callback page closes the pop-up straight after posting. So `popup-closed` always arrives while `GET /user` is in flight. The rows say `popup-closed` waits 1 s and "`popup-closed` and 1 s passed" goes to `failed(window_closed)`, with no condition on whether a result has arrived. Scenario: a mobile user signs in, the result arrives, the pop-up closes, and `/user` takes 1.5 s. The grace timer fires first, the state becomes `failed(window_closed)`, the later `user(...)` event is dropped by the "any except `signing-in`" rule, and the user sees "The sign-in window closed" while a valid token is discarded. T-14 ("every row") would encode this. Fix: make `awaiting-user` its own status (or flag `resultReceived`), cancel the grace timer on `result(ok)`, and give `awaiting-user` its own deadline (for example 10 s†) ending in `user-failed`.
+
+**NI-GSI-L1-2 (Low).** (a) `lastLogin` is "kept through `expiring` and `expired`" but nothing clears it on `disconnect` or `connect-pat`. Scenario: sign in as `octo`, Disconnect (`sessionKey` none), sign in as `octo` again. The `user(login = lastLogin)` row says "keep `sessionKey`", which is none, so `hasCredential` stays false with a live token. (b) `result(error)`, `popup_blocked` and `window_closed` go to `failed(code)`, losing `expiring` or `expired`. Scenario: at `expiring` the user clicks Sign in again and the pop-up is blocked; the status is now `failed`, the `expiring` to `expired` row no longer applies, and the banner never says the sign-in has ended although the hook is refusing requests. Fix: clear `lastLogin` on disconnect and connect-PAT, and have the same-login row set `sessionKey` when it is none; keep a `statusBeforeAttempt` and return to it with the message shown beside it.
+
+**NI-GSI-L1-3 (Low).** Under the new rules a PAT or embed credential has no `lastLogin`, so a PAT user's first sign-in takes `user(other login)` and runs the full reset (repo, file and PR state cleared, then re-opened by the `sessionKey` change). Nothing consults `editorIsDirty`. Scenario: a PAT user edits an HTML file or a PR comment (no draft), opens Settings and signs in; the edit is gone. Fix: route the reset through `guardNavigation`, or ask for confirmation when the editor is dirty.
+
+**NI-GSI-L1-4 (Nit).** design.md:100 still says "state, PKCE and nonce cookies"; the auth-state card says "10-minute deadline (F-26)", now F-28; requirements Q-8 still says the one-time value lives in cookies; F-17 appears before F-11 in the table.
+
+### Checked in the fixes and found sound
+
+- The `sessionKey` design fits the code read in the first review: the ten `githubToken` gating sites move to `hasCredential`, and keying the effect at `app-context.tsx:765-784` on `sessionKey` removes the re-open on a same-login swap, while the first sign-in (key none to `sign-in:<login>`) still re-navigates, which F-12 needs.
+- The callback decision order is state-first, derives the attempt from `state`, and treats hostile `error` values identically; the install-return page reflects no input and has no script.
+- The SP-3 row and T-32 close the "only fakes" gap. F-16 with Q-27 PENDING keeps the owner decision visible on the page, in intent.md and in the RK-3 concern row.
+- Traceability still maps every F, NF and C to a T-n; T-32 and T-33 are in the catalogue.
+
+### Owner steps unchanged
+
+SP-3 with the production App settings, the A-16 check, the intent.md correction, the Q-19 and Q-27 decisions, and browser render checks of `architecture.html`.
+
+## Lead dispositions after re-review
+
+| ID | Disposition |
+|---|---|
+| GSI-L1-1 to 27 | Fixed at `90b9de9`; 26 closed by re-review. |
+| GSI-L1-18 (partly closed) | Fixed: F-18 (Settings offers Sign in with GitHub while a PAT is active), in T-16 and the first-sign-in story. |
+| NI-GSI-L1-1 | Fixed: new status `checking-user` after `result(ok)`. It cancels the close grace, ignores `popup-closed`, and has its own 10 s† deadline. |
+| NI-GSI-L1-2 | Fixed: `lastLogin` is cleared by Disconnect and connect-PAT; the same-login row sets `sessionKey` when it is none. A failed attempt returns to `statusBeforeAttempt` with `lastError`, so `expiring` and `expired` survive a failed attempt. |
+| NI-GSI-L1-3 | Fixed: a new-login reset with a dirty editor asks through `guardNavigation`; cancelling discards the new token (`cancelled`). |
+| NI-GSI-L1-4 | Fixed: Solution-at-a-glance cookie text, F-28 cite on the auth-state card, Q-8 text. F-17 ordering in the story is cosmetic and left as is. |

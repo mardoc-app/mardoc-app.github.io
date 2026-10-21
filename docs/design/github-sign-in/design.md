@@ -77,7 +77,7 @@ after 8 hours (NF-12), or on reload, without losing the reviewer's place.
 | Sign-in token | A GitHub App user access token, held in memory, with an expiry time. |
 | Sign-in attempt | One click of Sign in with GitHub: a pop-up, a one-time value (the **attempt nonce**) and a deadline. |
 | Sign-in result | The message the callback page posts back: the token and its lifetime, or an error code. |
-| Session status | Where the tab's sign-in stands: `signed-out`, `signing-in`, `signed-in`, `expiring`, `expired`, `sign-in-again` (after reload) or `failed`. |
+| Session status | Where the tab's sign-in stands: `signed-out`, `signing-in`, `checking-user` (token received, waiting for `GET /user`), `signed-in`, `expiring`, `expired` or `sign-in-again` (after reload). A failed attempt returns to the status before it and sets `lastError`. |
 | Installation | GitHub's record that the App may reach an account's chosen repositories. |
 | Sign-in marker | `localStorage.mardoc_auth_method = "github-app"`: a non-secret hint that this browser used sign-in last (Q-20). |
 
@@ -97,7 +97,7 @@ after 8 hours (NF-12), or on reload, without losing the reviewer's place.
 ## Solution at a glance
 
 The click that starts sign-in opens a **pop-up** at `/api/auth/login`. The
-Worker sets short-lived `state`, PKCE and nonce cookies and redirects to
+Worker sets a short-lived cookie holding `state` and the PKCE verifier and redirects to
 GitHub's consent screen. GitHub redirects back to `/api/auth/callback`,
 where the Worker checks `state` and exchanges the code with the client
 secret. It drops the refresh token and returns a tiny page that posts the
@@ -156,7 +156,7 @@ boxes are proposed; the others exist at the snapshot.
 
 | Component | Responsibility | Owns | Interfaces / collaborators | Requirements |
 |---|---|---|---|---|
-| Settings screen | Offers sign-in and the PAT, shows who is signed in, links installs | Its view state | Calls auth state; links GitHub install page | F-10, F-13, F-17, F-41, F-44, F-50, F-53, F-54, F-71, F-72 |
+| Settings screen | Offers sign-in and the PAT, shows who is signed in, links installs | Its view state | Calls auth state; links GitHub install page | F-10, F-13, F-17, F-18, F-55, F-41, F-44, F-50, F-53, F-54, F-71, F-72 |
 | Sign-in banner | Shows expiring, expired and reload prompts over the main pane | Nothing | Reads session status; calls `startSignIn()` | F-32, F-33, F-37, F-38, NF-18, NF-22 |
 | App auth state | Holds the active credential, its expiry and session status | Credential, session key, session status, attempt | Pop-up and `message`; `/api/auth/health`, `/revoke`; GitHub client | F-12, F-14, F-16, F-30 to F-38, F-51, F-52, F-60, F-61 |
 | GitHub client (recap) | Sends GitHub requests with the current token | Octokit instance, caches | `initOctokit`, `resetGitHubSession` | F-40, F-60 |
@@ -185,7 +185,9 @@ pass pop-up blockers. Reads `session` from auth state. Calls `connectPat(token)`
 (today's `setGithubToken(token)`) and `disconnect()`. With a PAT active it
 shows "Connected with a personal access token" and, below it, Sign in with
 GitHub; signing in leaves the saved PAT in place, unused until the sign-in
-session ends (F-53). The install link opens with `rel="noopener noreferrer"`.
+session ends (F-53). While signed in with a saved PAT, the view says "A saved
+personal access token will be used after you disconnect", with "Remove
+saved token" and "Disconnect and remove saved token" (F-55). The install link opens with `rel="noopener noreferrer"`.
 When the installations cover nothing, the repository list shows F-44's
 message. The help text replaces "there is no server" with the
 data-and-security.md wording (F-72, Q-10).
@@ -353,7 +355,7 @@ and no `Access-Control-*` headers.
 | Route | Request | Response | Errors |
 |---|---|---|---|
 | `GET /health` | none | `200` JSON containing `"ok": true` (and `"version": "<git sha>"`) | none; absence is the signal |
-| `GET /login?n=<nonce>` | `n`: base64url, 22 to 64 chars (`^[A-Za-z0-9_-]{22,64}$`) | `302` to `https://github.com/login/oauth/authorize?client_id&redirect_uri=https://mardoc.app/api/auth/callback&state&code_challenge&code_challenge_method=S256`; sets the attempt cookie | `400` plain-text page if `n` fails the pattern (no message can be posted without a nonce) |
+| `GET /login?n=<nonce>` | `n`: base64url, 22 to 64 chars (`^[A-Za-z0-9_-]{22,64}$`); `Sec-Fetch-Site: same-origin` and `Sec-Fetch-Dest: document` | `302` to `https://github.com/login/oauth/authorize?client_id&redirect_uri=https://mardoc.app/api/auth/callback&state&code_challenge&code_challenge_method=S256`; sets the attempt cookie | `400` plain-text page if `n` fails the pattern (no message can be posted without a nonce); `403` plain-text page if the `Sec-Fetch-*` headers are missing or different, so other sites and fetches can't start attempts. It also expires every `__Secure-mardoc_auth_*` cookie on the request except the newest two, so repeated starts can't pile cookies up |
 | `GET /callback?code&state` or `?error&state` | GitHub's redirect, plus the attempt cookie | `200 text/html` callback page carrying a [sign-in result](#sign-in-result-message); clears the cookie | Result codes below; never a redirect |
 | `GET /callback?installation_id&setup_action` with no `state` | The install page's return, if GitHub sends one (A-11) | `200 text/html` "MarDoc is installed. Go back to the MarDoc tab and press Refresh." No script, no exchange (F-29) | — |
 | `POST /revoke` | `Origin: https://mardoc.app`, `Content-Type: application/json`, body `{"token":"…"}` | `204`; also `204` when GitHub answers 404 (token already expired or revoked) | `403` when `Origin` is missing or different; `400` on a bad body; `502 {"error":"revoke_failed"}` on other GitHub failures |
@@ -407,6 +409,7 @@ and later reports `window_closed` with the PAT option.
 | `worker_unavailable` | Tab (health check) | "Sign-in with GitHub is unavailable right now." |
 | `timeout` | Tab (10 minutes†, F-28) | "Sign-in took too long. Try again." |
 | `window_closed` | Tab (pop-up closed and no result within 1 s†, F-52) | "The sign-in window closed. Try again, or use a token." |
+| `cancelled` | Tab (user kept unsaved changes) | "Sign-in cancelled; your changes are kept." |
 
 Every row shows the PAT option (F-51, F-52).
 
@@ -434,10 +437,11 @@ state. `hasCredential` replaces today's `isAuthenticated = !!githubToken`
 |---|---|---|---|---|---|
 | `signed-out` | none, or `"pat"` / `"embed"` when one is active | as today | as today | as today | as today |
 | `signing-in` | unchanged from before the attempt | unchanged | unchanged | unchanged | unchanged |
+| `checking-user` | unchanged | unchanged | unchanged | unchanged (new token not yet applied) | unchanged |
 | `signed-in`, `expiring` | `"sign-in:<login>"` | true | false | sign-in token | normal |
 | `expired` | unchanged | true | false | reset; requests fail as auth errors | unchanged, banner shows |
 | `sign-in-again` | none | false | false | none | F-37 prompt for the route; no demo data |
-| `failed(code)` | as before the attempt | as before | as before | as before | as before; message in Settings and banner |
+| after a failed attempt | as before the attempt | as before | as before | as before | as before; `lastError` in Settings and banner |
 
 ## Key behavior: system journeys
 
@@ -636,29 +640,39 @@ is `signed-out` with `sessionKey = "pat"` (F-50). Next, the marker:
 `sign-in-again`. Otherwise `signed-out` with no credential.
 
 **Same login:** `lastLogin` is the login of the last sign-in credential in
-this tab, kept through `expiring` and `expired`. A PAT or embed credential,
-or a fresh tab, has no `lastLogin`, so the result counts as a new login.
+this tab, kept through `expiring` and `expired`, and cleared by Disconnect
+and by connecting a PAT. A PAT or embed credential, or a fresh tab, has no
+`lastLogin`, so the result counts as a new login.
+
+**Failure:** `failed(code)` in the table is shorthand: the status returns to
+`statusBeforeAttempt`, saved by `start`, and `lastError = code` is set.
+Settings and the banner show `lastError`, with the PAT option, until the
+next attempt. So a blocked pop-up while `expiring` stays `expiring`, and
+the banner still moves to "ended" at expiry.
 
 | From | Event | To | Effects |
 |---|---|---|---|
-| any except `signing-in` | `start` | `signing-in` | open pop-up; if `null` → `failed(popup_blocked)`; health check; deadline at 10 minutes† (F-28) |
+| any except `signing-in`, `checking-user` | `start` | `signing-in` | save `statusBeforeAttempt`; clear `lastError`; open pop-up; if `null` → `failed(popup_blocked)`; health check; deadline at 10 minutes† (F-28) |
 | `signing-in` | `start` | `signing-in` | focus the open pop-up |
 | `signing-in` | `health-failed` | `failed(worker_unavailable)` | close pop-up |
 | `signing-in` | `result` with wrong source or nonce | `signing-in` | ignore |
-| `signing-in` | `result(ok)` | `signing-in` (awaiting login) | `GET /user` with the new token, not yet applied |
-| `signing-in` | `user(login = lastLogin)` | `signed-in` | `initOctokit(new token)`; keep `sessionKey` and UI; schedule expiry |
-| `signing-in` | `user(other login)` | `signed-in` | `applySignInCredential`: full UI reset as `setGithubToken` does, without writing `TOKEN_KEY`; `sessionKey = "sign-in:<login>"`; remove `mardoc_user_repos`; set marker; schedule expiry |
-| `signing-in` | `user-failed` (401, network) | `failed(exchange_failed)` | discard the new token; previous credential untouched |
+| `signing-in` | `result(ok)` | `checking-user` | cancel the close grace; `GET /user` with the new token, not yet applied; deadline 10 s† (F-52) |
 | `signing-in` | `result(error code)` | `failed(code)` | previous credential untouched |
 | `signing-in` | `popup-closed` | `signing-in` | wait 1 s† for a result (F-52) |
 | `signing-in` | `popup-closed` and 1 s† passed | `failed(window_closed)` | PAT option (F-52) |
 | `signing-in` | `deadline` | `failed(timeout)` | close pop-up |
-| any except `signing-in` | `result` | unchanged | ignore (late result) |
+| `checking-user` | `popup-closed` | `checking-user` | ignore |
+| `checking-user` | `user(login = lastLogin)` | `signed-in` | `initOctokit(new token)`; set `sessionKey = "sign-in:<login>"` if it is none; keep UI; schedule expiry |
+| `checking-user` | `user(other login)`, editor clean | `signed-in` | `applySignInCredential`: full UI reset as `setGithubToken` does, without writing `TOKEN_KEY`; `sessionKey = "sign-in:<login>"`; `lastLogin = login`; remove `mardoc_user_repos`; set marker; schedule expiry |
+| `checking-user` | `user(other login)`, editor dirty | `checking-user` | ask through `guardNavigation`: "Signing in as `<login>` closes the open document. Discard unsaved changes?" Confirm → the clean row; cancel → `failed(cancelled)`, new token discarded |
+| `checking-user` | `user-failed` (401, network) or 10 s† deadline (F-52) | `failed(exchange_failed)` | discard the new token; previous credential untouched |
+| any except `signing-in`, `checking-user` | `result` or `user` | unchanged | ignore (late event) |
 | `signed-in` | `now ≥ expiresAt − 10 min`† | `expiring` | banner |
 | `signed-in`, `expiring` | `now ≥ expiresAt` or `auth-error` | `expired` | reset the GitHub client; keep `sessionKey` |
 | `sign-in-again` | `continue-without` | `signed-out` | remove marker; demo data |
-| any | `connect-pat` | `signed-out` with `sessionKey = "pat"` | today's `setGithubToken(token)`; remove marker and `mardoc_user_repos` |
-| any with a sign-in credential | `disconnect` | `signed-out` | `POST /revoke` (best effort, 5 s†, F-61); reset; remove marker and `mardoc_user_repos`; a saved PAT becomes active (F-53) |
+| any | `connect-pat` | `signed-out` with `sessionKey = "pat"` | today's `setGithubToken(token)`; clear `lastLogin`; remove marker and `mardoc_user_repos` |
+| any with a sign-in credential | `disconnect` | `signed-out` | `POST /revoke` (best effort, 5 s†, F-61); reset; clear `lastLogin` and `sessionKey`; remove marker and `mardoc_user_repos`; a saved PAT becomes active, as the signed-in view said (F-53, F-55) |
+| any with a sign-in credential | `disconnect-and-remove-pat` | `signed-out` | as `disconnect`, then remove `mardoc_github_token`; no credential (F-55) |
 | any with a PAT or embed credential | `disconnect` | `signed-out` | today's `setGithubToken(null)`; remove marker |
 
 **Worked examples:** a result arrives at 12:00:00 with `expiresIn: 28800`,
@@ -730,7 +744,7 @@ contains no `ghr_`. `?code=c&state=N.x` with the cookie holding `N.s` gives
   `frame-ancestors 'none'` stops framing.
 - **Same-origin documents (RK-1, SEC-01):** a rendered document script can
   still read the in-memory token or listen on the parent window. Stage 1
-  accepts that, bounded by 8 hours and installed repos; stage 2 waits for
+  leaves RK-1 open, bounded by 8 hours and installed repos; stage 2 waits for
   the fix.
 - **Forged `init` (RK-3):** today a document can post `init` and replace the
   credential (`app-context.tsx:353-376`). F-16 requires the embed-mode and
@@ -789,16 +803,16 @@ contains no `ghr_`. `?code=c&state=N.x` with the cookie holding `N.s` gives
 | T-10 | Playwright, mocked exchange | After sign-in no web storage or readable cookie holds the token (stage 1 gate) | F-30, I-10 |
 | T-11 | Playwright + Worker unit | No URL, history entry, resource name or `Location` header holds the token | NF-11, I-10, F-23 |
 | T-12 | Unit + Playwright | Results from another window, an iframe or with a wrong nonce are ignored | F-14, I-11 |
-| T-13 | Playwright | Sign-in with a saved PAT keeps it unused; Disconnect makes it active again | F-53, I-14 |
+| T-13 | Playwright | Sign-in with a saved PAT keeps it unused; the signed-in view says it will be used after Disconnect; Disconnect makes it active again; "Disconnect and remove saved token" removes it | F-53, F-55, I-14 |
 | T-14 | Unit (fake clock) + Playwright | Every row of the session table; no request carries a token at or after `expiresAt`; a 401 gives `expired` and the sign-in message; same-login sign-in again with a dirty editor re-fetches nothing and keeps edits | F-31 to F-38, I-15, NF-12 |
 | T-15 | Playwright | `init` from a non-parent window or outside embed mode is ignored | F-16, RK-3 |
-| T-16 | Playwright | Settings layout: Sign in first, PAT behind its control, signed-in view, install link with `noopener`, empty-installations message, no "no server" copy, hidden in embed mode | F-10, F-13, F-15, F-17, F-41, F-44, F-71, F-72 |
+| T-16 | Playwright | Settings layout: Sign in first, Sign in offered under an active PAT, PAT behind its control, signed-in view, install link with `noopener`, empty-installations message, no "no server" copy, hidden in embed mode | F-10, F-13, F-15, F-17, F-18, F-41, F-44, F-71, F-72 |
 | T-17 | Playwright, mocked exchange | Deep-linked route and file survive sign-in | F-12 |
 | T-18 | Playwright, mocked failures | Each result code shows its message and the PAT option within 5 s†; keyboard reach and `aria-live` | F-42, F-51, F-52, NF-13, NF-18, NF-22 |
 | T-19 | e2e suite | Existing PAT-seeded specs pass unchanged | F-50, C-17 |
 | T-20 | Worker unit (stubbed GitHub) | Each step of the callback decision order; state mismatch → no exchange; S256 challenge; no CORS headers; install return page without exchange | F-20, F-21, F-22, F-29, I-12 |
 | T-21 | Worker unit | Refresh token absent from every response; `/refresh` is 404; result posted only to `APP_ORIGIN`; a hostile `error` or `state` value never appears unescaped in the page | F-23, F-24, F-25, I-13, I-17 |
-| T-22 | Worker unit | `console` never called; every response `no-store`; attempt cookie `Max-Age=600` then `0`; no storage bindings in `wrangler.toml` | F-26, F-28, NF-14, NF-15, I-16 |
+| T-22 | Worker unit | `console` never called; every response `no-store`; attempt cookie `Max-Age=600` then `0`; `/login` refuses a cross-site or non-document request and keeps at most three attempt cookies; no storage bindings in `wrangler.toml` | F-26, F-28, NF-14, NF-15, I-16 |
 | T-23 | Worker unit | Health JSON contains `ok: true`; revoke refuses a missing or foreign `Origin`, maps GitHub 404 to 204, and calls GitHub with basic auth | F-27, F-61 |
 | T-24 | Unit | Disconnect drops the token, resets the client and caches, removes the marker | F-60, F-32 |
 | T-32 | Playwright, real Worker under `wrangler dev`, GitHub stubbed | The real callback page posts to the real tab; CSP allows the nonce script; the pop-up closes | F-14, F-23, NF-19 |
@@ -860,6 +874,8 @@ contains no `ghr_`. `?code=c&state=N.x` with the cookie holding `N.s` gives
 | F-52 | Result codes | T-18 |
 | F-53 | I-14; Settings screen; session `disconnect` | T-13 |
 | F-54 | Settings screen | T-33 |
+| F-55 | Settings screen; session `disconnect-and-remove-pat` | T-13 |
+| F-18 | Settings screen | T-16 |
 | F-60 | Session `disconnect` | T-24 |
 | F-61 | Worker `revoke` | T-23, T-26 |
 | F-70 | Security: third party | T-28 |

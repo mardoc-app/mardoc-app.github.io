@@ -26,6 +26,14 @@ make their contingency explicit in the design) before build.
 
 **Counts:** High 0 · Medium 3 · Low 2 · Nit 0.
 
+| ID | Severity | Pass | Location | Finding (one line) |
+|---|---|---|---|---|
+| GSI-SEC-1 | Medium | Security | design.md A-10; requirements.md A-10; architecture.html 163-165, 192 | BroadcastChannel fallback drops `event.source`, so I-11 falls to nonce-only and every same-origin context receives the token. |
+| GSI-SEC-2 | Medium | Security | design.md callback page, result shape, callback check | Callback page escaping of reflected `error`/`nonce` is unstated; error was checked before state. |
+| GSI-SEC-3 | Medium | Security | design.md §Security; requirements.md A-19, Q-27; app-context.tsx:355-376 | `init` checks are presented as shipping before stage 1 but are a PENDING assumption; the live listener has no origin, source or embed check. |
+| GSI-SEC-4 | Low | Security | architecture.html failure picker 163-165 | Failure card implies I-11 handles document iframes; under SEC-01 they read the token directly. |
+| GSI-SEC-5 | Low | Security | design.md Auth Worker cookies | `__Secure-` (not `__Host-`) cookies can be overwritten by a sibling `*.mardoc.app` host. |
+
 ---
 
 ## Findings
@@ -269,3 +277,34 @@ make their contingency explicit in the design) before build.
   of I-11/T-12; if it does not hold in some browser, the nonce becomes the
   sole binding (as in the fallback). Settled by SP-3 / T-12 on real
   browsers.
+
+## Re-review at 90b9de9
+
+By the same reviewer, returned as a message and recorded here by the lead.
+
+| ID | Status | Reason |
+|---|---|---|
+| GSI-SEC-1 | Closed | A-10 and design.md's assumptions table state that `BroadcastChannel` loses `event.source`, that every same-origin context receives the token, and that the fallback needs its own ADR. |
+| GSI-SEC-2 | Closed | I-17, the escaped-JSON callback page, `state` checked first, the `error` allow-list and nonce pattern; T-21 asserts them. |
+| GSI-SEC-3 | Closed as a design issue | F-16 is a stage 1 Must; RK-3 stays open until the owner decides Q-27. The code path is unchanged until F-16 is built. |
+| GSI-SEC-4 | Closed | The failure card states the RK-1 limit of I-11. |
+| GSI-SEC-5 | Closed | design.md explains `__Secure-` against `__Host-` and the `auth.mardoc.app` revisit. |
+
+Putting the nonce in `state` and naming the cookie by the nonce is safe against login CSRF and session fixation: the whole `state`, including 32 random bytes, must still match the HttpOnly cookie, and the cookie name is built only from pattern-checked characters.
+
+New findings:
+- **GSI-SEC-6 (Low):** each `/login` sets a new cookie name. A document script, or a cross-site page after one click, can pile up cookies until the real attempt's cookie is evicted or the Cookie header is too large, blocking sign-in in that browser for up to 10 minutes. The PAT still works.
+- **GSI-SEC-7 (Low):** Disconnect re-activates a saved PAT without the user being told, and the PAT stays readable in storage throughout the sign-in session (RK-1).
+
+The reviewer also flagged a contradiction: design.md said stage 1 "accepts" RK-1, while only the owner accepts risks.
+
+Verdict: safe for owner acceptance of the design; fix GSI-SEC-6 and GSI-SEC-7 before build.
+
+## Lead dispositions
+
+| ID | Disposition |
+|---|---|
+| GSI-SEC-1 to 5 | Fixed at `90b9de9`; closed by re-review. |
+| GSI-SEC-6 | Fixed: `/login` requires `Sec-Fetch-Site: same-origin` and `Sec-Fetch-Dest: document`, and expires all but the newest two attempt cookies; T-22 asserts both. |
+| GSI-SEC-7 | Fixed: F-55 (Must). The signed-in view says the saved PAT will be used after Disconnect and offers "Remove saved token" and "Disconnect and remove saved token"; T-13 asserts the copy. |
+| RK-1 wording | Fixed: design.md says stage 1 leaves RK-1 open, bounded by 8 hours and installed repos. |
