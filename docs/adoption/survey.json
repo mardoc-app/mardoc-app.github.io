@@ -1,38 +1,38 @@
 {
   "root": "/Users/josephbarnett/business/code/mardoc-io/mardoc-io.github.io",
-  "today": "2026-10-20",
+  "today": "2026-10-21",
   "summary": {
-    "docs": 69,
-    "inventory_files": 74,
+    "docs": 72,
+    "inventory_files": 91,
     "stale": 0,
-    "broken_links": 3,
-    "broken_links_unique": 3,
-    "docs_with_broken_links": 2,
-    "unreferenced_images": 3,
+    "broken_links": 33,
+    "broken_links_unique": 9,
+    "docs_with_broken_links": 4,
+    "unreferenced_images": 9,
     "unreferenced_drawio": 1,
-    "levels_declared": 1,
-    "levels_guessed": 68,
+    "levels_declared": 3,
+    "levels_guessed": 69,
     "git": true
   },
   "inventory": {
-    "total": 74,
-    "docs": 69,
+    "total": 91,
+    "docs": 72,
     "by_folder": {
       ".": 4,
       "docs": 17,
       "docs/adr": 1,
       "docs/assets": 3,
-      "docs/design": 8,
+      "docs/design": 24,
       "docs/features": 39,
-      "docs/reviews": 1,
+      "docs/reviews": 2,
       "e2e": 1
     },
     "by_format": {
-      "drawio": 1,
-      "html": 3,
-      "md": 66,
+      "drawio": 5,
+      "html": 5,
+      "md": 67,
       "png": 3,
-      "svg": 1
+      "svg": 11
     },
     "files": [
       "AGENTS.md",
@@ -50,10 +50,26 @@
       "docs/capabilities.md",
       "docs/comment-navigation-plan.md",
       "docs/data-and-security.md",
+      "docs/design/github-connection/architecture.html",
+      "docs/design/github-connection/diagrams/components.drawio",
+      "docs/design/github-connection/diagrams/components.svg",
+      "docs/design/github-connection/diagrams/connect.svg",
+      "docs/design/github-connection/diagrams/domain.drawio",
+      "docs/design/github-connection/diagrams/domain.svg",
+      "docs/design/github-connection/diagrams/embed-init.svg",
       "docs/design/github-sign-in/diagrams/landscape.drawio",
       "docs/design/github-sign-in/diagrams/landscape.svg",
       "docs/design/github-sign-in/strategy.html",
+      "docs/design/mardoc/architecture.html",
       "docs/design/mardoc/design.md",
+      "docs/design/mardoc/diagrams/architecture.drawio",
+      "docs/design/mardoc/diagrams/architecture.svg",
+      "docs/design/mardoc/diagrams/domain.drawio",
+      "docs/design/mardoc/diagrams/domain.svg",
+      "docs/design/mardoc/diagrams/seq-demo.svg",
+      "docs/design/mardoc/diagrams/seq-embed-init.svg",
+      "docs/design/mardoc/diagrams/seq-open-document.svg",
+      "docs/design/mardoc/diagrams/seq-review-pr.svg",
       "docs/design/mardoc/intent.md",
       "docs/design/mardoc/requirements.md",
       "docs/design/mardoc/ux.html",
@@ -104,6 +120,7 @@
       "docs/performance.md",
       "docs/plan.md",
       "docs/review-links.md",
+      "docs/reviews/2026-10-20-as-is-baselines.md",
       "docs/reviews/2026-10-20-github-sign-in-l0.md",
       "docs/risks.md",
       "docs/setup-github-pat.md",
@@ -281,6 +298,68 @@
       "broken_links": []
     },
     {
+      "path": "docs/design/github-connection/architecture.html",
+      "level": "L1",
+      "level_source": "declared",
+      "content_date": null,
+      "content_commit": null,
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": [
+        {
+          "link": "#connect-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/github-connection/architecture.html#connect-gradient"
+        },
+        {
+          "link": "#connect-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/github-connection/architecture.html#connect-gradient"
+        },
+        {
+          "link": "#connect-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/github-connection/architecture.html#connect-gradient"
+        },
+        {
+          "link": "#connect-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/github-connection/architecture.html#connect-gradient"
+        },
+        {
+          "link": "#connect-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/github-connection/architecture.html#connect-gradient"
+        },
+        {
+          "link": "#embed-init-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/github-connection/architecture.html#embed-init-gradient"
+        },
+        {
+          "link": "#embed-init-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/github-connection/architecture.html#embed-init-gradient"
+        },
+        {
+          "link": "#embed-init-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/github-connection/architecture.html#embed-init-gradient"
+        },
+        {
+          "link": "#embed-init-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/github-connection/architecture.html#embed-init-gradient"
+        },
+        {
+          "link": "#embed-init-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/github-connection/architecture.html#embed-init-gradient"
+        }
+      ]
+    },
+    {
       "path": "docs/design/github-sign-in/strategy.html",
       "level": "L0",
       "level_source": "declared",
@@ -290,6 +369,120 @@
       "code_commits_since": "n/a",
       "stale": false,
       "broken_links": []
+    },
+    {
+      "path": "docs/design/mardoc/architecture.html",
+      "level": "L1",
+      "level_source": "declared",
+      "content_date": null,
+      "content_commit": null,
+      "code_refs": [
+        "out"
+      ],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": [
+        {
+          "link": "#seq-demo-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/architecture.html#seq-demo-gradient"
+        },
+        {
+          "link": "#seq-demo-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/architecture.html#seq-demo-gradient"
+        },
+        {
+          "link": "#seq-demo-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/architecture.html#seq-demo-gradient"
+        },
+        {
+          "link": "#seq-demo-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/architecture.html#seq-demo-gradient"
+        },
+        {
+          "link": "#seq-demo-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/architecture.html#seq-demo-gradient"
+        },
+        {
+          "link": "#seq-open-document-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/architecture.html#seq-open-document-gradient"
+        },
+        {
+          "link": "#seq-open-document-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/architecture.html#seq-open-document-gradient"
+        },
+        {
+          "link": "#seq-open-document-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/architecture.html#seq-open-document-gradient"
+        },
+        {
+          "link": "#seq-open-document-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/architecture.html#seq-open-document-gradient"
+        },
+        {
+          "link": "#seq-open-document-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/architecture.html#seq-open-document-gradient"
+        },
+        {
+          "link": "#seq-review-pr-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/architecture.html#seq-review-pr-gradient"
+        },
+        {
+          "link": "#seq-review-pr-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/architecture.html#seq-review-pr-gradient"
+        },
+        {
+          "link": "#seq-review-pr-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/architecture.html#seq-review-pr-gradient"
+        },
+        {
+          "link": "#seq-review-pr-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/architecture.html#seq-review-pr-gradient"
+        },
+        {
+          "link": "#seq-review-pr-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/architecture.html#seq-review-pr-gradient"
+        },
+        {
+          "link": "#seq-embed-init-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/architecture.html#seq-embed-init-gradient"
+        },
+        {
+          "link": "#seq-embed-init-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/architecture.html#seq-embed-init-gradient"
+        },
+        {
+          "link": "#seq-embed-init-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/architecture.html#seq-embed-init-gradient"
+        },
+        {
+          "link": "#seq-embed-init-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/architecture.html#seq-embed-init-gradient"
+        },
+        {
+          "link": "#seq-embed-init-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/architecture.html#seq-embed-init-gradient"
+        }
+      ]
     },
     {
       "path": "docs/design/mardoc/design.md",
@@ -318,7 +511,7 @@
       "level": "L1",
       "level_source": "guess",
       "content_date": "2026-10-20",
-      "content_commit": "2b94d90",
+      "content_commit": "78b4df0",
       "code_refs": [
         ".github/workflows/test.yml",
         "vitest.config.ts"
@@ -925,6 +1118,24 @@
       "broken_links": []
     },
     {
+      "path": "docs/reviews/2026-10-20-as-is-baselines.md",
+      "level": "process",
+      "level_source": "guess",
+      "content_date": null,
+      "content_commit": null,
+      "code_refs": [
+        "README.md",
+        "REVIEW.md",
+        "next.config.js",
+        "out",
+        "public/CNAME",
+        "src"
+      ],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
       "path": "docs/reviews/2026-10-20-github-sign-in-l0.md",
       "level": "process",
       "level_source": "guess",
@@ -948,7 +1159,7 @@
       "level": "unknown",
       "level_source": "guess",
       "content_date": "2026-10-20",
-      "content_commit": "980caf1",
+      "content_commit": "78b4df0",
       "code_refs": [],
       "code_commits_since": "n/a",
       "stale": false,
@@ -1027,6 +1238,186 @@
   ],
   "broken_links": [
     {
+      "doc": "docs/design/github-connection/architecture.html",
+      "link": "#connect-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/github-connection/architecture.html#connect-gradient"
+    },
+    {
+      "doc": "docs/design/github-connection/architecture.html",
+      "link": "#connect-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/github-connection/architecture.html#connect-gradient"
+    },
+    {
+      "doc": "docs/design/github-connection/architecture.html",
+      "link": "#connect-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/github-connection/architecture.html#connect-gradient"
+    },
+    {
+      "doc": "docs/design/github-connection/architecture.html",
+      "link": "#connect-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/github-connection/architecture.html#connect-gradient"
+    },
+    {
+      "doc": "docs/design/github-connection/architecture.html",
+      "link": "#connect-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/github-connection/architecture.html#connect-gradient"
+    },
+    {
+      "doc": "docs/design/github-connection/architecture.html",
+      "link": "#embed-init-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/github-connection/architecture.html#embed-init-gradient"
+    },
+    {
+      "doc": "docs/design/github-connection/architecture.html",
+      "link": "#embed-init-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/github-connection/architecture.html#embed-init-gradient"
+    },
+    {
+      "doc": "docs/design/github-connection/architecture.html",
+      "link": "#embed-init-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/github-connection/architecture.html#embed-init-gradient"
+    },
+    {
+      "doc": "docs/design/github-connection/architecture.html",
+      "link": "#embed-init-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/github-connection/architecture.html#embed-init-gradient"
+    },
+    {
+      "doc": "docs/design/github-connection/architecture.html",
+      "link": "#embed-init-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/github-connection/architecture.html#embed-init-gradient"
+    },
+    {
+      "doc": "docs/design/mardoc/architecture.html",
+      "link": "#seq-demo-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/architecture.html#seq-demo-gradient"
+    },
+    {
+      "doc": "docs/design/mardoc/architecture.html",
+      "link": "#seq-demo-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/architecture.html#seq-demo-gradient"
+    },
+    {
+      "doc": "docs/design/mardoc/architecture.html",
+      "link": "#seq-demo-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/architecture.html#seq-demo-gradient"
+    },
+    {
+      "doc": "docs/design/mardoc/architecture.html",
+      "link": "#seq-demo-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/architecture.html#seq-demo-gradient"
+    },
+    {
+      "doc": "docs/design/mardoc/architecture.html",
+      "link": "#seq-demo-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/architecture.html#seq-demo-gradient"
+    },
+    {
+      "doc": "docs/design/mardoc/architecture.html",
+      "link": "#seq-open-document-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/architecture.html#seq-open-document-gradient"
+    },
+    {
+      "doc": "docs/design/mardoc/architecture.html",
+      "link": "#seq-open-document-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/architecture.html#seq-open-document-gradient"
+    },
+    {
+      "doc": "docs/design/mardoc/architecture.html",
+      "link": "#seq-open-document-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/architecture.html#seq-open-document-gradient"
+    },
+    {
+      "doc": "docs/design/mardoc/architecture.html",
+      "link": "#seq-open-document-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/architecture.html#seq-open-document-gradient"
+    },
+    {
+      "doc": "docs/design/mardoc/architecture.html",
+      "link": "#seq-open-document-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/architecture.html#seq-open-document-gradient"
+    },
+    {
+      "doc": "docs/design/mardoc/architecture.html",
+      "link": "#seq-review-pr-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/architecture.html#seq-review-pr-gradient"
+    },
+    {
+      "doc": "docs/design/mardoc/architecture.html",
+      "link": "#seq-review-pr-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/architecture.html#seq-review-pr-gradient"
+    },
+    {
+      "doc": "docs/design/mardoc/architecture.html",
+      "link": "#seq-review-pr-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/architecture.html#seq-review-pr-gradient"
+    },
+    {
+      "doc": "docs/design/mardoc/architecture.html",
+      "link": "#seq-review-pr-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/architecture.html#seq-review-pr-gradient"
+    },
+    {
+      "doc": "docs/design/mardoc/architecture.html",
+      "link": "#seq-review-pr-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/architecture.html#seq-review-pr-gradient"
+    },
+    {
+      "doc": "docs/design/mardoc/architecture.html",
+      "link": "#seq-embed-init-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/architecture.html#seq-embed-init-gradient"
+    },
+    {
+      "doc": "docs/design/mardoc/architecture.html",
+      "link": "#seq-embed-init-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/architecture.html#seq-embed-init-gradient"
+    },
+    {
+      "doc": "docs/design/mardoc/architecture.html",
+      "link": "#seq-embed-init-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/architecture.html#seq-embed-init-gradient"
+    },
+    {
+      "doc": "docs/design/mardoc/architecture.html",
+      "link": "#seq-embed-init-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/architecture.html#seq-embed-init-gradient"
+    },
+    {
+      "doc": "docs/design/mardoc/architecture.html",
+      "link": "#seq-embed-init-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/architecture.html#seq-embed-init-gradient"
+    },
+    {
       "doc": "docs/risks.md",
       "link": "design/mardoc/design.md#accepted-risks",
       "kind": "anchor",
@@ -1048,8 +1439,14 @@
   "unreferenced": [
     "docs/assets/dogfood-review-pr60.png",
     "docs/assets/mardoc-logo.png",
+    "docs/design/github-connection/diagrams/connect.svg",
+    "docs/design/github-connection/diagrams/embed-init.svg",
     "docs/design/github-sign-in/diagrams/landscape.drawio",
-    "docs/design/github-sign-in/diagrams/landscape.svg"
+    "docs/design/github-sign-in/diagrams/landscape.svg",
+    "docs/design/mardoc/diagrams/seq-demo.svg",
+    "docs/design/mardoc/diagrams/seq-embed-init.svg",
+    "docs/design/mardoc/diagrams/seq-open-document.svg",
+    "docs/design/mardoc/diagrams/seq-review-pr.svg"
   ],
   "index": []
 }
