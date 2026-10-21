@@ -4,8 +4,22 @@
   "demo": "npm run demo -- {milestone}",
   "fmt_file": "",
   "push": false,
-  "protected_branches": ["main", "master"],
-  "prod_patterns": ["deploy.*prod", "--context[= ]prod", "terraform apply"],
-  "test_globs": ["tests/**", "**/*_test.*", "**/test_*.*", "**/*.test.*", "**/*.spec.*"],
-  "verify_gate": true
+  "protected_branches": [
+    "main",
+    "master"
+  ],
+  "prod_patterns": [
+    "deploy.*prod",
+    "--context[= ]prod",
+    "terraform apply"
+  ],
+  "test_globs": [
+    "tests/**",
+    "**/*_test.*",
+    "**/test_*.*",
+    "**/*.test.*",
+    "**/*.spec.*"
+  ],
+  "verify_gate": true,
+  "doclint": "errors"
 }
