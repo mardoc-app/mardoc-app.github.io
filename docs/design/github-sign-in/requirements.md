@@ -88,12 +88,14 @@ The full list, with sources, is in [intent.md](intent.md#owners-statements).
 
 | ID | Requirement | Source | Priority | Stage | Acceptance |
 |---|---|---|---|---|---|
-| F-10 | When no credential is active, Settings shall offer **Sign in with GitHub** as the first option and the personal access token behind a "Use a personal access token" control. | S-10, S-11 | Must | 1 | Playwright: open Settings with empty storage; the first button in GitHub Connection reads "Sign in with GitHub"; the token input is hidden until "Use a personal access token" is activated. |
+| F-10 | When no credential is active, Settings shall offer **Sign in with GitHub** as the first option. | S-10, S-11 | Must | 1 | Playwright: open Settings with empty storage; the first button in GitHub Connection reads "Sign in with GitHub". |
+| F-17 | Settings shall keep the personal-access-token form behind a "Use a personal access token" control. | S-11 | Must | 1 | Playwright: with empty storage the token input is hidden until "Use a personal access token" is activated. |
 | F-11 | A user who has already installed MarDoc shall be signed in after clicking Sign in with GitHub and approving the GitHub consent screen, with no other step. | S-12 | Must | 1 | Owner demo: a test account with the App installed counts its clicks from Settings to "Signed in as `<login>`": at most 2 the first time, and 1 when GitHub has already recorded the authorisation. |
 | F-12 | Signing in shall leave the user on the hash route and open document they started from. | S-16 | Must | 1 | Playwright with a mocked exchange: start at a deep link to a file, sign in; `location.hash` is unchanged and the same file is open. |
 | F-13 | Once signed in, Settings shall show the GitHub login and that the connection is a GitHub sign-in. | Derived from S-10, F-11 | Should | 1 | Playwright with a mocked exchange: Settings shows "Signed in with GitHub as `octo`". |
 | F-14 | The app shall accept a sign-in result only from the sign-in window it opened, carrying the one-time value it generated for that attempt. | Derived from S-19 | Must | 1 | Unit and Playwright: a correctly shaped result posted from another window, from a rendered-HTML iframe, or with a different one-time value is ignored, and the active credential is unchanged. |
-| F-15 | Sign in with GitHub shall not be offered inside the VS Code embed (`?embed=true`). | Derived from intent out of scope | Must | 1 | Playwright: load `/?embed=true`; no "Sign in with GitHub" control is rendered. |
+| F-15 | Sign in with GitHub shall not be offered inside the VS Code embed (`?embed=true`). | Derived from A-20 | Must | 1 | Playwright: load `/?embed=true`; no "Sign in with GitHub" control is rendered. |
+| F-16 | The app shall accept an embed `init` message only in embed mode and only from its parent window. | RK-3; Q-27 | Must | 1 | Playwright: an `init` posted by a rendered-HTML iframe, by another window, or outside `?embed=true` leaves the credential unchanged (T-15). |
 
 ### The exchange
 
@@ -105,8 +107,10 @@ The full list, with sources, is in [intent.md](intent.md#owners-statements).
 | F-23 | The exchange shall deliver the access token only to the configured app origin (`https://mardoc.app`). | Derived from S-19, F-14 | Must | 1 | Worker test: the callback result names the app origin as the only recipient, and no response puts the token in a `Location` header, URL or cookie. |
 | F-24 | The exchange shall not return, store or log a refresh token. | C-16, S-27 | Must | 1 | Worker test with a stubbed GitHub that returns `refresh_token`: no response body, header or cookie contains it, and no `console` method is called. |
 | F-25 | The Worker shall have no refresh route. | S-24 | Must | 1 | Worker test and live probe: `GET` and `POST /api/auth/refresh` return 404. |
-| F-26 | The Worker shall keep no state between requests other than the sign-in cookies, which last at most 10 minutes and are cleared at the callback. | Derived from L0 ("The Worker stores nothing") | Must | 1 | `wrangler.toml` declares no KV, D1, R2, Queue or Durable Object binding (check script); Worker test: sign-in cookies have `Max-Age=600` and the callback sets `Max-Age=0`. |
-| F-27 | The Worker shall answer a health check at `/api/auth/health`. | Derived from S-26 (Worker down) | Must | 1 | Worker test: `200` with `{"ok":true}`; live probe criterion 3. |
+| F-26 | The Worker shall keep no state between requests other than the sign-in cookies. | Derived from L0 ("The Worker stores nothing") | Must | 1 | `wrangler.toml` declares no KV, D1, R2, Queue or Durable Object binding (check script). |
+| F-28 | Sign-in cookies shall last at most 10 minutes† and be cleared at the callback. | Derived from F-26 | Must | 1 | Worker test: each sign-in cookie has `Max-Age=600` and the callback response sets `Max-Age=0` on it. |
+| F-29 | Returning from GitHub's install page shall show a page that tells the user the install worked and to return to MarDoc, without an exchange. | Derived from S-14 | Should | 1 | Worker test: `/callback?installation_id=1&setup_action=install` with no `state` returns that page and makes no outbound request. |
+| F-27 | The Worker shall answer a health check at `/api/auth/health`. | Derived from S-26 (Worker down) | Must | 1 | Worker test: `200` with a JSON body containing `"ok": true`; live probe criterion 3. |
 
 ### The signed-in session
 
@@ -115,9 +119,11 @@ The full list, with sources, is in [intent.md](intent.md#owners-statements).
 | F-30 | The app shall keep a signed-in access token in memory only. | S-23, S-24, S-25 | Must | 1 | Playwright with a mocked exchange, after sign-in: no value in `localStorage`, `sessionStorage`, IndexedDB, Cache Storage or `document.cookie` contains the token. This is the stage 1 release gate. |
 | F-31 | Reloading the tab shall end a signed-in session. | S-23 | Must | 1 | Playwright: after sign-in and reload, the app makes no GitHub request with the old token. |
 | F-32 | After a reload ends a signed-in session, the app shall offer Sign in again instead of silently showing demo data. | S-15, S-25 | Must | 1 | Playwright: sign in, reload; a "Sign in again" prompt is visible, and the hash route is kept. |
-| F-33 | When the access token reaches its expiry time, the app shall stop using it and prompt the user to sign in again. | S-15, S-25 | Must | 1 | Playwright with a mocked exchange returning `expires_in: 5`: after 5 s the prompt appears, and no GitHub request carries the old token. |
+| F-33 | When the access token reaches its expiry time, the app shall stop using it and prompt the user to sign in again. | S-15, S-25 | Must | 1 | Playwright with a fake clock and a mocked exchange returning `expires_in: 90`: at the computed expiry the prompt appears, and no GitHub request carries the old token. |
 | F-34 | A 401 on a signed-in token shall prompt the user to sign in again, not to paste a token. | S-15 | Must | 1 | Playwright with a mocked 401: the message offers "Sign in again" and does not say "Open Settings to re-authenticate". |
-| F-35 | Signing in again as the same GitHub login shall keep the hash route, open document and unsaved edits. | S-15 | Must | 1 | Playwright: edit a file, expire the token, sign in again with the mocked exchange; the edit and route are unchanged. |
+| F-35 | Signing in again as the same GitHub login shall keep the hash route, open document and unsaved edits. | S-15 | Must | 1 | Playwright: make the editor dirty, expire the token, sign in again with the mocked exchange; the open file is not re-fetched, and the edit and route are unchanged. |
+| F-37 | While a reload's Sign in again prompt is showing, the main pane shall say which document will open after signing in, instead of demo data. | Derived from F-32 | Should | 1 | Playwright: sign in, reload on a file route; the main pane names the file and offers Sign in again and "Continue without signing in". |
+| F-38 | "Continue without signing in" shall end the reload prompt and show demo data. | Derived from F-32 | Should | 1 | Playwright: choose it; demo data shows and the next reload shows no prompt. |
 | F-36 | Signing in again as a different GitHub login shall clear repository state, as connecting a new token does today. | Derived from F-35 | Should | 1 | Playwright: sign in again as `other`; the repo, file and PR state reset (as `setGithubToken` does at `2b79817`). |
 
 ### Installations and access
@@ -127,7 +133,8 @@ The full list, with sources, is in [intent.md](intent.md#owners-statements).
 | F-40 | The repository picker shall list only repositories the signed-in token can reach. | S-13 | Must | 1 | Owner demo: with the App installed on one of two private repos, the picker shows the installed repo and not the other. |
 | F-41 | Settings shall link to installing MarDoc on more repositories. | S-14 | Must | 1 | Playwright: the link's `href` is `https://github.com/apps/<slug>/installations/new` and opens in a new tab. |
 | F-42 | Opening a repository the token cannot reach shall say MarDoc may not be installed there, with the install link and the personal-access-token option. | S-14 | Must | 1 | Playwright with a mocked 404 on a deep-linked repo: the message names the repo and shows both links. |
-| F-43 | A repository added to an installation, including after an org owner approves a request, shall appear after the user refreshes the repository list, without signing in again. | S-14; SP-1 criterion 5 | Must | 1 | Owner demo of the org install request journey ([story](#an-org-member-asks-for-an-install)). |
+| F-43 | A repository added to an installation, including after an org owner approves a request, shall appear after the user refreshes the repository list, without signing in again. | S-14; SP-1 criterion 5 (owner-reported) | Must | 1 | Owner demo of the org install request journey ([story](#an-org-member-asks-for-an-install)). |
+| F-44 | When a signed-in user's installations cover no repository, the repository list shall say MarDoc isn't installed on any repository they can reach, with the install link, a line to ask a repository owner, and the personal-access-token option. | Derived from S-14, S-12 | Must | 1 | Playwright with a mocked empty `GET /user/installations`: the message and both options show. |
 
 ### Personal access token and fallback
 
@@ -136,7 +143,8 @@ The full list, with sources, is in [intent.md](intent.md#owners-statements).
 | F-50 | Connecting with a personal access token shall keep its current behaviour: saved in `localStorage.mardoc_github_token` and restored on reload. | S-17, S-18 | Must | 1 | Every existing e2e spec that seeds `mardoc_github_token` passes unchanged in `npm run ci`. |
 | F-51 | When the Worker is unreachable or not routed, Sign in with GitHub shall fail within 5 s† with a message that offers the personal-access-token option. | S-26 | Must | 1 | Playwright with `/api/auth/health` returning a Pages 404, a 503, or a network error: the message and the token form appear within 5 s. |
 | F-52 | When sign-in fails at GitHub or at the exchange (consent denied, `state` mismatch, GitHub error), the app shall show what failed and offer the personal-access-token option. | Derived from F-51 | Must | 1 | Playwright with the mocked exchange returning each error code: a distinct message and the token option. |
-| F-53 | Signing in with GitHub while a personal access token is saved shall remove the saved token once the user confirms. | Derived from F-30; Q-21 | Should | 1 | Playwright: seed `mardoc_github_token`, sign in and confirm; the key is gone, and reload shows the Sign in again prompt. |
+| F-53 | Signing in with GitHub while a personal access token is saved shall keep the saved token, unused until the sign-in session ends. | S-17; Q-21 | Must | 1 | Playwright: seed `mardoc_github_token`, sign in; requests carry the sign-in token, the key is unchanged, and after Disconnect the PAT is active again. |
+| F-54 | The in-app personal-access-token instructions shall match setup-github-pat.md. | Q-15 (ADO-3) | Should | 1 | Reviewer compares the panel text with the guide; `grep -n "read:org" src/components/SettingsPanel.tsx` prints nothing unless the guide lists it. |
 
 ### Disconnect
 
@@ -149,7 +157,8 @@ The full list, with sources, is in [intent.md](intent.md#owners-statements).
 
 | ID | Requirement | Source | Priority | Stage | Acceptance |
 |---|---|---|---|---|---|
-| F-70 | README.md, data-and-security.md and capabilities.md shall say that a MarDoc-run Worker on Cloudflare exchanges sign-in codes and sees GitHub tokens, and that no MarDoc server sees documents. | S-21, S-28; RK-2 | Must | 1 | Reviewer reads the three files; `grep -l Cloudflare` lists all three. |
+| F-70 | README.md, data-and-security.md and capabilities.md shall say that a MarDoc-run Worker on Cloudflare exchanges sign-in codes and sees GitHub tokens. | S-21, S-28; RK-2 | Must | 1 | Reviewer reads the three files; `grep -l Cloudflare` lists all three. |
+| F-73 | data-and-security.md's storage table shall list `mardoc_auth_method`, and known-issues.md shall describe the sign-in 401 path. | Derived from F-32, F-34; REVIEW.md | Must | 1 | `grep -n mardoc_auth_method docs/data-and-security.md` finds the table row; reviewer reads known-issues.md. |
 | F-71 | setup-github-pat.md shall remain the guide for the personal-access-token option, linked from Settings. | S-21 | Must | 1 | Playwright: the token option links to the guide; the guide's title is unchanged. |
 | F-72 | Settings shall not say that MarDoc has no server. | Q-10 | Must | 1 | `grep -n "there is no server" src/components/SettingsPanel.tsx` prints nothing. |
 
@@ -163,9 +172,10 @@ The full list, with sources, is in [intent.md](intent.md#owners-statements).
 | NF-13 | **Fail mode.** A Worker or Cloudflare failure never affects PAT users, demo mode or document loading. | S-17, S-26 | Playwright with `/api/auth/*` returning 503: the PAT specs and demo-mode specs pass. |
 | NF-14 | **No caching.** Every `/api/auth/*` response carries `Cache-Control: no-store`. | Derived from SP-1 criterion 6 | Worker test and live probe. |
 | NF-15 | **No credential logging.** The Worker never logs a token, code, verifier or secret. | Derived from RK-2 | Worker test: `console` methods are never called during any route; code review of every log line. |
-| NF-16 | **Sign-in latency.** From GitHub's redirect to the callback until the app shows "Signed in", at most 3 s† at p95. | Derived from S-12 | Owner demo: 5 timed sign-ins on the live zone; record each. |
+| NF-16 | **Sign-in latency.** From GitHub's redirect to the callback until the app shows "Signed in", each of five timed sign-ins takes at most 3 s†. | Derived from S-12 | Owner demo: 5 timed sign-ins on the live zone; record each. |
 | NF-17 | **Cost.** Sign-in traffic stays under the Free plan's 100,000 requests a day ([Cloudflare pricing](https://developers.cloudflare.com/workers/platform/pricing/)). | C-15 | Owner check of the Worker's request count in the dashboard at each milestone close. |
-| NF-18 | **Accessibility.** Sign in, Sign in again, the install link and every sign-in error are reachable by keyboard and announced to screen readers. | Derived from F-10, F-32 | Playwright keyboard-only run through first sign-in and expiry; prompts sit in an `aria-live` region. |
+| NF-18 | **Keyboard.** Sign in, Sign in again, the install link and every sign-in error are reachable by keyboard. | Derived from F-10, F-32 | Playwright keyboard-only run through first sign-in and expiry. |
+| NF-22 | **Screen readers.** Every sign-in status change and error is announced. | Derived from F-10, F-32 | Playwright: prompts and errors sit in an `aria-live` region. |
 | NF-19 | **Testability.** Every sign-in journey runs in `npm run ci` without GitHub or Cloudflare, through a mocked exchange. | S-22 | `npm run ci` passes with the network to `github.com` and `/api/auth/*` blocked except for mocks. |
 | NF-20 | **Browsers.** Sign-in works in the current Chrome, Firefox and Safari on desktop, Safari on iOS and Chrome on Android. | Derived from S-12 | SP-3 matrix, then the owner demo on each browser. |
 | NF-21 | **Secret rotation.** The client secret can be rotated by the documented procedure; rotation is yearly and on any suspected compromise. | L0 operating commitment | The runbook exists in the repo; SP-2 records whether two secrets can be live at once. |
@@ -178,16 +188,16 @@ the default shown. If an assumption turns out wrong, only the parts named in
 
 | ID | Assumption (default) | Link | If it is wrong |
 |---|---|---|---|
-| A-10 | The callback hands the token to the app window through a sign-in pop-up posting to `window.opener`, and the opener survives the trip through github.com. | Q-8, F-14, F-23, SP-3 | The hand-off uses a same-origin `BroadcastChannel` from the callback page instead; F-14's test changes from opener to channel. |
-| A-11 | The production App is named "MarDoc" with the permissions in NF-10, expiring user tokens, and "Request user authorization during installation" on. | Q-19, NF-10 | The install URL slug in F-41 and the permission list in NF-10 change. |
+| A-10 | The callback hands the token to the app window through a sign-in pop-up posting to `window.opener`, and the opener survives the trip through github.com. | Q-8, F-14, F-23, SP-3 | The candidate fallback is a same-origin `BroadcastChannel`. It has no `event.source`, so I-11 falls to the nonce alone and every same-origin context, including rendered-document iframes and other MarDoc tabs, receives the token: RK-1 grows. The fallback needs its own ADR before it is built. |
+| A-11 | The production App is named "MarDoc" with the permissions in NF-10, expiring user tokens, "Request user authorization (OAuth) during installation" off and no Setup URL. | Q-19, NF-10 | The install URL slug in F-41 and the permission list in NF-10 change. With the option on, GitHub sends the install tab to the callback with a code and no MarDoc `state`; F-29 then matters more. |
 | A-12 | After a reload the app may keep a non-secret marker (`mardoc_auth_method = "github-app"`) to show Sign in again. | Q-20, F-32 | Without a marker, a reload shows the signed-out Settings view; F-32 is dropped. |
-| A-13 | Signing in removes a saved PAT after the user confirms. | Q-21, F-53 | Both stay; on reload the saved PAT loads, and the stage 1 gate must say it checks only app tokens. |
+| A-13 | Signing in keeps a saved PAT, unused while the sign-in session lasts; at start-up a saved PAT wins over the sign-in marker. | Q-21, F-53 | If the PAT is removed instead, a user whose org has not installed MarDoc loses their only working credential. |
 | A-14 | Disconnect revokes the single token, not the whole grant. | Q-22, F-61 | Revoking the grant also ends sign-in on the user's other devices and forces consent again. |
 | A-15 | e2e mocks `/api/auth/*` with Playwright routes; local Worker work uses a separate development App with a localhost callback, registered by the owner. | Q-23, NF-19 | Local end-to-end tests need the live zone; NF-19's check changes. |
 | A-16 | The repository list for a signed-in token comes from GitHub's "repositories accessible to the user access token" endpoints (`/user/installations`, `/user/installations/{id}/repositories`). | Q-24, F-40 | `fetchUserRepos` keeps `GET /user/repos` if the owner demo shows it is already filtered to installations. |
 | A-17 | Worker source lives in `worker/` in this repo, is tested by `npm run ci`, and the owner deploys it with `wrangler deploy` from a tagged commit; nothing deploys it automatically. | Q-25, C-14 | Deployment steps and the runbook change. |
 | A-18 | The app warns 10 minutes† before the token expires, with a Sign in again button. | Q-26, F-33 | Users meet expiry without warning; F-33 is unchanged. |
-| A-19 | The `init` listener's origin and source checks (ADO-1, RK-3) ship before stage 1. | Q-27, F-14 | A forged `init` can replace a signed-in token with another token, as it can replace a PAT today; RK-3 stays open for stage 1. |
+| A-19 | The `init` listener's embed-mode and parent-window checks (the `init` part of ADO-1) are a stage 1 prerequisite (F-16). The rest of ADO-1 stays with SEC-01. | Q-27, F-16 | Stage 1 ships with RK-3 open, which needs the owner's explicit acceptance in risks.md; F-16 is removed. |
 | A-20 | The VS Code extension keeps its current `repo`-scoped token and is unchanged by stage 1. | Q-28, F-15 | Extension work joins this milestone. |
 
 ## Use-case stories
@@ -202,7 +212,7 @@ the default shown. If an assumption turns out wrong, only the parts named in
 
 **When it goes wrong:** they deny consent; the window closes and Settings says sign-in was cancelled, with the token option.
 
-**Covers:** F-10, F-11, F-12, F-13, F-14, F-20, F-21, F-23, F-24, F-30, F-40, NF-11, NF-16
+**Covers:** F-10, F-11, F-12, F-13, F-14, F-17, F-20, F-21, F-23, F-24, F-28, F-30, F-40, NF-11, NF-16
 
 ### An org member asks for an install
 
@@ -214,7 +224,7 @@ the default shown. If an assumption turns out wrong, only the parts named in
 
 **When it goes wrong:** the owner declines or never answers; the repo never appears, and the message offers the personal-access-token option (which may itself need org approval).
 
-**Covers:** F-40, F-41, F-42, F-43, F-52, NF-10
+**Covers:** F-29, F-40, F-41, F-42, F-43, F-44, F-52, NF-10
 
 ### The token expires mid-review
 
@@ -224,9 +234,9 @@ the default shown. If an assumption turns out wrong, only the parts named in
 2. They ignore it. At expiry the app stops sending the token and the banner says sign-in has expired.
 3. They click Sign in again. GitHub remembers the authorisation, the window closes by itself, and their unsent comment and place are unchanged.
 
-**When it goes wrong:** they reload instead; the token is gone, the route is kept, and Settings offers Sign in again (F-32). Unsaved editor text survives only where drafts already do.
+**When it goes wrong:** they reload instead; the token is gone, the route is kept, and the main pane offers Sign in again (F-32, F-37). Unsaved editor text survives a reload only where drafts already do: Markdown files in repositories, not HTML files or unsent PR comments.
 
-**Covers:** F-31, F-32, F-33, F-34, F-35, F-36, NF-12, NF-18
+**Covers:** F-31, F-32, F-33, F-34, F-35, F-36, F-37, F-38, NF-12, NF-18, NF-22
 
 ### The Worker is down
 
@@ -238,7 +248,19 @@ the default shown. If an assumption turns out wrong, only the parts named in
 
 **When it goes wrong:** the health check passes but the exchange fails; the callback reports the error and the same message appears (F-52).
 
-**Covers:** F-27, F-50, F-51, F-52, F-71, NF-13
+**Covers:** F-27, F-50, F-51, F-52, F-53, F-54, F-71, NF-13
+
+### Stage 1 release gate
+
+**The owner** wants proof that stage 1 is safe before it ships.
+
+1. `npm run ci` passes the stage 1 gate tests: no token in storage (F-30), no `/refresh` (F-25), no CORS headers (F-22), no storage bindings (F-26), embed checks (F-15, F-16) and Disconnect (F-60).
+2. The live probe and owner demo pass on the production App and Worker.
+3. A reviewer reads the changed docs and Settings copy (F-70, F-72, F-73).
+
+**When it goes wrong:** any gate test fails; stage 1 does not ship (L0 proof 3).
+
+**Covers:** F-15, F-16, F-22, F-25, F-26, F-30, F-60, F-70, F-72, F-73
 
 ## Conflicts and how the design resolves them
 
@@ -253,6 +275,8 @@ The X-n numbers continue the adoption judgement's X-1 to X-19.
 | X-24 | S-12, "about 2 clicks", against org installs that need an org owner's approval. | Two clicks hold where MarDoc is installed (F-11); org installs follow their own journey (F-43), as L0 proof 2 says. |
 | X-25 | S-20, revoke "the grant", against keeping sign-in on the user's other devices. | Default revokes only the token (A-14, Q-22). |
 | X-26 | S-18, e2e seeds `mardoc_github_token`, against F-30, no token in storage. | F-30 covers signed-in tokens only; PATs keep their storage (F-50). |
+| X-27 | S-19, "lock the worker's CORS to the MarDoc origin", against F-22, no CORS headers at all. | Every caller is same-origin, so sending no CORS headers is the tightest lock; a cross-origin read is refused by the browser. |
+| X-28 | Q-11 (accepted) puts the `init` checks in the SEC-01 closure criteria, against F-16, which needs the `init` part before stage 1. | Q-27: only the `init` checks move forward, because a forged `init` can swap a signed-in token; the other ADO-1 listeners stay with SEC-01. The owner decides. |
 
 ## Stage 2 note
 
@@ -273,13 +297,13 @@ is recorded as an assumption above. Q-8 comes from the L0 and keeps its ID.
 | ID | Question | Recommended default | Status |
 |---|---|---|---|
 | Q-8 | How does the Worker hand the token to the app, and where are `state` and PKCE kept? | The callback page posts the token to the pop-up's opener, with the target origin fixed to `https://mardoc.app` and the attempt's one-time value. `state`, the PKCE verifier and the one-time value live in HttpOnly cookies on `/api/auth` for 10 minutes. No refresh token in stage 1. SP-3 checks the opener survives github.com (A-10). | PENDING |
-| Q-19 | What is the production GitHub App's name, and which permissions does it request? **One-way door:** the name and slug are public, and the install URL appears in docs and the app. | "MarDoc"; Contents read and write, Pull requests read and write, Metadata read; expiring user tokens on; callback `https://mardoc.app/api/auth/callback`. The owner registers it (A-11). | PENDING |
+| Q-19 | What is the production GitHub App's name, and which permissions does it request? **One-way door:** the name and slug are public, and the install URL appears in docs and the app. | "MarDoc"; Contents read and write, Pull requests read and write, Metadata read; expiring user tokens on; "Request user authorization during installation" off; callback `https://mardoc.app/api/auth/callback`. The owner registers it (A-11). | PENDING |
 | Q-20 | May the app keep a non-secret marker to offer Sign in again after a reload? | Yes: `mardoc_auth_method = "github-app"`, holding no token (A-12). | PENDING |
-| Q-21 | What happens to a saved PAT when the user signs in with GitHub? | Remove it once the user confirms, so one credential is active (A-13). | PENDING |
+| Q-21 | What happens to a saved PAT when the user signs in with GitHub? | Keep it, unused while signed in; it becomes active again on Disconnect or after a reload (A-13). | PENDING |
 | Q-22 | Does Disconnect revoke the token or the whole grant? | The token, through a Worker revoke route (A-14). | PENDING |
 | Q-23 | How do developers and e2e exercise sign-in without the live zone? | Playwright mocks `/api/auth/*`; a separate development App with a localhost callback for `wrangler dev`, registered by the owner (A-15). | PENDING |
 | Q-24 | Which GitHub endpoint lists the repositories a signed-in token can reach? | The user-installation endpoints; confirmed in the owner demo (A-16). | PENDING |
 | Q-25 | Where does the Worker source live, and who deploys it? | `worker/` in this repo, tested in `npm run ci`; the owner deploys from a tagged commit (A-17). | PENDING |
 | Q-26 | Should the app warn before the token expires? | Yes, 10 minutes† before, with Sign in again (A-18). | PENDING |
-| Q-27 | Must the `init` listener checks (ADO-1, RK-3) ship before stage 1? | Yes; they are small and stop a forged message from swapping the signed-in token (A-19). | PENDING |
+| Q-27 | Must the `init` listener checks (part of ADO-1, RK-3) ship before stage 1? | Yes, the `init` part only (F-16); otherwise the owner accepts RK-3 for stage 1 in risks.md. This moves part of Q-11's SEC-01 scope forward (X-28, A-19). | PENDING |
 | Q-28 | Q-17 deferred the VS Code extension's scopes to this L1. Do they change? | No: unchanged in stage 1 and decided with VS Code sign-in, which is out of scope (A-20). | PENDING |

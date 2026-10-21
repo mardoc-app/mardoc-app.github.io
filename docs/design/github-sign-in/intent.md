@@ -96,6 +96,20 @@ sign-in fails.
 | S-27 | "Stage 2 (refresh) is out of scope apart from a note." | Owner's L1 brief, 2026-10-21 |
 | S-28 | "The README, data-and-security.md and capabilities.md must say so." (Cloudflare in the credential path) | L0 § The pieces, approved as D-1 |
 
+## Decisions derived by the lead, for the owner's yes or no
+
+These came from analysis, not from the owner's words. Each is a default in
+[requirements.md](requirements.md) and changes if the owner says no.
+
+| Decision | Where | Default |
+|---|---|---|
+| A saved PAT stays saved, unused while signed in | F-53, Q-21 | Keep it |
+| Disconnect revokes the token, not the whole grant (S-20 says grant) | F-61, Q-22, X-25 | Token |
+| A non-secret marker offers Sign in again after a reload | F-32, Q-20 | Yes |
+| The `init` listener checks ship before stage 1 | F-16, Q-27, X-28 | Yes, `init` only |
+| No sign-in inside the VS Code embed | F-15, A-20 | Not offered |
+| Signing in again as another login resets repository state | F-36 | Reset |
+
 ## Open questions
 
 The questions this work raises are in
