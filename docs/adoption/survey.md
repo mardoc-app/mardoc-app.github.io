@@ -35,8 +35,9 @@ By folder:
 | Folder | Files |
 |---|---|
 | . | 4 |
-| docs | 17 |
+| docs | 15 |
 | docs/adr | 1 |
+| docs/archive | 2 |
 | docs/assets | 3 |
 | docs/design | 24 |
 | docs/features | 39 |
@@ -65,15 +66,16 @@ By folder:
 | REVIEW.md | unknown | guess | 2026-10-20 | n/a |  | 0 |
 | docs/README.md | unknown | guess | 2026-10-14 | 0 |  | 0 |
 | docs/adr/0001-web-sign-in-github-app-worker-route.md | process | guess | 2026-10-20 | 0 |  | 0 |
-| docs/application-audit.md | unknown | guess | 2026-09-23 | 30 |  | 0 |
 | docs/architecture.md | L1 | guess | 2026-10-15 | 0 |  | 0 |
+| docs/archive/application-audit.md | unknown | guess | untracked | n/a |  | 0 |
+| docs/archive/html-inline-diff-delivery-plan.md | unknown | guess | untracked | n/a |  | 0 |
 | docs/branch-links.md | unknown | guess | 2026-09-23 | 6 |  | 0 |
 | docs/capabilities.md | unknown | guess | 2026-10-19 | n/a |  | 0 |
 | docs/comment-navigation-plan.md | unknown | guess | 2026-09-28 | n/a |  | 0 |
-| docs/data-and-security.md | unknown | guess | 2026-10-16 | n/a |  | 0 |
-| docs/design/github-connection/architecture.html | L1 | declared | untracked | n/a |  | 10 |
+| docs/data-and-security.md | unknown | guess | 2026-10-21 | n/a |  | 0 |
+| docs/design/github-connection/architecture.html | L1 | declared | 2026-10-21 | n/a |  | 10 |
 | docs/design/github-sign-in/strategy.html | L0 | declared | 2026-10-20 | n/a |  | 0 |
-| docs/design/mardoc/architecture.html | L1 | declared | untracked | n/a |  | 20 |
+| docs/design/mardoc/architecture.html | L1 | declared | 2026-10-21 | 0 |  | 20 |
 | docs/design/mardoc/design.md | L2 | guess | 2026-10-20 | n/a |  | 0 |
 | docs/design/mardoc/intent.md | L1 | guess | 2026-10-20 | n/a |  | 0 |
 | docs/design/mardoc/requirements.md | L1 | guess | 2026-10-20 | 0 |  | 0 |
@@ -119,18 +121,17 @@ By folder:
 | docs/features/done/032-mermaid-theme-upgrade.md | unknown | guess | 2026-09-23 | 4 |  | 0 |
 | docs/features/done/033-html-inline-comments.md | unknown | guess | 2026-09-24 | 0 |  | 0 |
 | docs/features/done/038-cellphone-mode-viewer.md | unknown | guess | 2026-09-23 | n/a |  | 0 |
-| docs/html-inline-diff-delivery-plan.md | unknown | guess | 2026-10-14 | n/a |  | 0 |
 | docs/known-issues.md | unknown | guess | 2026-09-23 | n/a |  | 0 |
 | docs/lessons.md | unknown | guess | 2026-10-20 | 0 |  | 0 |
 | docs/performance.md | unknown | guess | 2026-09-24 | 0 |  | 0 |
-| docs/plan.md | process | guess | 2026-10-20 | 0 |  | 0 |
+| docs/plan.md | process | guess | 2026-10-21 | 0 |  | 0 |
 | docs/review-links.md | unknown | guess | 2026-10-15 | 0 |  | 0 |
-| docs/reviews/2026-10-20-as-is-baselines.md | process | guess | untracked | n/a |  | 0 |
+| docs/reviews/2026-10-20-as-is-baselines.md | process | guess | 2026-10-21 | 0 |  | 0 |
 | docs/reviews/2026-10-20-github-sign-in-l0.md | process | guess | 2026-10-20 | 0 |  | 0 |
 | docs/risks.md | unknown | guess | 2026-10-20 | n/a |  | 1 |
 | docs/setup-github-pat.md | unknown | guess | 2026-09-23 | n/a |  | 0 |
 | docs/test-html-roundtrip.md | unknown | guess | 2026-09-23 | n/a |  | 2 |
-| e2e/README.md | L3 | guess | 2026-09-23 | 27 |  | 0 |
+| e2e/README.md | L3 | guess | 2026-09-23 | 29 |  | 0 |
 
 ## Stale docs (older than 90 days and 10 or more code commits since)
 
@@ -193,25 +194,6 @@ None.
 
 No numbered index found.
 
-## Judgement (agent fills in)
+## Judgement
 
-### Overlaps
-
-{{to be completed by the agent}}
-
-### Contradictions
-
-{{to be completed by the agent}}
-
-### Newest doc per topic
-
-{{to be completed by the agent}}
-
-### Authoritative but stale
-
-{{to be completed by the agent}}
-
-### Boilerplate
-
-{{to be completed by the agent}}
-
+See [judgement.md](judgement.md). It is kept separate because `doc_survey.py --map` regenerates this file.

@@ -5,6 +5,8 @@ MarDoc: a browser-only, statically exported Next.js app (GitHub Pages, mardoc.ap
 ## Project map
 
 - `docs/design/mardoc/`: intent, requirements (F/NF/C IDs), design (T-n, traceability), UX and DevX where relevant
+- Architecture: start at the as-is system baseline `docs/design/mardoc/architecture.html` (L1); `docs/architecture.md` stays the technical record until a designed L1 supersedes it (Q-12)
+- `docs/README.md` is the doc index; process rules live here in AGENTS.md (Q-13); `docs/adoption/map.md` records which docs are adopted
 - `docs/plan.md`: status, milestones, work packages, backlogs; § How work is done
 - `docs/adr/`, `docs/spikes/`, `docs/reviews/`, `docs/risks.md`, `docs/lessons.md`
 - `demos/`: owner guides (`mN.md`) and demo evidence

@@ -32,6 +32,8 @@ The deployment artifact is `out/`. The current `npm start` script invokes `next 
 | `npx playwright install chromium webkit` | Install both configured browser engines. |
 | `npm run e2e` | Browser tests; starts a dev server locally. |
 | `npm run e2e:ui` | Playwright interactive runner. |
+| `npm run check` | One-shot unit/component suite (`vitest --run`); the SDLC commit gate runs it before code commits. |
+| `npm run ci` | Unit suite, static build, then Playwright (package.json `ci`); the single local entry point for everything CI runs. |
 
 [Browser test documentation](../e2e/README.md) covers desktop/mobile projects and production-export execution. Tests in `src/__tests__` cover pure helpers and selected components; E2E specs cover integrated editor/review flows using sample fixtures. Converter-only tests do not establish full TipTap fidelity. Tests marked `it.fails` represent known conversion failures, not repaired behavior.
 

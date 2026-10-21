@@ -1,6 +1,6 @@
 # Capabilities and workflows
 
-Reviewed against `4abb8f5` on 2026-09-23. See [known issues](known-issues.md) for implementation gaps and [data storage](data-and-security.md) before relying on draft recovery or document isolation.
+Reviewed against `4abb8f5` on 2026-09-23; on 2026-10-21 only a duplicated AI feedback paragraph was replaced with a link (adoption: see [adoption judgement](adoption/judgement.md)). See [known issues](known-issues.md) for implementation gaps and [data storage](data-and-security.md) before relying on draft recovery or document isolation.
 
 ## Document support
 
@@ -102,7 +102,7 @@ network errors do not trigger a second comment type automatically. A lost server
 response still cannot prove whether a write happened; check GitHub before manually
 retrying such an error. Pending drafts are not restored after reloading the tab.
 
-AI feedback polishing is optional and off by default. Enable it under Settings → AI feedback to reveal polishing controls. Hosted providers usually require a provider API key; reviewing and commenting never require AI. Disabling the feature cancels active polishing and forgets its in-memory key.
+AI feedback polishing is optional and off by default; its enablement, key handling and data boundary are described in [Optional feedback AI connection](data-and-security.md#optional-feedback-ai-connection).
 
 ### Image review
 

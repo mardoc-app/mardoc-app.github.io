@@ -19,8 +19,9 @@
     "docs": 72,
     "by_folder": {
       ".": 4,
-      "docs": 17,
+      "docs": 15,
       "docs/adr": 1,
+      "docs/archive": 2,
       "docs/assets": 3,
       "docs/design": 24,
       "docs/features": 39,
@@ -41,8 +42,9 @@
       "REVIEW.md",
       "docs/README.md",
       "docs/adr/0001-web-sign-in-github-app-worker-route.md",
-      "docs/application-audit.md",
       "docs/architecture.md",
+      "docs/archive/application-audit.md",
+      "docs/archive/html-inline-diff-delivery-plan.md",
       "docs/assets/dogfood-review-pr60.png",
       "docs/assets/mardoc-logo.png",
       "docs/assets/screenshot.png",
@@ -114,7 +116,6 @@
       "docs/features/done/032-mermaid-theme-upgrade.md",
       "docs/features/done/033-html-inline-comments.md",
       "docs/features/done/038-cellphone-mode-viewer.md",
-      "docs/html-inline-diff-delivery-plan.md",
       "docs/known-issues.md",
       "docs/lessons.md",
       "docs/performance.md",
@@ -212,14 +213,26 @@
       "broken_links": []
     },
     {
-      "path": "docs/application-audit.md",
+      "path": "docs/architecture.md",
+      "level": "L1",
+      "level_source": "guess",
+      "content_date": "2026-10-15",
+      "content_commit": "cc6a117",
+      "code_refs": [
+        "out"
+      ],
+      "code_commits_since": 0,
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/archive/application-audit.md",
       "level": "unknown",
       "level_source": "guess",
-      "content_date": "2026-09-23",
-      "content_commit": "5854965",
+      "content_date": null,
+      "content_commit": null,
       "code_refs": [
         ".github/workflows/deploy.yml",
-        "README.md",
         "e2e/README.md",
         "next.config.js",
         "out",
@@ -234,20 +247,20 @@
         "src/lib/github-api.ts",
         "src/lib/turndown.ts"
       ],
-      "code_commits_since": 30,
+      "code_commits_since": "n/a",
       "stale": false,
       "broken_links": []
     },
     {
-      "path": "docs/architecture.md",
-      "level": "L1",
+      "path": "docs/archive/html-inline-diff-delivery-plan.md",
+      "level": "unknown",
       "level_source": "guess",
-      "content_date": "2026-10-15",
-      "content_commit": "cc6a117",
+      "content_date": null,
+      "content_commit": null,
       "code_refs": [
-        "out"
+        "vitest.config.ts"
       ],
-      "code_commits_since": 0,
+      "code_commits_since": "n/a",
       "stale": false,
       "broken_links": []
     },
@@ -290,8 +303,8 @@
       "path": "docs/data-and-security.md",
       "level": "unknown",
       "level_source": "guess",
-      "content_date": "2026-10-16",
-      "content_commit": "df2ce45",
+      "content_date": "2026-10-21",
+      "content_commit": "82b1034",
       "code_refs": [],
       "code_commits_since": "n/a",
       "stale": false,
@@ -301,8 +314,8 @@
       "path": "docs/design/github-connection/architecture.html",
       "level": "L1",
       "level_source": "declared",
-      "content_date": null,
-      "content_commit": null,
+      "content_date": "2026-10-21",
+      "content_commit": "91eb976",
       "code_refs": [],
       "code_commits_since": "n/a",
       "stale": false,
@@ -374,12 +387,12 @@
       "path": "docs/design/mardoc/architecture.html",
       "level": "L1",
       "level_source": "declared",
-      "content_date": null,
-      "content_commit": null,
+      "content_date": "2026-10-21",
+      "content_commit": "91eb976",
       "code_refs": [
         "out"
       ],
-      "code_commits_since": "n/a",
+      "code_commits_since": 0,
       "stale": false,
       "broken_links": [
         {
@@ -1036,17 +1049,6 @@
       "broken_links": []
     },
     {
-      "path": "docs/html-inline-diff-delivery-plan.md",
-      "level": "unknown",
-      "level_source": "guess",
-      "content_date": "2026-10-14",
-      "content_commit": "f4c383c",
-      "code_refs": [],
-      "code_commits_since": "n/a",
-      "stale": false,
-      "broken_links": []
-    },
-    {
       "path": "docs/known-issues.md",
       "level": "unknown",
       "level_source": "guess",
@@ -1090,8 +1092,8 @@
       "path": "docs/plan.md",
       "level": "process",
       "level_source": "guess",
-      "content_date": "2026-10-20",
-      "content_commit": "2b94d90",
+      "content_date": "2026-10-21",
+      "content_commit": "53e66cd",
       "code_refs": [
         ".github/workflows/test.yml",
         "e2e",
@@ -1121,8 +1123,8 @@
       "path": "docs/reviews/2026-10-20-as-is-baselines.md",
       "level": "process",
       "level_source": "guess",
-      "content_date": null,
-      "content_commit": null,
+      "content_date": "2026-10-21",
+      "content_commit": "91eb976",
       "code_refs": [
         "README.md",
         "REVIEW.md",
@@ -1131,7 +1133,7 @@
         "public/CNAME",
         "src"
       ],
-      "code_commits_since": "n/a",
+      "code_commits_since": 0,
       "stale": false,
       "broken_links": []
     },
@@ -1211,27 +1213,37 @@
       "content_date": "2026-09-23",
       "content_commit": "5854965",
       "code_refs": [
+        "e2e/branch-links.spec.ts",
+        "e2e/comment-jumps.spec.ts",
         "e2e/critical-flows.spec.ts",
         "e2e/editor-editing.spec.ts",
         "e2e/embed-mode-clipboard.spec.ts",
+        "e2e/feedback-polishing.spec.ts",
         "e2e/fixtures/helpers.ts",
         "e2e/fixtures/pr-realistic",
+        "e2e/html-comment-jumps.spec.ts",
+        "e2e/html-inline-diff.spec.ts",
+        "e2e/iframe-resize.spec.ts",
         "e2e/image-flows.spec.ts",
         "e2e/keyboard-shortcuts.spec.ts",
+        "e2e/large-diff-comments.spec.ts",
         "e2e/line-numbers.spec.ts",
         "e2e/navigation-routing.spec.ts",
         "e2e/per-file-comments.spec.ts",
+        "e2e/pr-comment-navigation.spec.ts",
         "e2e/pr-image-stability.spec.ts",
         "e2e/pr-mermaid-stability.spec.ts",
         "e2e/pr-realistic-markdown.spec.ts",
         "e2e/pr-review-submission.spec.ts",
+        "e2e/render-reuse.spec.ts",
         "e2e/rendering-features.spec.ts",
+        "e2e/source-diffs.spec.ts",
         "e2e/split-view-sync.spec.ts",
         "e2e/toolbar-parity.spec.ts",
         "out",
         "src/__tests__"
       ],
-      "code_commits_since": 27,
+      "code_commits_since": 29,
       "stale": false,
       "broken_links": []
     }

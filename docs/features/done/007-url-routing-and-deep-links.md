@@ -1,8 +1,8 @@
 # 007: URL Routing and Deep Links
 
-**Status: Partial.** Reviewed against `4abb8f5` on 2026-09-23.
+**Status: Implemented core.** Reviewed against `4abb8f5` on 2026-09-23; corrected against `2b94d90` on 2026-10-21.
 
-Hash navigation and restoration exist; malformed routes and route encoding remain incomplete. See NAV-01 in the known-issues register.
+Hash navigation and restoration exist. Route builders encode branch/path segments, and malformed routes parse as no route (`hash-router.ts`); NAV-01 is closed in code.
 
 See the [feature index](../README.md) for current status and reference documentation. The original story below is retained as a historical design record; its checkboxes and future-tense instructions are not a current completion report.
 

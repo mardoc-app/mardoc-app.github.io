@@ -1,8 +1,8 @@
 # 021 — Hash Router URL Decoding
 
-**Status: Partial.** Reviewed against `4abb8f5` on 2026-09-23.
+**Status: Implemented core.** Reviewed against `4abb8f5` on 2026-09-23; corrected against `2b94d90` on 2026-10-21.
 
-Branch/path decoding exists; malformed escapes, numeric validation, fallback routes, and route-builder encoding still need work. See NAV-01.
+Branch/path decoding, malformed-escape handling, canonical numeric validation, a no-route fallback, and route-builder encoding exist, with `hash-router.test.ts`. NAV-01 is closed in code.
 
 See the [feature index](../README.md) for current status and reference documentation. The original story below is retained as a historical design record; its checkboxes and future-tense instructions are not a current completion report.
 
