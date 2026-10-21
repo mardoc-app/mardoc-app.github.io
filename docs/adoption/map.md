@@ -21,7 +21,7 @@ The areas under active change are **GitHub connection and credentials** (#146, D
 | `docs/branch-links.md` | L3 | current | adopt | Accurate; minor X-19. |
 | `docs/capabilities.md` | L1 | current | adopt | Capability reference (2026-10-19). Duplicate paragraph at :105. |
 | `docs/comment-navigation-plan.md` | process | stale | fix | Marker section stale (X-13); lasting location contract at :68-209. |
-| `docs/data-and-security.md` | L2 | contradictory | fix | Security owner, under active change. X-1, X-2; missing storage keys. Source for the github-connection baseline. |
+| `docs/data-and-security.md` | L2 | stale | fix | Security owner. X-1, X-2, X-6 and the missing storage keys fixed 2026-10-21 (owner OK). Still open: the `4abb8f5` header (X-18) and the paragraph duplicated in capabilities.md. |
 | `docs/design/github-sign-in/strategy.html` | L0 | current | adopt | L0 strategy (D-1). |
 | `docs/design/mardoc/design.md` | L2 | boilerplate | leave | Unfilled template (Q-12). |
 | `docs/design/mardoc/intent.md` | L1 | boilerplate | leave | Unfilled template; filled by sdlc:requirements. |
@@ -103,10 +103,10 @@ Each row is also a Q-n in [requirements.md](../design/mardoc/requirements.md#ope
 
 | Doc | Edit | Why |
 |---|---|---|
-| docs/data-and-security.md:15 | "Disconnect removes the saved key, but does not reset the module-level Octokit instance." → "Disconnect removes the saved key and clears the module-level Octokit client and the in-memory content, tree and image caches." | X-1; app-context.tsx:300-304, github-api.ts:33-41 |
-| docs/data-and-security.md:31 and docs/known-issues.md:7 | Name all three viewers: HtmlViewer, the HTML path in DiffViewer, and the read-only RepositoryReference preview | X-2; RepositoryReference.tsx:53 |
-| docs/data-and-security.md state table | Add `mardoc_user_repos` (removed on Disconnect) and `mardoc_feedback_ai` / `mardoc_feedback_ai_enabled` (cleared by Clear AI connection; key memory-only) | SettingsPanel.tsx:90,108; app-context.tsx:293; feedback-ai.ts:5,13 |
-| docs/data-and-security.md:35 and docs/known-issues.md:9 | State that the `init` listener accepts messages from any sender (Q-11) | X-6 |
+| docs/data-and-security.md:15 | "Disconnect removes the saved key, but does not reset the module-level Octokit instance." → "Disconnect removes the saved key and clears the module-level Octokit client and the in-memory content, tree and image caches." | X-1; app-context.tsx:300-304, github-api.ts:33-41. **Applied 2026-10-21.** |
+| docs/data-and-security.md:31 and docs/known-issues.md:7 | Name all three viewers: HtmlViewer, the HTML path in DiffViewer, and the read-only RepositoryReference preview | X-2; RepositoryReference.tsx:53. **Applied to data-and-security.md 2026-10-21; known-issues.md part pending.** |
+| docs/data-and-security.md state table | Add `mardoc_user_repos` (removed on Disconnect) and `mardoc_feedback_ai` / `mardoc_feedback_ai_enabled` (cleared by Clear AI connection; key memory-only) | SettingsPanel.tsx:90,108; app-context.tsx:293; feedback-ai.ts:5,13. **Applied 2026-10-21.** |
+| docs/data-and-security.md:35 and docs/known-issues.md:9 | State that the `init` listener accepts messages from any sender (Q-11) | X-6. **Applied to data-and-security.md 2026-10-21; known-issues.md part pending.** |
 | docs/known-issues.md:19 (DATA-02) | Disconnect resets the Octokit client and session caches; it does not erase drafts or preferences | X-1 |
 | docs/known-issues.md:23 (REVIEW-01) | Manifests and comments paginate, renames read `previous_filename`, and per-document failures show an error state; the PR list is still one page of 100 | X-9; github-api.ts:296-304,402,410,450-458 |
 | docs/known-issues.md:29, :47 (REVIEW-02, NAV-01) | Mark "Closed in code since `4abb8f5`" with sources | X-10, X-11; app-context.tsx:451-465, hash-router.ts:24-58 |

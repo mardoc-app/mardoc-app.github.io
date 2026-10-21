@@ -12,11 +12,13 @@ Rendered documents can reference remote images, styles, media, and scripts. Thos
 
 | Data | Location / lifetime | Recovery or clearing behavior |
 | --- | --- | --- |
-| Browser-entered PAT | `localStorage`: `mardoc_github_token`; also React and Octokit memory | Restored on startup; Disconnect removes the saved key, but does not reset the module-level Octokit instance. |
+| Browser-entered PAT | `localStorage`: `mardoc_github_token`; also React and Octokit memory | Restored on startup; Disconnect removes the saved key and clears the module-level Octokit client and the in-memory content, tree and image caches. |
 | Last repository | `localStorage`: `mardoc_current_repo` | Restored when a deep link does not take precedence; removed on Disconnect. |
 | Existing repository Markdown draft | `localStorage`: `mardoc:draft:v1:{repo}:{branch}:{path}` | Includes Markdown and timestamp. Restore is offered when different from the baseline. New/local files are excluded. |
 | Display preferences | `localStorage`: `theme`, `mardoc_wide_format` | Persist independently of the connection. |
 | Image folder preference | `localStorage`: `mardoc:image-folder:{repo}` | Defaults to `docs/images` if missing or invalid. |
+| Cached repository list | `localStorage`: `mardoc_user_repos` | Filled by Settings; removed on Disconnect. |
+| AI feedback settings | `localStorage`: `mardoc_feedback_ai` (endpoint and model), `mardoc_feedback_ai_enabled` | **Clear AI connection** removes the endpoint and model; the enabled flag persists. The API key is memory-only. |
 | Loaded documents, pending review comments, editor state | React/browser memory | Pending comments and new/local edits are not recovered by the repository draft store. |
 | Authenticated image data | In-memory caches and rendered DOM | No durable offline repository cache is implemented. |
 | Submitted reviews, files, and images | GitHub | Persist according to repository history and GitHub behavior. |
@@ -24,15 +26,15 @@ Rendered documents can reference remote images, styles, media, and scripts. Thos
 
 localStorage is origin-scoped and not encrypted by MarDoc. It is distinct from the browser's HTTP cache. Browser settings, storage limits, or clearing site data can remove it. Storage failures are caught and may silently prevent saving drafts/preferences; autosave is not a backup guarantee.
 
-Disconnect removes the saved PAT and repository preference but leaves drafts and preferences. To remove persisted local data, use the browser's clear-site-data controls for the MarDoc origin and close its tabs. To revoke the credential itself, delete it in [GitHub token settings](https://github.com/settings/tokens). Deleting browser data does not delete submitted GitHub content.
+Disconnect removes the saved PAT, the repository preference and the cached repository list, and resets the in-memory GitHub client, but leaves drafts and preferences. To remove persisted local data, use the browser's clear-site-data controls for the MarDoc origin and close its tabs. To revoke the credential itself, delete it in [GitHub token settings](https://github.com/settings/tokens). Deleting browser data does not delete submitted GitHub content.
 
 ## Known HTML isolation gap
 
-Both [HtmlViewer](../src/components/HtmlViewer.tsx) and the HTML path in [DiffViewer](../src/components/DiffViewer.tsx) currently use `sandbox="allow-scripts allow-same-origin"` with `srcdoc`. Document scripts are retained. For same-origin content this combination does not protect the parent origin's storage from those scripts; see [MDN's iframe sandbox documentation](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/iframe#sandbox).
+[HtmlViewer](../src/components/HtmlViewer.tsx), the HTML path in [DiffViewer](../src/components/DiffViewer.tsx) and the read-only [RepositoryReference](../src/components/RepositoryReference.tsx) preview currently use `sandbox="allow-scripts allow-same-origin"` with `srcdoc`. Document scripts are retained. For same-origin content this combination does not protect the parent origin's storage from those scripts; see [MDN's iframe sandbox documentation](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/iframe#sandbox).
 
 The earlier feature specification promised `allow-scripts` without `allow-same-origin` and token isolation. That guarantee is not currently met. Treat rendered HTML as active content that must be trusted; this documentation refresh does not repair the boundary. [SEC-01](known-issues.md#sec-01-html-isolation) tracks the required implementation and browser-level verification.
 
-Markdown and PR-description rendering also place generated HTML into the application DOM. There is no general sanitization guarantee documented by this implementation. A future security pass should cover these paths, document resource loading, and source/origin validation for iframe and extension messages.
+Markdown and PR-description rendering also place generated HTML into the application DOM. There is no general sanitization guarantee documented by this implementation. The viewers check `event.source` for their resize and selection messages. The `init` message listener in [app-context.tsx](../src/lib/app-context.tsx) checks neither origin nor source and is active outside embed mode, so any window holding a reference, including a rendered document's script through `window.parent`, can replace the in-memory GitHub token and the displayed file (RK-3 in [risks.md](risks.md), Q-11). `file:content`, `theme:change` and the embed image bridge do not check the source either. A future security pass should cover these paths and document resource loading.
 
 ## Intended boundary and verification
 
