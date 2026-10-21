@@ -107,7 +107,7 @@ Do one step at a time and stop at any failure. Never paste a client secret, toke
 - Where can this GitHub App be installed: **Any account**
 - Create the App, copy the **Client ID** (not a secret), then under "Client secrets" click **Generate a new client secret**. This is secret A. Keep it on screen for step 3.
 
-**Step 2. Install on one repo.** App page > Install App > your account > "Only select repositories" > pick one test repo. That is `INSTALLED_REPO` (as `owner/repo`). Pick a second repo you can read that you did not select; that is `UNINSTALLED_REPO`.
+**Step 2. Install on one repo.** App page > Install App > your account > "Only select repositories" > pick one **private** test repo. That is `INSTALLED_REPO` (as `owner/repo`). Pick a second **private** repo you can read that you did not select; that is `UNINSTALLED_REPO`. Both must be private: a public repo answers 200 to any token, which would make check 4 pass or fail for the wrong reason.
 
 **Step 3. Configure and deploy.**
 1. Edit `wrangler.toml` `[vars]`: `CLIENT_ID`, `INSTALLED_REPO`, `UNINSTALLED_REPO`. Leave `ORG_REPO = ""`. Do not commit these values if the repo is private-sensitive; they are not secrets.
@@ -116,7 +116,7 @@ Do one step at a time and stop at any failure. Never paste a client secret, toke
 
 **Step 4. Probe.** From the repo root: `docs/spikes/sp-1/probe.sh routed`. Expect all PASS (criteria 2, 3 routed, 6).
 
-**Step 5. Round trip.** Open `https://mardoc.app/api/auth/login?secret=a` in a browser, sign in and consent. Save the JSON. Expect `login` = your login, `checks` = `INSTALLED_REPO` 200 and `UNINSTALLED_REPO` 404, `secret_used` "a". Note `token_expires_in_present` and `refresh_token_present`.
+**Step 5. Round trip.** Open `https://mardoc.app/api/auth/login?secret=a` in a browser, sign in and consent. Save the JSON. Expect `login` = your login, `checks` = `INSTALLED_REPO` 200 with `private: true` and `UNINSTALLED_REPO` 404, `secret_used` "a". A `private: false` result invalidates the check; pick a private repo and repeat. Note `token_expires_in_present` and `refresh_token_present`.
 
 **Step 6. Org check (criterion 5).**
 1. Make a test org, or use one, where a second account is a member but not an owner. Account M = member, account O = owner.
