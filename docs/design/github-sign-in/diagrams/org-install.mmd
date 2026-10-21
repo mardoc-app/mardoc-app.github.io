@@ -1,0 +1,16 @@
+sequenceDiagram
+  actor R as Reviewer
+  participant S as Settings screen
+  participant C as GitHub client
+  participant P as GitHub App
+  actor O as Org owner
+  R->>S: Open org repo link
+  S->>C: Load repo
+  C-->>S: 404
+  S-->>R: MarDoc may not be installed, install link, token option
+  R->>P: Request install on the org
+  P->>O: Notify install request
+  O->>P: Approve
+  R->>S: Refresh repositories
+  S->>C: GET /user/installations and repositories
+  C-->>S: Org repo listed

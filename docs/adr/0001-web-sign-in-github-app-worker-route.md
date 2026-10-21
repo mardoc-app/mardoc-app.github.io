@@ -1,11 +1,12 @@
 # ADR 0001: Web sign-in via GitHub App and a Worker route on mardoc.app
 
-- **Status:** Proposed (becomes Accepted or is superseded when SP-1 reports)
+- **Status:** Accepted (2026-10-21: the owner ran SP-1 on the live zone, reported PASS and accepted it)
 - **Date:** 2026-10-20
 - **Deciders:** Joe Barnett (owner); lead agent
 - **Evidence:** [L0 strategy](../design/github-sign-in/strategy.html);
   [L0 review GSI-1..13 and re-review](../reviews/2026-10-20-github-sign-in-l0.md);
-  SP-1 (pending, [plan.md Gate 0](../plan.md#gate-0-review-and-spikes));
+  [SP-1](../spikes/sp-1-github-sign-in.md) ([plan.md Gate 0](../plan.md#gate-0-review-and-spikes));
+  L1 design: [architecture](../design/github-sign-in/architecture.html), [design.md](../design/github-sign-in/design.md);
   issue [#146](https://github.com/mardoc-app/mardoc-app.github.io/issues/146)
 
 ## Context

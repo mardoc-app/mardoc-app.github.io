@@ -1,0 +1,21 @@
+sequenceDiagram
+  actor R as Reviewer
+  participant S as Settings screen
+  participant A as App auth state
+  participant W as Auth Worker
+  participant P as GitHub App
+  participant G as GitHub
+  R->>S: Click Sign in with GitHub
+  S->>A: startSignIn()
+  A->>W: Pop-up GET /api/auth/login?n=nonce
+  A->>W: fetch /api/auth/health
+  W-->>A: 200 ok
+  W->>P: 302 to consent screen with state and S256 challenge
+  R->>P: Approve
+  P->>W: Pop-up GET /api/auth/callback?code&state
+  W->>G: POST access_token with code, verifier, secret
+  G-->>W: access_token, expires_in, refresh_token
+  W-->>A: Callback page posts token and expiresIn to opener
+  A->>G: GET /user with the token
+  G-->>A: login
+  A-->>S: signed-in as login
