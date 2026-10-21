@@ -1,6 +1,6 @@
 # Data storage and security
 
-Reviewed against `4abb8f5` on 2026-09-23. This describes current behavior, including known gaps. Browser-only hosting is an architectural constraint; it does not by itself guarantee that documents cannot access credentials or make network requests.
+Reviewed against `4abb8f5` on 2026-09-23; corrected against `2b94d90` on 2026-10-21 (adoption: see [adoption judgement](adoption/judgement.md)). This describes current behavior, including known gaps. Browser-only hosting is an architectural constraint; it does not by itself guarantee that documents cannot access credentials or make network requests.
 
 ## What leaves the browser
 

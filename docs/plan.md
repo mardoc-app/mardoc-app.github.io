@@ -177,6 +177,18 @@ was fixed in the L0 page. None is deferred.
 Add one section per review (design review R-n, code review WPn). Intentional
 shortcuts are DEBT-n rows with reason, follow-up and impact.
 
+## Backlog from adoption
+
+Code and story changes that follow owner decisions on the [adoption map](adoption/map.md#decisions-raised) (answered 2026-10-21).
+
+| ID | Stage | Item |
+|---|---|---|
+| ADO-1 | SEC-01 | Q-11: add origin and source checks plus an embed-mode gate to the `init`, `file:content`, `theme:change` and image-bridge listeners; add them to the SEC-01 closure criteria with a browser test (RK-3). |
+| ADO-2 | Sign-in L1 | Q-10: replace the Settings copy "Your token never leaves your browser… there is no server" (SettingsPanel.tsx:252) with the data-and-security.md wording. |
+| ADO-3 | Sign-in L1 | Q-15: align the in-app PAT scope guidance (SettingsPanel.tsx:209-222) with setup-github-pat.md. |
+| ADO-4 | Sign-in L1 | Q-17: decide the VS Code extension's requested scopes. |
+| ADO-5 | When 037 is picked up | Q-18: change story 037 to memory-only AI keys, following feedback-ai.ts. |
+
 ## Decisions
 
 Owner decisions on L0 strategies and other direction-level choices. The design

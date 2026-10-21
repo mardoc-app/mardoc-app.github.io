@@ -39,7 +39,7 @@ Some organizations restrict classic PATs or require approval for fine-grained PA
 
 ## Disconnect or revoke
 
-**Disconnect** removes the saved token and repository preference from MarDoc. It does not erase drafts/preferences or comprehensively clear in-memory credentials. See [storage lifecycle](data-and-security.md). Deleting the token in GitHub settings revokes its API access.
+**Disconnect** removes the saved token, repository preference and cached repository list from MarDoc, and clears the in-memory GitHub client and its caches. It does not erase drafts or preferences. See [storage lifecycle](data-and-security.md). Deleting the token in GitHub settings revokes its API access.
 
 ## Troubleshooting
 

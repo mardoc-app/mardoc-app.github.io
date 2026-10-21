@@ -1,8 +1,8 @@
 # 024 — GitHub API Error Handling and Resilience
 
-**Status: Partial.** Reviewed against `4abb8f5` on 2026-09-23.
+**Status: Implemented core.** Reviewed against `4abb8f5` on 2026-09-23; corrected against `2b94d90` on 2026-10-21.
 
-Retry/backoff, rate-limit tracking, and error formatting exist. Individual PR content failures still become empty strings; see REVIEW-01.
+Retry/backoff, rate-limit tracking, and error formatting exist. A failed PR document read shows an error state; the PR list is still one page of 100 (REVIEW-01).
 
 See the [feature index](../README.md) for current status and reference documentation. The original story below is retained as a historical design record; its checkboxes and future-tense instructions are not a current completion report.
 

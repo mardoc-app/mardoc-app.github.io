@@ -1,8 +1,10 @@
 # Application and documentation audit
 
+> Archived 2026-10-21 during SDLC adoption; historical record, not current.
+
 Reviewed 2026-09-23 against commit `4abb8f5`.
 
-**Historical audit snapshot:** documentation claims quoted below refer to the pre-refresh files. Current guidance is in the [documentation index](README.md); unresolved implementation work is tracked in [known issues](known-issues.md). Documentation corrections do not imply that the underlying code gaps were fixed.
+**Historical audit snapshot:** documentation claims quoted below refer to the pre-refresh files. Current guidance is in the [documentation index](../README.md); unresolved implementation work is tracked in [known issues](../known-issues.md). Documentation corrections do not imply that the underlying code gaps were fixed.
 
 This is a source-based audit of the repository, including the README, setup guide, feature stories, manual round-trip fixture, test documentation, implementation, and CI configuration. It does not certify the deployed site, current CI results, browser performance, or the separate VS Code extension. Dependencies were not installed and tests were not run for this documentation-only review. No application behavior was changed.
 

@@ -1,12 +1,12 @@
 # Known issues and follow-up work
 
-Source review: `4abb8f5`, 2026-09-23. Entries below are open unless explicitly changed. Documentation corrections do not close implementation issues. These are source-supported gaps; runtime reproduction and performance measurements are still needed where noted.
+Reviewed against `4abb8f5` on 2026-09-23; corrected against `2b94d90` on 2026-10-21 (adoption: see [adoption judgement](adoption/judgement.md)). Entries below are open unless explicitly changed. Documentation corrections do not close implementation issues. These are source-supported gaps; runtime reproduction and performance measurements are still needed where noted.
 
 ## SEC-01: HTML isolation
 
-**Priority: first.** `HtmlViewer` and the HTML path in `DiffViewer` use `srcdoc` with `allow-scripts allow-same-origin`, contradicting the intended isolation of the PAT in parent localStorage. Document scripts remain active. See [data and security](data-and-security.md) and stories [031](features/done/031-html-document-rendering.md) / [033](features/done/033-html-inline-comments.md).
+**Priority: first.** `HtmlViewer`, the HTML path in `DiffViewer` and the read-only `RepositoryReference` preview use `srcdoc` with `allow-scripts allow-same-origin`, contradicting the intended isolation of the PAT in parent localStorage. Document scripts remain active. See [data and security](data-and-security.md) and stories [031](features/done/031-html-document-rendering.md) / [033](features/done/033-html-inline-comments.md).
 
-Closure requires a repaired boundary and real-browser tests demonstrating storage isolation while rendering, selection, resizing, and comments work. Include document resource policy, Markdown/PR-description HTML rendering, and iframe/extension message-source validation in the security review. No exploit against user credentials was performed in this audit.
+Closure requires a repaired boundary and real-browser tests demonstrating storage isolation while rendering, selection, resizing, and comments work. Include document resource policy, Markdown/PR-description HTML rendering, and iframe/extension message-source validation in the security review. The `init` message listener in `app-context.tsx` checks neither origin nor source and runs outside embed mode, so a document script can post a token or file to the app; closing SEC-01 includes that check ([RK-3](risks.md), Q-11). No exploit against user credentials was performed in this audit.
 
 ## DATA-01: Draft and pending-review recovery
 
@@ -16,17 +16,17 @@ Define recovery and discard expectations for each document/review mode, then tes
 
 ## DATA-02: Disconnect lifecycle
 
-Disconnect removes saved token/repository keys, but does not reset the module-level Octokit client or erase stored drafts/preferences. Decide which state must be cleared and distinguish disconnect from local-data deletion. See [storage lifecycle](data-and-security.md).
+Disconnect removes saved token/repository keys and resets the module-level Octokit client and session caches, but does not erase stored drafts/preferences. Decide which state must be cleared and distinguish disconnect from local-data deletion. See [storage lifecycle](data-and-security.md).
 
 ## REVIEW-01: Incomplete PR loading and hidden content failures
 
-`fetchPRFiles` and `fetchPRComments` request a single page of 100. Files are filtered to document types after fetching that first file page, so documents later in a large PR can disappear. Individual base/head fetch errors become empty strings and can look like full additions/deletions. Renamed files are fetched using the current filename for both versions; verify previous-path handling.
+**Narrowed in code since `4abb8f5`:** PR file manifests and comments paginate, renamed files read the base revision from `previous_filename`, and a failed document read shows an error state instead of an empty string (`github-api.ts:400-412, 445-452`; `app-context.tsx:703-715`). Still open: the PR list itself requests a single page of 100 (`github-api.ts:296-304`).
 
 Closure needs pagination, explicit failure states, and coverage for large PRs, renamed documents, and failed content reads. Related: [024](features/done/024-github-api-error-handling.md).
 
 ## REVIEW-02: Stale PR list responses
 
-`loadPRs` and asynchronous document-count enrichment update state without the generation checks used in other loads. Rapid repository/filter switches can receive old results. Reproduce with delayed responses and guard the whole update chain. Related: [027](features/done/027-concurrent-request-safety.md).
+**Closed in code since `4abb8f5`:** `loadPRs` now uses the list generation guard and an `AbortController` for both the list and count enrichment (`app-context.tsx:451-465`). Original finding: `loadPRs` and asynchronous document-count enrichment updated state without the generation checks used in other loads, so rapid repository/filter switches could receive old results. Regression coverage: `branch-navigation.test.tsx` ("cancels old PR lists and counts on filter changes…"). Related: [027](features/done/027-concurrent-request-safety.md).
 
 ## REVIEW-03: Suggestions and review-PR branch semantics
 
@@ -38,17 +38,17 @@ HTML comments, unsupported HTML structures, table spans, and table-cell inline f
 
 ## EDIT-02: Existing-file edit-to-PR save path
 
-`Editor.handleEditSubmitAsPR` calls `createFileAsPR`, which branches from the default branch and calls `createOrUpdateFileContents` without an existing file SHA. That is a create-file request, even when the target already exists. GitHub requires the existing blob SHA for an update, so this path needs repair and an existing-file regression case before being treated as reliable editing support. The handler also appends `.md` to paths that do not end in `.md`, including `.mdx`. This finding comes from source review; no live repository write was performed. [GitHub file-update contract](https://docs.github.com/en/rest/repos/contents#create-or-update-file-contents)
+`Editor.handleSubmitEditsAsPR` calls `createFileAsPR`, which branches from the default branch and calls `createOrUpdateFileContents` without an existing file SHA. That is a create-file request, even when the target already exists. GitHub requires the existing blob SHA for an update, so this path needs repair and an existing-file regression case before being treated as reliable editing support. The handler also appends `.md` to paths that do not end in `.md`, including `.mdx`. This finding comes from source review; no live repository write was performed. [GitHub file-update contract](https://docs.github.com/en/rest/repos/contents#create-or-update-file-contents)
 
 New-file conflict handling also lacks the originally proposed overwrite-choice flow. Preserve the intended target path and branch semantics explicitly in future save tests.
 
 ## NAV-01: Deep-link validation
 
-`parseHash` decodes branch/path segments but can throw on malformed percent escapes and accepts numeric prefixes through `parseInt`. Invalid file indices can fall back to a PR route. `buildFileHash` does not encode branch/path segments, so branch names containing slashes need handling. Add malformed/encoded input cases and define fallback behavior. Related: [021](features/done/021-hash-router-url-decoding.md).
+**Closed in code since `4abb8f5`:** `parseHash` catches malformed escapes, accepts only canonical numbers, and returns no route for invalid input; the builders encode the branch and each path segment (`hash-router.ts:23-58`). Original finding: `parseHash` could throw on malformed percent escapes, accepted numeric prefixes through `parseInt`, and `buildFileHash` did not encode branch/path segments. Regression coverage: `hash-router.test.ts`. Related: [021](features/done/021-hash-router-url-decoding.md).
 
 ## PERF-01: Load and render baseline
 
-PR document base/head reads are serial, and review rendering waits for all files plus comments. Repository initialization also serializes independent work. Large-document parsing, full block rendering, whole-document draft serialization, and overlapping comment refreshes merit profiling.
+**Partly addressed:** PR bodies now load for the selected file only, and hidden tabs stop comment polling ([performance](performance.md)). Originally: PR document base/head reads were serial, and review rendering waited for all files plus comments. Repository initialization also serializes independent work. Large-document parsing, full block rendering, whole-document draft serialization, and overlapping comment refreshes merit profiling.
 
 Measure the production export before changes. Track time to first readable file, switching/typing latency, long tasks, and API requests on desktop/mobile with cold/warm and slow-network runs. Then evaluate selected-file-first fetching, bounded concurrency, commit-addressed caching, and rendering improvements. No measured speedup is claimed.
 
