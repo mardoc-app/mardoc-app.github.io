@@ -79,6 +79,9 @@ The areas under active change are **GitHub connection and credentials** (#146, D
 | `docs/setup-github-pat.md` | L3 | current | fix | X-1 at :42. Extend for GitHub App sign-in later (D-1). |
 | `docs/test-html-roundtrip.md` | L3 | current | leave | Test fixture; its broken links are intentional placeholders. |
 | `e2e/README.md` | L3 | stale | fix | Coverage map lists 15 of 25 specs (X-14). |
+| `docs/design/mardoc/architecture.html` | L1 | current | adopt | As-is system baseline at `2b94d90` (R-1). |
+| `docs/design/github-connection/architecture.html` | L1 | current | adopt | As-is GitHub connection baseline at `2b94d90` (R-2). |
+| `docs/reviews/2026-10-20-as-is-baselines.md` | process | current | adopt | Fact-check and re-review of R-1 and R-2. |
 
 ## Decisions raised
 

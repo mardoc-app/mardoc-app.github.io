@@ -1,0 +1,10 @@
+sequenceDiagram
+  participant V as VS Code extension
+  participant E as Embed init listener
+  participant T as Token state
+  participant C as GitHub client
+  E->>V: postMessage ready (target *)
+  V->>E: postMessage init with token, repo, file
+  E->>T: applyInitData sets token in memory
+  T->>C: initOctokit(token)
+  Note over E,T: No origin or source check (RK-3)

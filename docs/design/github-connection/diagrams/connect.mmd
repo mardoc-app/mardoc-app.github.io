@@ -1,0 +1,20 @@
+sequenceDiagram
+  actor R as Reviewer
+  participant S as Settings panel
+  participant T as Token state
+  participant L as localStorage
+  participant C as GitHub client
+  participant G as GitHub
+  R->>S: Paste PAT, Connect
+  S->>T: setGithubToken(token)
+  T->>T: Clear repo, file and PR state
+  T->>L: setItem mardoc_github_token
+  T->>C: initOctokit(token)
+  C->>G: REST and GraphQL with token
+  Note over T,L: Next page load
+  L-->>T: getItem restores token
+  T->>C: initOctokit(saved token)
+  R->>S: Disconnect
+  S->>T: setGithubToken(null)
+  T->>C: resetGitHubSession
+  T->>L: remove token and repo keys
