@@ -12,21 +12,25 @@ in requirements.md, T-n in design.md, SP-n in `spikes/`, R-n in `reviews/`,
 ADRs in `adr/`. Backlog rows keep the ID of the finding or issue that raised
 them. This file carries history: rows are updated, never silently deleted.
 
-- **Status:** {{STATUS_LINE}}
-  <!-- One paragraph: what is DONE or accepted (with dates), what is ⭐, the
-  decisions that govern the active milestone (ADR links), which WPs are ready
-  to start, and which owner questions are open. -->
+- **Status:** No milestone is active. The L0 direction for GitHub web sign-in
+  (#146) is approved as direction plus spike only (D-1, 2026-10-20;
+  [ADR 0001](adr/0001-web-sign-in-github-app-worker-route.md), Proposed). ⭐ SP-1
+  is next and blocks the L1 design for sign-in. Open owner questions: Q-1, Q-2,
+  Q-3, Q-5 and Q-8 in [requirements.md](design/mardoc/requirements.md#open-questions).
 - **Last updated:** 2026-10-20
 
 ## How work is done
 
 ### Development environment
 
-- **Where it runs:** {{DEV_ENVIRONMENT}}
-- **Safety:** {{SAFETY_RULES}}
-  <!-- e.g. tooling names the target context or account explicitly, and
-  touches only this project's resources. -->
-- **Toolchain:** {{TOOLCHAIN_AND_PINS}}
+- **Where it runs:** the owner's macOS machine. MarDoc is a static export
+  (`out/`), and GitHub Actions runs `test.yml` and `deploy.yml`.
+- **Safety:** agents never register or change the GitHub App, never touch
+  Cloudflare (zone, routes, Workers or secrets) and never push; the owner does
+  all three. Agents use only demo data or test repos named in a WP.
+- **Toolchain:** Node 22 in CI (`.github/workflows/test.yml`); locally, Node 22
+  or 26 both pass `npm run check` (Q-1). npm lockfile, Next 14.2.21,
+  Vitest 4.1.2, Playwright 1.59.1.
 
 ### Orchestration and model choice
 
@@ -38,7 +42,7 @@ subagents (`sdlc:orchestrate`), matched to the task:
 
 | Kind of task | Starting tier (Claude / Codex) | Why |
 |---|---|---|
-| Core logic where a subtle bug is a security or correctness bug: {{CORE_AREAS}} | Frontier: Opus 5.5+ / Astra | Start high where mistakes are costly; adjust to project evidence and task complexity |
+| Core logic where a subtle bug is a security or correctness bug: GitHub credential handling (`src/lib/app-context.tsx`, `src/lib/github-api.ts`, the Auth Worker) and HTML isolation (SEC-01) | Frontier: Opus 5.5+ / Astra | Start high where mistakes are costly; adjust to project evidence and task complexity |
 | Independent design and code review | Balanced: Sonnet / Sol 6.1, a fresh agent with no authoring context | Strong default; raise to Opus / Astra for unusually high-risk or complex changes |
 | Well-specified implementation against frozen interfaces | Balanced: Sonnet / Sol 6.1 | Efficient when interfaces and proof are clear |
 | Spikes and evidence gathering | Balanced: Sonnet / Sol 6.1 | Hands-on investigation and measured results |
@@ -61,7 +65,7 @@ Record model trials here so later plans can reuse the evidence:
 
 Rules for every work package:
 
-- **Interfaces first:** {{FROZEN_INTERFACES}} are written and frozen before
+- **Interfaces first:** the contracts each L1 design names (for sign-in: the `/api/auth/*` routes and the token hand-off, Q-8) are written and frozen before
   dependent packages start, so parallel work can't drift.
 - **Separate directories:** parallel agents work in separate paths, in
   worktrees, so their edits never collide.
@@ -80,9 +84,9 @@ Rules for every work package:
 ### Testing and evidence
 
 - **Tests carry requirement IDs.** A test is named or annotated with the IDs
-  it proves, for example `{{TEST_NAME_EXAMPLE}}`. `sdlc-trace` builds the
+  it proves, for example `f1_signin_keeps_token_out_of_storage` (F-1 is a placeholder ID until the L1 requirements exist). `sdlc-trace` builds the
   requirements report from the test results.
-- **Levels:** {{TEST_LEVELS}}
+- **Levels:** Vitest unit and component tests (`src/__tests__/`), Playwright e2e on desktop and mobile (`e2e/`), and the static build.
 - **Each milestone delivers** `demos/mN.md` (the owner guide) and
   `npm run demo -- {milestone}`, which sets everything up, runs the checks and writes
   `demos/mN-demo-report.md`.
@@ -94,7 +98,8 @@ time-boxed and ends in a yes or no, plus an ADR where a decision follows.
 
 | ID | Item | Proves | Blocks | Model | Owner review | Status |
 |---|---|---|---|---|---|---|
-| SP-1 | {{SPIKE_QUESTION}} ([report](spikes/sp-1-{{SLUG}}.md)) | A-1, NF-1 | M1 | Sonnet | — | PENDING |
+| GSI | L0 strategy review, GitHub web sign-in ([report](reviews/2026-10-20-github-sign-in-l0.md)) | L0 `github-sign-in` is safe for an owner decision | D-1 | Sonnet (fresh agent) | ACCEPTED 2026-10-20 (direction plus spike only) | DONE: 13 findings fixed or closed, re-reviewed |
+| SP-1 | Reversing proof for L0 proofs 1 and 2: does a sign-in round trip through `mardoc.app/api/auth/callback` work on the live zone with Pages serving every other path, and does a user token reach only repos where the test app is installed (including a non-owner org install)? Time-boxed to 2 days. Report: `spikes/sp-1-github-sign-in-route.md` | ADR 0001; L0 proofs 1 and 2 | L1 `github-sign-in` | Sonnet + **owner** (owner registers the test GitHub App and sets up the Cloudflare route) | — | PENDING |
 
 Add one row per design review (R-n, via `sdlc:review`) and spike (SP-n, via
 `sdlc:spike`). For a design review, the Owner review cell starts `PENDING`;
@@ -107,19 +112,17 @@ report says `**Design gate:** PASS` and the owner acceptance is recorded.
 
 | Milestone | Delivers | Demo | Requirements | Owner action |
 |---|---|---|---|---|
-| **M1: {{MILESTONE_NAME}}** | {{WHAT_IT_DELIVERS}} | `npm run demo -- {milestone}`: {{WHAT_THE_DEMO_PROVES}}. Then the owner's acceptance test. | F-1, NF-1 (T-1) | **Acceptance test** (`demos/m1.md`) |
 
+No milestone is defined yet. The L1 design for sign-in defines M1 after SP-1.
 Add one row per milestone, in value order (`craft:value-cadence`). Unscheduled
 ideas go in a "Future stages" table under this one.
 
 ## M1 work packages
 
-{{FREEZE_NOTE}}
-<!-- Which WP freezes the interfaces, and which WPs then run in parallel. -->
+No WPs yet. When the L1 plan defines them, the release gates in L0 proof 3 become WP gates: stage 1 (no GitHub token in browser storage after sign-in, and no refresh route) and stage 2 (after the SEC-01 fix, no injected script can get a token from `/api/auth/refresh`).
 
 | WP | Scope | Paths | Model | Depends on | Proves | Status |
 |---|---|---|---|---|---|---|
-| WP-1 | {{SCOPE}} | `{{PATHS}}` | Frontier (Opus 5.5+ / Astra) | SP-1 | F-1 (T-1) | PENDING |
 
 Add one row per WP. The last two WPs of a milestone are always "Integration
 and demo" (Lead: Opus 5.5+ / Astra) and "Independent review, then fixes"
@@ -129,9 +132,7 @@ Mark WPs that need the owner present with **owner** in the Model cell.
 
 ### Waves
 
-- **Wave 1:** WP-1 (interfaces freeze).
-- **Wave 2, after WP-1:** {{PARALLEL_WPS}}, each in its own paths.
-  Checkpoint **CP-1** reviews WP-1 with a fresh agent.
+No waves yet.
 
 Add a wave per set of WPs that can run together, with what it waits for.
 
@@ -153,7 +154,8 @@ next milestone does not start without the owner's go-ahead.
 
 | Risk | Mitigation |
 |---|---|
-| {{RISK}} | {{MITIGATION}} (RK-1 in [risks.md](risks.md)) |
+| Document scripts can read or mint GitHub tokens while rendered HTML is same-origin (SEC-01) | Sign-in ships without refresh; refresh waits for the SEC-01 fix, owned by Joe Barnett and due 2026-11-17 (RK-1 in [risks.md](risks.md)) |
+| Tokens pass through a Worker on Cloudflare | Stateless Worker, single deployer with 2FA, secret only in Worker secrets (RK-2 in [risks.md](risks.md)) |
 
 Add a row per risk that affects the plan; the full register is `docs/risks.md`.
 
@@ -161,29 +163,23 @@ Add a row per risk that affects the plan; the full register is `docs/risks.md`.
 
 | Milestone | First-pass ci green (slices) | Review rounds / High findings | AT items | Slices reopened | Runtime/model and usage source | Tokens or quota/credits (observed) | Cost (actual / estimated / unavailable) | Full CI/verifier runs and reruns |
 |---|---|---|---|---|---|---|---|---|
-| M1 | {{N_OF_M}} | {{ROUNDS}} / {{HIGHS}} | {{AT_COUNT}} | {{REOPENED}} | {{RUNTIME_MODEL_SOURCE}} | {{USAGE}} | {{COST_BASIS_AND_AMOUNT}} | {{VERIFIER_RUNS}} |
 
-Add a row after milestone acceptance and `sdlc:efficiency`. Keep observed
+No milestone is accepted yet. Add a row after milestone acceptance and `sdlc:efficiency`. Keep observed
 spend separate from estimates and quota/credit usage. `sdlc:loop` records it.
 
-## Backlog from the {{REVIEW_ID}} review
+## Backlog from the GSI review
 
-Findings from [{{REVIEW_FILE}}](reviews/{{REVIEW_FILE}}) that are deferred.
-[ADR {{ADR_NUMBER}}](adr/{{ADR_FILE}}) gives the disposition for each.
-
-| ID | Stage | Item |
-|---|---|---|
-| R1-1 | 2 | {{DEFERRED_FINDING}} |
-| DEBT-1 | 1 | {{SHORTCUT}}. **Reason:** {{WHY_NOW}}. **Follow-up:** {{WHEN_AND_HOW}}. **Impact:** {{COST_IF_LEFT}}. |
+Every finding in [2026-10-20-github-sign-in-l0.md](reviews/2026-10-20-github-sign-in-l0.md)
+was fixed in the L0 page. None is deferred.
 
 Add one section per review (design review R-n, code review WPn). Intentional
 shortcuts are DEBT-n rows with reason, follow-up and impact.
 
-## Backlog from M1 acceptance
+## Decisions
 
-| ID | Stage | Item |
-|---|---|---|
-| AT-1 | 1 | {{ISSUE_FROM_OWNER_TEST}} |
+Owner decisions on L0 strategies and other direction-level choices. The design
+pages link here; gate status lives only in this file.
 
-Add one section per accepted milestone (`sdlc:acceptance`). When an item is
-fixed, start its cell with "Done:" and say how.
+| ID | Decision | Date | Owner | Status | Scope of approval | Links |
+|---|---|---|---|---|---|---|
+| D-1 | GitHub web sign-in uses a GitHub App with a Worker route on `mardoc.app/api/auth/*`. Sign-in ships first without refresh; silent refresh follows the SEC-01 fix. | 2026-10-20 | Joe Barnett | GO | Direction plus SP-1 only, not build. Defaults taken: Q-4 (SEC-01 → Joe Barnett, due 2026-11-17), Q-6 (decide by 2026-10-27), Q-7 (Joe Barnett operates the Worker and holds the secret), Q-9 (backup-operator gap accepted). The owner registers the GitHub App and configures Cloudflare. | [L0](design/github-sign-in/strategy.html), [ADR 0001](adr/0001-web-sign-in-github-app-worker-route.md), [review](reviews/2026-10-20-github-sign-in-l0.md), SP-1 |

@@ -43,10 +43,10 @@ svg .is-active text{font-weight:700}svg [data-edge].is-active text{fill:var(--se
 <body>
 <div class="topbar"><span class="eyebrow">MarDoc</span><nav aria-label="Contents"><a href="#why">Why</a><a href="#situation">Situation</a><a href="#pieces">The pieces</a><a href="#decisions">Decision</a></nav><button type="button" id="theme-toggle" aria-pressed="false" hidden>Light theme</button></div>
 <header>
-<p class="eyebrow">L0 · Strategy · Owner and maintainers · Draft for decision · 2026-10-20</p>
+<p class="eyebrow">L0 · Strategy · Owner and maintainers · 2026-10-20</p>
 <h1>Replace the pasted PAT with “Sign in with GitHub”, using one small Worker on mardoc.app</h1>
 <p class="takeaway">Before a new reviewer can read anything, MarDoc asks them to make and paste a personal access token. A GitHub App sign-in, with its code exchange in a Cloudflare Worker on <code>mardoc.app/api/auth/*</code>, swaps that for a sign-in button, per-repo access and 8-hour tokens, with no hosting change. <a class="source" href="https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/refreshing-user-access-tokens">GitHub docs</a></p>
-<p class="meta">Proposal for issue #146, based on the code at commit 2590742 · Decision needed by 2026-10-27 (default, <a class="source" href="../mardoc/requirements.md#open-questions">Q-6</a>) · Reading time: 5 minutes</p>
+<p class="meta">Proposal for issue #146, based on the code at commit 2590742 · Decision needed by 2026-10-27 (default, <a class="source" href="../mardoc/requirements.md#open-questions">Q-6</a>) · Decision and gate status: <a class="source" href="../../plan.md#decisions">plan.md D-1</a>, <a class="source" href="../../adr/0001-web-sign-in-github-app-worker-route.md">ADR 0001</a> · Reading time: 5 minutes</p>
 </header>
 <main>
 <section id="why"><h2><span class="num">01 · Why</span>Reviewers sign in instead of making a token</h2>
