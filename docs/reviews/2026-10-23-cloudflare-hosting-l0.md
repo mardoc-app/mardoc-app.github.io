@@ -274,3 +274,139 @@ The brief was reshaped rather than patched: the site is served by a code-free Si
 | CFH-15 | Fixed. D-2 moved to the Decisions table. |
 | CFH-16 | Fixed. The diagram shows the Auth Worker handing the access token to the app once. |
 | CFH-17..20 | Fixed: † defined in the header; reading time 12 minutes; "Strongly recommended" quoted as GitHub writes it; step 0 no longer depends on `/api/auth/health` (proof 1 checks it on staging). |
+
+## Re-review
+
+- **Date:** 2026-10-23
+- **Fix commit reviewed:** `ec1ec4a` on `design/cloudflare-hosting-l0` ("reshape to code-free Site Worker with separate Auth Worker"), against `91becc9`. Read in full: `strategy.html`, `diagrams/landscape.drawio` and `.svg`, `docs/plan.md` (D-2, SP-4, SP-5), `docs/risks.md` (RK-4), `docs/design/mardoc/requirements.md` (Q-29..Q-35), and the lead dispositions above.
+- **Baseline:** `sdlc-doclint` on the new page: 0 errors, 0 warnings. The `.drawio`, the `.svg` and the inline SVG carry the same 28 labels. Docs-only change; `npm run ci` not run. The brief was not edited and nothing was committed.
+- **How:** re-read the new page alone first (it is a different design: two Workers, dashboard-only routes, canary), then checked each disposition against the files, then fetched the new external claims (Cloudflare Wrangler configuration, Workers routes, Workers Logs, Workers limits, static-assets HTML handling and Workers Builds configuration pages; the GitHub personal-access-token page). No Cloudflare or GitHub setting was touched.
+
+### Verdict
+
+**The reshape is a real improvement and closes most of the original findings, but it is not yet ready for the owner.** Of the 20 original findings, 16 are Fixed, 3 Partly and 1 Not fixed. The reshape introduced one High: the "code-free, auto-deployed Site Worker" still deploys with a Workers Builds API token that can edit every Worker in the account, so the page's claim that RK-2 is unchanged is not true by default. There is also one Medium defect in the new canary and URL-parity proofs. Both fixes are small and stay inside the brief.
+
+| Severity (new findings) | Count |
+|---|---|
+| High | 1 |
+| Medium | 1 |
+| Low | 4 |
+| Nit | 1 |
+
+### Original findings
+
+| ID | Status | Evidence |
+|---|---|---|
+| CFH-1 | Fixed | New page, "The two Workers": "Routes live only in the dashboard"; Q-31 says "never in the Wrangler file"; proof 2 deletes the route, merges a trivial commit to `main` and checks the route stays deleted. Wrangler docs (Source of truth): "To manage routes via the Cloudflare dashboard only, remove any route and routes keys from your Wrangler configuration file." Residue: NCFH-3 (the same doc also requires `workers_dev = false`) and NCFH-1 (the build token has Routes edit). |
+| CFH-2 | Fixed | The page now says Auth stays in the L1's owner-deployed Worker, names C-10 and design.md's deployment text as the only L1 changes, and says C-12, C-14, A-17 and Q-25 are unchanged. That matches `requirements.md` C-14 and A-17. Residue: `github-sign-in/architecture.html` (5 mentions of GitHub Pages) and `intent.md` (3) also name Pages; list them when the L1 is amended. |
+| CFH-3 | Partly | The client secret is now on the Auth Worker only, which the owner deploys by hand (A-17), so the secret-holding code is off the auto-deploy path. But the claim "RK-2 is unchanged because only the owner still deploys the code that sees tokens" fails: the default Workers Builds API token has Workers Scripts (edit) for the whole account and Workers Routes (edit) for all zones, and Workers Builds is now on the push-to-`main` path. See NCFH-1. |
+| CFH-4 | Partly | Staging topology is now stated (same-type proxied record, staging Site Worker on a route, test-App Auth Worker, `APP_ORIGIN` and callback per hostname) and a one-page canary precedes cut-over, so the route mechanism is rehearsed twice. But the canary as written does not exercise asset serving: see NCFH-2. |
+| CFH-5 | Fixed | The Site Worker has no script, so unmatched requests are handled by `not_found_handling = "404-page"` and invoke no code (static-assets docs: a script runs for unmatched requests only "if a Worker script is present"). Proof 1 requires 0 invocations after 500 unknown-path requests. The Auth route is set to fail closed (Q-31); the Workers limits page confirms the per-route fail open/closed choice and the 1027 page. Residue: the measurement (NCFH-4) and the over-limit inference (NCFH-7). |
+| CFH-6 | Fixed | The page now says Workers Logs is on by default (confirmed: "All newly created Workers will come with the observability setting enabled by default") and that each invocation log has the URL; production Auth Worker invocation logs are off and staging keeps them with the test App (Q-31); "Never stored by MarDoc's design" replaces "Never kept". |
+| CFH-7 | Fixed | The page says SP-1 is owner-reported, results not yet recorded, and that SP-1 used a Worker with no assets and no `/*` route; the action asks the owner to paste the results. The SP-1 report itself is unchanged (still "pending"), which is the owner's step. |
+| CFH-8 | Fixed | Proofs 1 and 2 are labelled reversing and 3 shaping; proof 3 has a pass rule and "the policy changes, not the hosting decision" on failure; SP-4 and SP-5 are Gate 0 rows in `plan.md` (lines 111-112) with one question each. |
+| CFH-9 | Fixed | RK-4 is in `risks.md`; Q-35 asks the account type and the second admin; the operating table says only someone with Cloudflare access can roll back. |
+| CFH-10 | Fixed | `www.mardoc.app` is in the situation and scope, with a Cloudflare redirect at clean-up; the apex record type is read from the dashboard and mirrored on staging. |
+| CFH-11 | Fixed | Domain verification moved before cut-over; the clean-up gate needs 14 days† with no rollback plus owner confirmation; "After clean-up" in the switching-back table says the rollback is no longer one step. See NCFH-6 (Nit) on ordering against proof 1. |
+| CFH-12 | Fixed | Section 01 and the situation now say headers limit loads and exfiltration, not same-origin reads, and that hashes are needed because a static export has no per-request nonce. The new "second origin" wording is NCFH-5. |
+| CFH-13 | Partly | Proof 1 now has a URL table (status, redirect target, `cache-control`, `access-control-allow-origin`). But its pass rule "same as GitHub Pages" cannot be met under Workers' default `html_handling`: see NCFH-2. |
+| CFH-14 | Fixed | Proof 1 sets `APP_ORIGIN` and the callback per hostname; wildcard matching off on both Apps (A-11); Q-33 repeats it. |
+| CFH-15 | Not fixed | The disposition says "D-2 moved to the Decisions table". At `ec1ec4a` D-2 is still `docs/plan.md:104`, inside the Gate 0 table, with decision-table cells under Gate 0 headers ("2026-10-23" under Proves, "Joe Barnett" under Blocks, "IN REVIEW" under Model). The Decisions table (header at line 205) contains only D-1 (line 207). The brief's link `plan.md#decisions` still lands on a table without D-2. Fix: move the row to Decisions; keep SP-4 and SP-5 in Gate 0. |
+| CFH-16 | Fixed | The `.drawio` and `.svg` now have the edge `auth-app` "access token, once", the Auth Worker with the secret, and the Site Worker marked "no code; auto-deploys"; the inline SVG matches. |
+| CFH-17 | Fixed | The header says "† marks a number we chose, for the owner to review". |
+| CFH-18 | Fixed | Reading time 12 minutes; the text is about 2,800 words. |
+| CFH-19 | Fixed | The page writes “Strongly recommended”, as GitHub does. |
+| CFH-20 | Fixed | Release step 0 no longer depends on `/api/auth/health`; proof 1 checks it on staging. |
+
+### New findings
+
+| ID | Severity | Pass | Location | Finding |
+|---|---|---|---|---|
+| NCFH-1 | High | Security | "The two Workers" (Deploys row); "What Cloudflare keeps" (RK-2 sentence); risks.md RK-2 and RK-4 | The Workers Builds API token can edit the Auth Worker and every route, so "RK-2 is unchanged" and "no deploy can re-create a route" are not true by default |
+| NCFH-2 | Medium | Bugs | Proof 2 (canary); proof 1 (URL table) | The canary route and the "same as GitHub Pages" table conflict with Workers' default HTML handling |
+| NCFH-3 | Low | Compliance | "Routes live only in the dashboard"; Q-31 | Dashboard-only routes also need `workers_dev = false`; the Auth Worker's file route (SP-1 config) is not covered |
+| NCFH-4 | Low | Bugs | Proof 1 ("0 invocations"); "What Cloudflare keeps" ("writes no invocation logs") | The "0 invocations" and "no invocation logs" checks name no metric or place to read them |
+| NCFH-5 | Low | Security | Section 01 "What improves" (a second origin for rendered documents) | A sibling hostname for documents shares cookie scope with `mardoc.app` |
+| NCFH-6 | Nit | Compliance | Proof 1 vs "Before cut-over" | Domain verification should precede creating the `next` record |
+| NCFH-7 | Low | Bugs | Switching-back table ("Auth Worker passes 100,000 requests a day"); Q-31 | Over-limit text relies on inference for the site route, and the L1's fallback test list does not include a 1027/429 page |
+
+#### NCFH-1 (High, Security): the auto-deployed pipeline holds a token that can replace the Auth Worker
+
+- **Finding:** The page justifies the reshape with "The secret-holding code would deploy on every push to main, which widens RK-2" and concludes "RK-2 is unchanged because only the owner still deploys the code that sees tokens". The secret does stay off the auto-deploy path. But Cloudflare's Workers Builds configuration page says the API token it creates by default has "Account: Account Settings (read), Workers Scripts (edit), Workers KV Storage (edit), Workers R2 Storage (edit); Zone: Workers Routes (edit) for all zones on the account; User: User Details (read), Memberships (read)", and that Workers Builds keeps using this token "for all subsequent builds". Workers Scripts (edit) is account-wide, so the same token that deploys the code-free Site Worker can upload new code to the Auth Worker (secrets persist across uploads), and Routes (edit) can re-create or move any route. Every push to `main` runs repo-controlled commands (the build and the deploy command) in a container that uses this token.
+- **Failure scenario:** A routine dependency bump is merged with a malicious install script. The next Workers Builds run executes it. The deploy step is repo-controlled and holds the token; whether the build step also sees it is not stated in the docs I fetched. The script uploads a replacement Auth Worker that forwards every `code` and token to an attacker. The client secret is still bound to that Worker, so the new code can use it. Sign-in works normally. Nothing in the L1, in RK-2 or in the Site Worker's "no secret" property detects it. The same token could add `mardoc.app/*` back after a rollback.
+- **Fix:** In the brief and RK-2: (1) create a custom Workers Builds token with only what the Site Worker needs (Workers Scripts edit; drop Routes edit, KV and R2) and say so in Q-30; (2) state that Workers Scripts edit is account-wide, so the Auth Worker's isolation guards against accidents, not against a hostile build; (3) either accept that explicitly in RK-2 (likelihood stays Low with a lockfile, `npm ci --ignore-scripts` where possible, and required review on `main`) or move the Auth Worker out of reach of that token. Replace the sentence "RK-2 is unchanged". SP-5 could add "the Workers Builds token lists only the named permissions".
+
+#### NCFH-2 (Medium, Bugs): the canary and the URL-parity table collide with `html_handling`
+
+- **Finding:** The Cloudflare HTML-handling page (default `auto-trailing-slash`) shows `/file.html` answers "307 to /file" and `/file/index.html` answers "307 to /file". The canary is a route for exactly `mardoc.app/demo.html` (a file in `public/`), and proof 1's table includes `/index.html` and `/demo.html`, to be compared with GitHub Pages, which serves both with 200 and no redirect.
+- **Failure scenario:** The owner adds the canary route. A visit to `/demo.html` receives a `307` from the Site Worker to `/demo`; `/demo` is not routed, so GitHub Pages answers it. The `x-mardoc-host` header appears only on the redirect, and the page has not been served by the Worker at all. If the owner reads that as a pass, asset serving is unproven when the `/*` cut-over goes ahead. In proof 1 the table fails on `/index.html` and `/demo.html` even though nothing is broken, so a literal reading ("If it fails: stay on GitHub Pages") rejects the move.
+- **Fix:** State the `html_handling` choice in the brief (a one-line configuration decision) or list the accepted differences. Use a canary route on the canonical path (`mardoc.app/demo`) and require a 200 with the header. In the URL table, mark `/index.html` and `/demo.html` as "expected to differ (307)" or configure to avoid it, and add "external links to `/demo.html` still work".
+
+#### NCFH-3 (Low, Compliance): `workers_dev = false`, and the Auth Worker's file route
+
+- **Finding:** The Wrangler docs say that to manage routes in the dashboard only, remove the `route`/`routes` keys "Then add `workers_dev = false`". Without routes in the file, `workers_dev` defaults to `true`, so each Worker (Site and Auth, staging and production) is also reachable on a public `*.workers.dev` URL, with preview URLs. The page and Q-31 say routes stay out of the file but never mention `workers_dev`. Separately, the SP-1 Worker that proof 1 reuses for staging has `routes = [...]` in `docs/spikes/sp-1/wrangler.toml`; redeployed as is, its route is file-managed, and the Auth Worker rollback ("delete its route") has the CFH-1 problem on the next owner deploy.
+- **Failure scenario:** The Site Worker is also served at `<name>.<account>.workers.dev`: a second public origin for the app that the zone's headers, routes and rollback do not govern. On the Auth Worker, `/api/auth/login` is reachable on workers.dev with the production secret attached.
+- **Fix:** Add `workers_dev = false` (and no `preview_urls`) to both Workers' files in Q-31, and say the Auth Worker's file also carries no routes (the SP-1 config needs that change before reuse).
+
+#### NCFH-4 (Low, Bugs): "0 invocations" and "no invocation logs" are not readable
+
+- **Finding:** Proof 1 passes only if "the Site Worker shows 0 invocations" after 500 unknown paths, and the page says the Site Worker "writes no invocation logs". The docs I fetched say asset requests are free and run no Worker script, and that an invocation log is per Worker invocation, but none say where an assets-only Worker's request count appears in the dashboard or analytics. The statements are plausible but unobserved.
+- **Failure scenario:** After 500 requests the dashboard shows 500 "requests" for the Site Worker (asset requests counted as requests, not as billed invocations). The owner cannot tell whether that is a pass or a fail, or whether the check measures anything.
+- **Fix:** Say what is read (the Worker's invocation count versus its request count, and a Workers Logs query for zero entries). Add a response header that only a script could set, to prove that no code ran for unknown paths.
+
+#### NCFH-5 (Low, Security): the "second origin" may be same-site
+
+- **Finding:** Section 01 says hosting "a second origin for rendered documents, the likely SEC-01 fix, takes a hostname and a route on a zone MarDoc already controls". A hostname under `mardoc.app` is a different origin but the same site: `localStorage` and the in-memory token are isolated, but cookies set with `Domain=mardoc.app` reach the app. The L1 itself says a sibling host can overwrite the `__Secure-` attempt cookies (`design.md:283-285`) and revisits cookie names for it.
+- **Failure scenario:** After the SEC-01 fix a hostile document runs on `docs.mardoc.app`. Its script sets dozens of large `Domain=mardoc.app` cookies. Every later request to `mardoc.app` is refused by the header-size limit until the user clears cookies. The document origin cannot read the token, but it can disable the app for that user.
+- **Fix:** Reword as a hypothesis ("a second hostname, or better a separate registrable domain, is an option the SEC-01 design will weigh"). No change to the hosting decision.
+
+#### NCFH-6 (Nit, Compliance): verify the domain before creating the staging record
+
+Proof 1 creates `next.mardoc.app` as a proxied record "of the same type as the apex" (probably pointing at GitHub). The domain verification is "before cut-over" but not before proof 1. GitHub's doc says verification covers immediate subdomains, so doing it first costs nothing. Move it to the start of SP-4.
+
+#### NCFH-7 (Low, Bugs): over-limit behaviour is partly inferred
+
+- **Finding:** The switching-back row says the Auth route fails closed and "the site keeps loading". The first part is a documented setting (limits page: fail open "Bypasses the Worker"; fail closed "Returns a Cloudflare 1027 error page"). The second part is inferred: the fetched billing page speaks to `run_worker_first` patterns only, and the Site route's own mode is not stated. The L1's F-51 test list names a Pages 404, a 503 and a network error, not a 1027 page.
+- **Failure scenario:** The Auth Worker passes the Free daily limit. If the Site route's mode is fail closed and the account-wide counter is what trips, a code-free route could return 1027 where the brief expects assets. Or sign-in shows an error that the 5-second fallback does not recognise.
+- **Fix:** Set the Site route to fail open while Pages deploys (the fallback serves the same files), say the over-limit behaviour is inferred and cannot be tested, and add a 1027/429 page to the F-51 test list in the L1 amendment.
+
+### Claims checked in the fixes
+
+| Claim | Result |
+|---|---|
+| An assets-only Worker on a zone route serves assets and is never invoked | Assets are served "without invoking Worker code" and a script runs only "if no matching asset is found and a Worker script is present" (static-assets docs). With no script there is nothing to invoke. Documentation for a route in front of an assets-only Worker over a DNS origin is thin (the routes page steers Worker-as-origin to Custom Domains; the migration guide says to "configure a route if you only wish some subset of paths to be served by your Worker"). The page treats this as proof work (SP-4, SP-5), which is right. |
+| Two routes to different Workers; the more specific wins | Verified: "the pattern `example.com/hello/*` would take precedence over `example.com/*`" (Routes page). |
+| Routes absent from the Wrangler file are left alone by deploys | Supported by the Wrangler Source of truth section, with the caveat that `workers_dev = false` is also required (NCFH-3). SP-5 tests it. |
+| Route fail open/closed | Verified on the Workers limits page: fail open "Bypasses the Worker", fail closed "Returns a Cloudflare 1027 error page", set "by toggling the corresponding route". The routes page itself doesn't describe it, and the default is not stated. |
+| Workers Logs is on by default and logs the request URL | Verified on the Workers Logs page (the URL the brief cites): "All newly created Workers will come with the observability setting enabled by default"; the Fetch invocation log message is `<Method> <URL>`. Free-plan retention is three days. |
+| A static export can't use per-request nonces | Reasonable for a Next 14 static export; not sourced on the page. |
+| PAT lifetime "set by the user, can be no expiry" | Verified on the cited GitHub page: "Infinite lifetimes are allowed but may be blocked by a maximum lifetime policy". |
+| `out/` 80 files, 5.0 MB | Not re-measured by me; now attributed to the lead's machine. |
+
+### Checked in the fixes and found sound
+
+- **Design coherence:** the two-Worker split removes the single-deploy secret risk at the application level, keeps the L1 intact (C-12, C-14, A-17, Q-25 unchanged), and makes the Site Worker explainable in one sentence ("a Worker with no code"). Section order, headlines, diagram and the five owner questions still read from the page alone.
+- **Rollback story:** the switching-back table has a row per situation, including "After clean-up" and the over-limit case, and removes the earlier contradiction about when rollback stays one step.
+- **Proof structure:** two reversing proofs and one shaping proof, each with a pass rule and an "If it fails"; SP-4 and SP-5 in the plan are bounded at half a day each; the ladder adds a canary rung.
+- **Operating commitments:** RK-4 and Q-35 exist, the defaults in Q-29..Q-35 agree with the page, and the page's local links resolve (`plan.md#decisions`, `known-issues.md#sec-01-html-isolation`, the review, SP-1, ADR 0001).
+- **Diagram:** `.drawio`, `.svg` and the inline SVG agree; the new `auth-app` edge shows the token hand-off.
+- **Level:** the page remains L0; the new `html_handling`, `workers_dev` and token details belong in the L1 amendment and spike plans, with at most one line each in the brief.
+
+### Owner steps for the remaining items (not run by me)
+
+1. In Cloudflare, check **My Profile, API Tokens** for the token Workers Builds would use; create a custom token with Workers Scripts (edit) only (NCFH-1).
+2. On staging, request `/demo.html`, `/index.html` and `/demo` through the Site Worker and note the status codes (NCFH-2).
+3. Confirm `workers_dev = false` in both Workers' files before deploying (NCFH-3).
+
+## Lead dispositions after re-review (2026-10-23)
+
+| Finding | Disposition |
+|---|---|
+| CFH-15 | Fixed. D-2 now sits in the Decisions table after D-1 (the first move matched a `| D-1 |` inside a Gate 0 cell). |
+| NCFH-1 | Fixed by changing the default: no Workers Builds or other pipeline holds a Cloudflare token; the owner deploys both Workers with `wrangler deploy` from a tagged release (Q-30). Automatic deploys are an alternative that needs the owner to accept a wider RK-2. The brief states that releases now wait for the owner. Closes the remainder of CFH-3. |
+| NCFH-2 | Fixed. Proof 1's pass rule accepts one redirect to the same bytes and picks `html_handling` from the table; the canary route is `mardoc.app/demo*` and checks `/demo`. Closes the remainder of CFH-4 and CFH-13. |
+| NCFH-3 | Fixed. Wrangler files carry no `routes`, `workers_dev = false` and `preview_urls = false`; the SP-1 file is not copied. |
+| NCFH-4 | Fixed. The check reads the Site Worker's Metrics → Requests count in the dashboard. |
+| NCFH-5 | Fixed. The separate site for documents needs its own registrable domain. |
+| NCFH-6 | Fixed. Domain verification comes first, before the staging record. |
+| NCFH-7 | Fixed. The Site route's over-limit behaviour is marked inferred and checked by SP-4's count; the L1 change list adds 429 and 1027 to F-51's test. |
