@@ -135,6 +135,12 @@ is recorded as an assumption above.
 | Q-16 | Two stories use ID 039. Which keeps it? | Answered by the owner (2026-10-21): accepted the default. 039-per-file-comment-filtering keeps it; the web-folder story becomes 042, Planned, with acceptance criteria 3 and 8 matched to draft-store.ts. | DONE |
 | Q-17 | The VS Code extension requests the GitHub `repo` scope (mardoc-vscode extension.ts:111 at `41088d5`). Is that the intended scope? | Answered by the owner (2026-10-21): accepted the default. Record it in features/done/017 now; decide extension scopes in the sign-in L1. | DONE |
 | Q-18 | Story 037 proposes AI keys in localStorage; the shipped feedback-AI keeps keys in memory only. Which rule applies? | Answered by the owner (2026-10-21): accepted the default. Memory-only keys, following feedback-ai.ts. Update 037 when it is picked up. | DONE |
+| Q-29 | Which Cloudflare product hosts mardoc.app if hosting moves ([L0 cloudflare-hosting](../cloudflare-hosting/strategy.html))? | Workers with static assets, not Cloudflare Pages: Workers-only routes, logs and gradual deployments carry the rollback and proof designs. | PENDING |
+| Q-30 | How does the site Worker deploy? | Workers Builds from `main`, guarded by `test.yml` and branch protection; no Cloudflare API token stored in GitHub. | PENDING |
+| Q-31 | How does traffic move from GitHub Pages? | Worker routes `mardoc.app/*` and `mardoc.app/api/auth/*` on the existing proxied record; rollback deletes `/*`. A Custom Domain only if proof 3 fails. | PENDING |
+| Q-32 | Does the hosting move ship before sign-in stage 1? | Yes, as release step 0 with no sign-in code, so each change can be rolled back alone. | PENDING |
+| Q-33 | How are sign-in changes tested before mardoc.app? | A staging hostname `next.mardoc.app` signed in with the SP-1 test App; the production App keeps only the mardoc.app callback. | PENDING |
+| Q-34 | When must the hosting direction be decided, and how long does GitHub Pages stay the rollback? | Decide by 2026-10-30; keep GitHub Pages deploying for 14 days after cut-over. | PENDING |
 
 Add one row per open decision. When the owner answers, set Status to DONE
 and write "Answered by the owner (2026-10-20): …" in the default column, then
