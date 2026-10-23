@@ -410,3 +410,45 @@ Proof 1 creates `next.mardoc.app` as a proxied record "of the same type as the a
 | NCFH-5 | Fixed. The separate site for documents needs its own registrable domain. |
 | NCFH-6 | Fixed. Domain verification comes first, before the staging record. |
 | NCFH-7 | Fixed. The Site route's over-limit behaviour is marked inferred and checked by SP-4's count; the L1 change list adds 429 and 1027 to F-51's test. |
+
+## Final check
+
+- **Date:** 2026-10-23
+- **Commit reviewed:** `f532e22` on `design/cloudflare-hosting-l0` (changes since `ec1ec4a`): `strategy.html`, the diagram, `plan.md`, Q-30/Q-31. `sdlc-doclint`: 0 errors, 0 warnings. `.drawio`, `.svg` and the inline SVG carry the same labels. Nothing was edited or committed.
+
+**Verdict: the targeted fixes hold. All eight items are closed except one Low (NCFH-7), and the change to owner-only deploys left one stale row and one inverted fallback (NCFH-8, NCFH-9, both Low). Safe to put to the owner once those are looked at.**
+
+| ID | Status | Evidence |
+|---|---|---|
+| CFH-15 | Fixed | `plan.md:207` is now D-2 in the Decisions table (header at line 204, after D-1). No D-2 row remains in Gate 0; SP-4 and SP-5 stay there. |
+| NCFH-1 | Fixed | Q-30 and the page's Deploys row: the owner runs `wrangler deploy` from a tagged release; no pipeline holds a Cloudflare token. The page gives the reason ("Why no automatic deploy") and keeps Workers Builds as an alternative that "needs the owner to accept a wider RK-2". The RK-2 sentence now reads "no pipeline holds a Cloudflare token", which is true under this design. The cost row and recommended action no longer mention Workers Builds. |
+| NCFH-2 | Fixed | The canary is the route `mardoc.app/demo*`; `/demo` must answer 200 with `x-mardoc-host` (no 307 hop out of the route, since `/demo.html` redirects to `/demo`, which the route also covers). The URL table uses "same bytes, directly or after one redirect" and decides `html_handling` from the table. |
+| NCFH-3 | Fixed | New "Wrangler file" row: no routes, `workers_dev = false`, `preview_urls = false`; Q-31 repeats it; the page notes the SP-1 file listed its route. |
+| NCFH-4 | Fixed | Proof 1 now reads the Site Worker's "Metrics → Requests count" and expects 0; the logs claim stays tied to the Site Worker running no code. |
+| NCFH-5 | Fixed | The second origin now "needs its own registrable domain, because a subdomain of mardoc.app shares its cookie scope". |
+| NCFH-6 | Fixed | "First, before the staging record exists: verify mardoc.app for the GitHub organisation". |
+| NCFH-7 | Partly | Labelled "inferred; SP-4 checks the count", and the L1 amendment now adds a 429 and the 1027 page to F-51's test. Still open: SP-4's count check does not test over-limit behaviour, and the Site route's own fail mode (recommend fail open while Pages deploys) is not set. Low; acceptable to carry as a stated inference. |
+
+### New findings
+
+| ID | Severity | Pass | Location | Finding |
+|---|---|---|---|---|
+| NCFH-8 | Low | Bugs | Switching-back table, "Headers break documents" row | The row still says "Remove the rule from `_headers` and merge", which no longer changes production |
+| NCFH-9 | Low | Bugs | "Releases" row; switching-back "Pages is current" | With owner-only deploys the rollback target is tip of `main`, not the last released version |
+
+- **NCFH-8:** Under Q-30 a merge reaches mardoc.app only when the owner deploys a tagged release. The row's fix is therefore "merge, tag, and run `wrangler deploy`"; as written, a header problem stays live after the fix is merged. *Scenario:* a CSP rule breaks documents; a maintainer merges the removal and reports it fixed; the Worker still serves the old `_headers` until the owner redeploys. *Fix:* say "remove the rule, then redeploy; or roll the Worker back one version" (the same step as the Auth Worker row).
+- **NCFH-9:** The page now says GitHub Pages "can be ahead of the Worker" during the bake period, but it still calls Pages "current" and treats it as the proven fallback. Pages deploys on every merge, while the Worker serves the last tag, so deleting the route lands users on the newest, unreleased `main`. *Scenario:* the owner releases v1 to the Worker; a later PR that breaks a viewer merges and auto-deploys to Pages; the owner finds a v1 problem and deletes the route, and users get the broken build. *Fix:* during the bake period, build Pages from the same tag as the Worker (a one-line trigger change in `deploy.yml`), or state that the rollback goes to tip of `main` and accept it.
+
+### Checked and found sound
+
+- The reasoning for owner-only deploys uses the right fact (Workers Builds' default token: Workers Scripts edit account-wide, Routes edit on all zones) and costs only a line: "Releases then wait for the owner" appears in Q-30 and the Releases row, so the owner sees the trade.
+- The fix for RK-2 is consistent across the page, Q-30, the diagram labels ("owner deploys" on both Workers) and the Recommended action; no stale "auto-deploys" text remains. The Alternatives table keeps the Workers Builds option with its condition.
+- SP-5 now tests the real property (the route stays deleted after a later `wrangler deploy`), which is what the Wrangler docs say can undo a dashboard route.
+
+## Lead dispositions after the final check (2026-10-23)
+
+| Finding | Disposition |
+|---|---|
+| NCFH-7 | Fixed the open part: both routes fail closed (Q-31). The over-limit behaviour of a code-free Worker stays a stated inference. |
+| NCFH-8 | Fixed. The row now rolls the Site Worker back one version, then deploys a release without the rule. |
+| NCFH-9 | Fixed. During the bake period `deploy.yml` runs on release tags, so GitHub Pages and the Worker serve the same release; the page no longer calls Pages "current" on its own. |
