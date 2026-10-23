@@ -22,13 +22,10 @@
         <mxCell id="proxy" value="Cloudflare proxy&#xa;(exists)" vertex="1" parent="1" style="rounded=0;html=0;fillColor=#1f2733;strokeColor=#4fd1ec;fontColor=#e6edf3;">
           <mxGeometry x="300" y="70" width="260" height="60" as="geometry"/>
         </mxCell>
-        <mxCell id="site" value="MarDoc site Worker (proposed)" vertex="1" parent="1" style="rounded=0;html=0;dashed=1;verticalAlign=top;fillColor=#161b22;strokeColor=#4fd1ec;fontColor=#e6edf3;">
-          <mxGeometry x="300" y="160" width="260" height="240" as="geometry"/>
-        </mxCell>
-        <mxCell id="assets" value="Static assets: out/&#xa;(no code runs)" vertex="1" parent="1" style="rounded=0;html=0;fillColor=#1f2733;strokeColor=#a9b6c6;fontColor=#e6edf3;">
+        <mxCell id="assets" value="Site Worker: out/ files&#xa;(no code; auto-deploys)" vertex="1" parent="1" style="rounded=0;html=0;dashed=1;fillColor=#1f2733;strokeColor=#4fd1ec;fontColor=#e6edf3;">
           <mxGeometry x="330" y="205" width="210" height="60" as="geometry"/>
         </mxCell>
-        <mxCell id="auth" value="Auth code: /api/auth/*&#xa;(designed in the L1)" vertex="1" parent="1" style="rounded=0;html=0;dashed=1;fillColor=#1f2733;strokeColor=#a9b6c6;fontColor=#e6edf3;">
+        <mxCell id="auth" value="Auth Worker: /api/auth/*&#xa;(L1; owner deploys)" vertex="1" parent="1" style="rounded=0;html=0;dashed=1;fillColor=#1f2733;strokeColor=#a9b6c6;fontColor=#e6edf3;">
           <mxGeometry x="330" y="285" width="210" height="60" as="geometry"/>
         </mxCell>
         <mxCell id="secret" value="Worker secret: client secret" vertex="1" parent="1" style="rounded=0;html=0;dashed=1;fillColor=#1f2733;strokeColor=#344052;fontColor=#a9b6c6;">
@@ -46,7 +43,7 @@
         <mxCell id="app-proxy" value="mardoc.app/*" edge="1" parent="1" source="app" target="proxy" style="html=0;strokeColor=#a9b6c6;fontColor=#e6edf3;labelBackgroundColor=#161b22;endArrow=block;endFill=1;">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
-        <mxCell id="proxy-assets" value="every other path" edge="1" parent="1" source="proxy" target="assets" style="html=0;strokeColor=#a9b6c6;fontColor=#e6edf3;labelBackgroundColor=#161b22;endArrow=block;endFill=1;exitX=0.6;exitY=1;entryX=0.6;entryY=0;">
+        <mxCell id="proxy-assets" value="/* (every other path)" edge="1" parent="1" source="proxy" target="assets" style="html=0;strokeColor=#a9b6c6;fontColor=#e6edf3;labelBackgroundColor=#161b22;endArrow=block;endFill=1;exitX=0.6;exitY=1;entryX=0.6;entryY=0;">
           <mxGeometry x="0.6" relative="1" as="geometry"/>
         </mxCell>
         <mxCell id="proxy-auth" value="/api/auth/*" edge="1" parent="1" source="proxy" target="auth" style="html=0;strokeColor=#a9b6c6;fontColor=#e6edf3;labelBackgroundColor=#161b22;endArrow=block;endFill=1;edgeStyle=orthogonalEdgeStyle;exitX=0.04;exitY=1;entryX=0;entryY=0.5;">
@@ -71,6 +68,11 @@
         <mxCell id="app-api" value="documents and reviews (access token, in memory)" edge="1" parent="1" source="app" target="api" style="html=0;strokeColor=#a9b6c6;fontColor=#e6edf3;labelBackgroundColor=#161b22;endArrow=block;endFill=1;edgeStyle=orthogonalEdgeStyle;exitX=0.7;exitY=1;entryX=0.5;entryY=1;">
           <mxGeometry relative="1" as="geometry">
             <Array as="points"><mxPoint x="166" y="480"/><mxPoint x="847" y="480"/></Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="auth-app" value="access token, once" edge="1" parent="1" source="auth" target="app" style="html=0;strokeColor=#a9b6c6;fontColor=#e6edf3;labelBackgroundColor=#161b22;endArrow=block;endFill=1;edgeStyle=orthogonalEdgeStyle;exitX=0;exitY=0.85;entryX=1;entryY=0.8;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="255" y="336"/><mxPoint x="255" y="126"/></Array>
           </mxGeometry>
         </mxCell>
       </root>
