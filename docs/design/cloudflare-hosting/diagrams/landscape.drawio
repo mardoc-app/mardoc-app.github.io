@@ -22,7 +22,7 @@
         <mxCell id="proxy" value="Cloudflare proxy&#xa;(exists)" vertex="1" parent="1" style="rounded=0;html=0;fillColor=#1f2733;strokeColor=#4fd1ec;fontColor=#e6edf3;">
           <mxGeometry x="300" y="70" width="260" height="60" as="geometry"/>
         </mxCell>
-        <mxCell id="assets" value="Site Worker: out/ files&#xa;(no code; auto-deploys)" vertex="1" parent="1" style="rounded=0;html=0;dashed=1;fillColor=#1f2733;strokeColor=#4fd1ec;fontColor=#e6edf3;">
+        <mxCell id="assets" value="Site Worker: out/ files&#xa;(no code; owner deploys)" vertex="1" parent="1" style="rounded=0;html=0;dashed=1;fillColor=#1f2733;strokeColor=#4fd1ec;fontColor=#e6edf3;">
           <mxGeometry x="330" y="205" width="210" height="60" as="geometry"/>
         </mxCell>
         <mxCell id="auth" value="Auth Worker: /api/auth/*&#xa;(L1; owner deploys)" vertex="1" parent="1" style="rounded=0;html=0;dashed=1;fillColor=#1f2733;strokeColor=#a9b6c6;fontColor=#e6edf3;">
