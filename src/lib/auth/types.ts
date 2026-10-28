@@ -13,7 +13,7 @@ export type SessionStatus =
 export type SessionKey = "pat" | "embed" | `sign-in:${string}` | null;
 
 export type SessionEvent =
-  | { type: "start" }
+  | { type: "start"; nonce: string }
   | { type: "health-failed" }
   // `source` is the message event's source, compared by identity; unknown here.
   | { type: "result"; result: SignInResult; source: unknown }
@@ -40,22 +40,23 @@ export interface SessionState {
   attempt: { nonce: string; deadline: number } | null;
 }
 
+// Effects may carry the token transiently (get-user); state never does (I-10).
 export type SessionEffect =
-  | { type: "open-popup" }
+  | { type: "open-popup"; nonce: string }
   | { type: "focus-popup" }
   | { type: "close-popup" }
   | { type: "health-check" }
-  | { type: "get-user" }
-  | { type: "apply-same-login" }
-  | { type: "apply-new-login" }
-  | { type: "confirm-discard" }
+  | { type: "get-user"; token: string; expiresIn: number }
+  | { type: "apply-same-login"; login: string }
+  | { type: "apply-new-login"; login: string }
+  | { type: "confirm-discard"; login: string }
   | { type: "reset-client" }
   | { type: "revoke" }
   | { type: "remove-marker" }
   | { type: "set-marker" }
   | { type: "remove-user-repos" }
   | { type: "remove-saved-pat" }
-  | { type: "schedule-expiry" };
+  | { type: "schedule-expiry"; expiresAt: number };
 
 export type SessionReducer = (
   state: SessionState,
