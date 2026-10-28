@@ -100,13 +100,9 @@ test.describe("T-31 journeys", () => {
     await expect(empty.getByRole("button", { name: "Use a personal access token" })).toBeVisible();
   });
 
-  // Known defect, WP-8 finding (backlog M1-5): while signed in, the token option in the
-  // F-44 and F-42 messages switches to the GitHub Connection tab but no token form
-  // shows, because that tab offers the form only when signed out, expired or after an
-  // error. Marked as an expected failure until the product fix; remove test.fail then.
+  // M1-5: while signed in, the token option in the F-44 and F-42 messages opens the token form.
   for (const where of ["no-installations", "no-access-notice"] as const) {
     test(`t31_token_option_from_${where.replace(/-/g, "_")}_opens_the_token_form`, async ({ page, context }) => {
-      test.fail(true, "M1-5: the token form is hidden while signed in");
       const route = where === "no-access-notice" ? fileRoute("acme/private") : "/";
       await setUp(page, context, where === "no-installations" ? { installations: [], route } : { route });
       await signIn(page);
