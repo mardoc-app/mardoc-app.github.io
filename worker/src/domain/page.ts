@@ -27,10 +27,14 @@ export const RETURN_TEXT = "Return to MarDoc and try again.";
 export const INSTALLED_TEXT = "MarDoc is installed. Go back to the MarDoc tab and press Refresh.";
 
 export function renderCallbackPage(result: SignInResult, appOrigin: string, cspNonce: string): string {
-  // The script posts to the configured app origin only, never "*".
+  // The script posts to the configured app origin only, never "*". It takes
+  // the result out of the DOM as soon as it has read it, so a page left open
+  // without an opener holds no token (SR-3).
   const script =
     "(function(){" +
-    'var r=JSON.parse(document.getElementById("result").textContent);' +
+    'var e=document.getElementById("result");' +
+    "var r=JSON.parse(e.textContent);" +
+    'e.textContent="";e.remove();' +
     "var o=window.opener;" +
     `if(o){o.postMessage(r,${escapedJson(appOrigin)});window.close();}` +
     `else{document.getElementById("msg").textContent=${escapedJson(RETURN_TEXT)};}` +

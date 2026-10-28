@@ -89,9 +89,18 @@ export function runPageScript(body: string, opener: boolean) {
   const posted: Array<[unknown, string]> = [];
   let closed = false;
   const msg = { textContent: "" };
+  // The result element as a DOM element: it can be removed, after which
+  // getElementById no longer finds it (SR-3).
+  let resultInDom = true;
+  const result = {
+    textContent: resultText(body),
+    remove() {
+      resultInDom = false;
+    },
+  };
   const fakeDocument = {
     getElementById(id: string) {
-      if (id === "result") return { textContent: resultText(body) };
+      if (id === "result") return resultInDom ? result : null;
       if (id === "msg") return msg;
       return null;
     },
@@ -103,5 +112,11 @@ export function runPageScript(body: string, opener: boolean) {
     },
   };
   new Function("window", "document", pageScript(body).source)(fakeWindow, fakeDocument);
-  return { posted, closed, msg: msg.textContent };
+  return {
+    posted,
+    closed,
+    msg: msg.textContent,
+    /** Whether a token-bearing result is still in the document after the script ran. */
+    resultInDom: resultInDom && result.textContent !== "",
+  };
 }

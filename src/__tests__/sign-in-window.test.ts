@@ -119,6 +119,50 @@ describe("start", () => {
     expect(h.fetch).toHaveBeenCalledWith(AUTH_ROUTES.health, expect.anything());
   });
 
+  // SR-1, F-19: inside a frame (window.top !== window.self) no attempt starts,
+  // and no result is accepted.
+  const frame = (h: ReturnType<typeof harness>) => {
+    const host = h.host as SignInHost & { top?: unknown; self?: unknown };
+    host.self = host;
+    host.top = { other: "window" };
+  };
+
+  it("f19_start_refuses_when_framed_sr1", () => {
+    const h = harness();
+    frame(h);
+    h.adapter.start();
+    expect(h.open).not.toHaveBeenCalled();
+    expect(h.fetch).not.toHaveBeenCalled();
+    expect(h.events).toEqual([]);
+    expect(h.state.status).toBe("signed-out");
+  });
+
+  it("f19_start_runs_when_top_level_sr1", () => {
+    const h = harness();
+    const host = h.host as SignInHost & { top?: unknown; self?: unknown };
+    host.self = host;
+    host.top = host;
+    h.adapter.start();
+    expect(h.open).toHaveBeenCalledTimes(1);
+    expect(h.state.status).toBe("signing-in");
+  });
+
+  it("f19_result_ignored_when_framed_sr1", () => {
+    const h = harness();
+    h.adapter.start();
+    frame(h);
+    h.post(h.ok());
+    expect(h.setPendingToken).not.toHaveBeenCalled();
+    expect(h.state.status).toBe("signing-in");
+  });
+
+  it("f19_reading_top_that_throws_counts_as_framed_sr1", () => {
+    const h = harness();
+    Object.defineProperty(h.host, "top", { get() { throw new Error("SecurityError"); } });
+    h.adapter.start();
+    expect(h.open).not.toHaveBeenCalled();
+  });
+
   it("t12_nonce_is_16_random_bytes_base64url", () => {
     const bytes = new Uint8Array(16).fill(0xff);
     const n = makeNonce((b) => { b.set(bytes); return b; });
@@ -324,6 +368,8 @@ describe("close detection, deadline and health check", () => {
   for (const [name, health] of [
     ["pages_404", async () => new Response("<!DOCTYPE html><title>404</title>", { status: 404, headers: { "x-github-request-id": "X" } })],
     ["503", async () => new Response("Service Unavailable", { status: 503 })],
+    // CR-4: the Worker's own answer when CLIENT_ID or CLIENT_SECRET is empty.
+    ["503_ok_false_unconfigured_cr4", async () => new Response(JSON.stringify({ ok: false }), { status: 503, headers: { "content-type": "application/json" } })],
     ["network_error", async () => { throw new TypeError("Failed to fetch"); }],
     ["200_without_ok", async () => new Response(JSON.stringify({ status: "fine" }), { status: 200 })],
     ["200_html", async () => new Response("<html></html>", { status: 200 })],

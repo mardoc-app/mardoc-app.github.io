@@ -95,6 +95,31 @@ describe("callback page (T-21)", () => {
     expect(run.msg).toBe("Return to MarDoc and try again.");
   });
 
+  it("f23_callback_page_removes_result_after_reading_it_without_opener_sr3", async () => {
+    // SR-3: with no opener, the live token must not stay in the page's DOM.
+    const r = await signedInPage();
+    const run = runPageScript(r.body, false);
+    expect(run.posted).toEqual([]);
+    expect(run.msg).toBe("Return to MarDoc and try again.");
+    expect(run.resultInDom).toBe(false);
+  });
+
+  it("f23_callback_page_removes_result_after_reading_it_with_opener_sr3", async () => {
+    const r = await signedInPage();
+    const run = runPageScript(r.body, true);
+    expect(run.posted).toHaveLength(1);
+    expect((run.posted[0][0] as { token: string }).token).toBe("ghu_abc");
+    expect(run.resultInDom).toBe(false);
+  });
+
+  it("f23_callback_page_script_removes_the_result_element_sr3", async () => {
+    // The markup: the removal happens in the page's one script, before either branch.
+    const { source } = pageScript((await signedInPage()).body);
+    const removal = source.indexOf(".remove()");
+    expect(removal).toBeGreaterThan(source.indexOf('getElementById("result")'));
+    expect(removal).toBeLessThan(source.indexOf("window.opener"));
+  });
+
   it("t21_page_hostile_error_never_appears_unescaped (I-17)", async () => {
     stubGitHub(ghJson({}));
     for (const hostile of ALL_HOSTILE) {

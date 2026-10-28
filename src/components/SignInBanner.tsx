@@ -1,6 +1,6 @@
 "use client";
 
-// The sign-in banner (WP-6; F-32, F-33, F-37, F-38, NF-22): a strip above the
+// The sign-in banner (WP-6; F-19, F-32, F-33, F-37, F-38, NF-22): a strip above the
 // main pane, inside an aria-live region that is always present so each prompt
 // and error is announced. It holds no state and never opens the pop-up itself.
 import React from "react";
@@ -8,6 +8,7 @@ import { useApp } from "@/lib/app-context";
 import { isAttemptStatus } from "@/lib/auth/session";
 import { parseHash } from "@/lib/hash-router";
 import { signInErrorText } from "./sign-in-text";
+import OpenInNewTabLink from "./OpenInNewTabLink";
 
 const btn =
   "text-xs px-3 py-1 rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)] transition-colors";
@@ -27,7 +28,7 @@ interface Props {
 }
 
 export default function SignInBanner({ onUseToken }: Props) {
-  const { session, startSignIn, dispatchSession, isEmbedded } = useApp();
+  const { session, startSignIn, dispatchSession, isEmbedded, isFramed } = useApp();
   // During an attempt the banner keeps showing the state it started from.
   const status = isAttemptStatus(session.status) ? session.statusBeforeAttempt : session.status;
   const showable = !isEmbedded && (status === "expiring" || status === "expired" || status === "sign-in-again");
@@ -55,9 +56,14 @@ export default function SignInBanner({ onUseToken }: Props) {
               {signInErrorText(session.lastError)}
             </span>
           )}
-          <button type="button" className={btn} onClick={() => startSignIn()}>
-            {attempting ? "Signing in…" : "Sign in again"}
-          </button>
+          {isFramed ? (
+            // Inside another page's frame sign-in is not offered (F-19, SR-1).
+            <OpenInNewTabLink className={`${btn} inline-flex items-center gap-1`} />
+          ) : (
+            <button type="button" className={btn} onClick={() => startSignIn()}>
+              {attempting ? "Signing in…" : "Sign in again"}
+            </button>
+          )}
           {status === "sign-in-again" && (
             <button type="button" className={btn} onClick={() => dispatchSession({ type: "continue-without" })}>
               Continue without signing in
