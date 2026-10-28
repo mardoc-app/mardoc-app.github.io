@@ -5,7 +5,7 @@ Level: L1
 - **Author:** Joe Barnett
 - **Written with:** lead agent (Opus 5.5)
 - **Date:** 2026-10-21
-- **Status:** Draft until the owner has corrected it. Seeded from issue
+- **Status:** Accepted by the owner (2026-10-27), including the six lead-derived decisions below at their defaults. Seeded from issue
   [#146](https://github.com/mardoc-app/mardoc-app.github.io/issues/146), the
   accepted [L0 strategy](strategy.html) (D-1 in
   [plan.md](../../plan.md#decisions)) and the owner's L1 brief of 2026-10-21.
@@ -96,7 +96,7 @@ sign-in fails.
 | S-27 | "Stage 2 (refresh) is out of scope apart from a note." | Owner's L1 brief, 2026-10-21 |
 | S-28 | "The README, data-and-security.md and capabilities.md must say so." (Cloudflare in the credential path) | L0 § The pieces, approved as D-1 |
 
-## Decisions derived by the lead, for the owner's yes or no
+## Decisions derived by the lead, accepted by the owner
 
 These came from analysis, not from the owner's words. Each is a default in
 [requirements.md](requirements.md) and changes if the owner says no.

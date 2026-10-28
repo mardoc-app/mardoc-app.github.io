@@ -748,9 +748,8 @@ contains no `ghr_`. `?code=c&state=N.x` with the cookie holding `N.s` gives
   the fix.
 - **Forged `init` (RK-3):** today a document can post `init` and replace the
   credential (`app-context.tsx:353-376`). F-16 requires the embed-mode and
-  parent-window checks for `init` in stage 1 (T-15). That is Q-27's
-  default and is PENDING: until the owner decides, RK-3 is open for stage 1,
-  and shipping without F-16 needs the owner's acceptance in risks.md.
+  parent-window checks for `init` in stage 1 (T-15). The owner accepted
+  Q-27's default (2026-10-27), so stage 1 ships only with these checks.
 - **Third party (RK-2):** Cloudflare runs the Worker and could see tokens.
   The Worker logs nothing (I-16); F-70 says so in the docs.
 - **Revoke route abuse:** it needs the token itself, so a caller can only
