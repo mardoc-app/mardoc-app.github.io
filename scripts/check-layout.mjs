@@ -1,9 +1,17 @@
 #!/usr/bin/env node
 // Layout checker for the GitHub sign-in design (T-30).
-//   LR-10: src/lib/auth/** (except the adapters sign-in-window.ts and
-//          credential.ts) imports no react/react-dom and uses none of
-//          window, document, localStorage, sessionStorage, fetch.
-//   LR-11: worker/src/domain/** uses no fetch and no env.
+//   LR-10: src/lib/auth/** except the adapters (sign-in-window.ts,
+//          credential.ts) and build-time config (config.ts, which reads
+//          process.env) imports only ./types and ./contract, and uses none of
+//          window, document, localStorage, sessionStorage, fetch, globalThis,
+//          self, process.
+//   LR-11: worker/src/domain/** imports only its siblings (./x) and
+//          ../../../src/lib/auth/contract, and uses none of fetch, env
+//          (also as a member, `x.env`), globalThis, self, process.
+// Imports are an allow-list: any other module, a re-export, a side-effect
+// import, require() and a computed dynamic import are violations. The global
+// names catch member access too (`globalThis.fetch`, `process.env.X`).
+// A new file under either tree is domain code by default.
 // Usage: node scripts/check-layout.mjs [rootDir]
 // Prints "LR-n file:line message" per violation; exits 1 on any, else 0.
 import { readdirSync, readFileSync, statSync } from "node:fs";
@@ -15,9 +23,16 @@ const root = path.resolve(
 );
 
 const SOURCE = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/;
-const LR10_ADAPTERS = new Set(["sign-in-window.ts", "credential.ts"]);
-const LR10_IDENTS = ["window", "document", "localStorage", "sessionStorage", "fetch"];
-const LR11_IDENTS = ["fetch", "env"];
+const LR10_EXEMPT = new Set(["sign-in-window.ts", "credential.ts", "config.ts"]);
+const GLOBALS = ["globalThis", "self", "process"];
+const LR10_IDENTS = ["window", "document", "localStorage", "sessionStorage", "fetch", ...GLOBALS];
+const LR11_IDENTS = ["fetch", ...GLOBALS];
+/** Names caught even as a member (`deps.env`), not only as a free identifier. */
+const LR11_MEMBERS = ["env"];
+const stripExt = (spec) => spec.replace(/\.(ts|tsx|js|mjs|cjs)$/, "");
+const LR10_IMPORTS = (spec) => ["./types", "./contract"].includes(stripExt(spec));
+const LR11_IMPORTS = (spec) =>
+  /^\.\/[\w-][\w.-]*$/.test(spec) || stripExt(spec) === "../../../src/lib/auth/contract";
 
 function walk(dir) {
   let entries;
@@ -82,31 +97,52 @@ function blankStrings(line) {
 
 const violations = [];
 
-function checkFile(file, rule, idents, checkReact) {
+// Every module a file names: static and type imports, re-exports, side-effect
+// imports, literal dynamic imports and require(). Matched over the whole
+// source so a multi-line import is reported on the line of its specifier.
+const MODULE_REFS = [
+  /\bfrom\s*(["'])([^"'\n]+)\1/g,
+  /\bimport\s*(["'])([^"'\n]+)\1/g,
+  /\bimport\s*\(\s*(["'])([^"'\n]+)\1\s*\)/g,
+  /\brequire\s*\(\s*(["'])([^"'\n]+)\1\s*\)/g,
+];
+const COMPUTED_REF = /\b(?:import|require)\s*\(\s*(?!["'\s])/g;
+
+function lineOf(src, index) {
+  let n = 1;
+  for (let i = 0; i < index; i++) if (src[i] === "\n") n++;
+  return n;
+}
+
+function checkFile(file, rule, { idents, members = [], allowImport }) {
   const rel = path.relative(root, file).split(path.sep).join("/");
-  const lines = stripComments(readFileSync(file, "utf8")).split("\n");
-  lines.forEach((raw, idx) => {
-    const lineNo = idx + 1;
-    if (checkReact) {
-      const imp =
-        /(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*)(["'])(react|react-dom)(?:\/[^"']*)?\1/.exec(raw);
-      if (imp) violations.push(`${rule} ${rel}:${lineNo} imports ${imp[2]}`);
+  const src = stripComments(readFileSync(file, "utf8"));
+  const found = [];
+  for (const re of MODULE_REFS) {
+    for (const m of src.matchAll(re)) {
+      if (!allowImport(m[2])) found.push([lineOf(src, m.index + m[0].indexOf(m[1])), `imports ${m[2]}`]);
     }
+  }
+  for (const m of src.matchAll(COMPUTED_REF)) found.push([lineOf(src, m.index), "imports a computed module"]);
+  src.split("\n").forEach((raw, idx) => {
     const code = blankStrings(raw);
     for (const id of idents) {
-      if (new RegExp(`(?<![.\\w$])${id}(?![\\w$])`).test(code)) {
-        violations.push(`${rule} ${rel}:${lineNo} uses ${id}`);
-      }
+      if (new RegExp(`(?<![.\\w$])${id}(?![\\w$])`).test(code)) found.push([idx + 1, `uses ${id}`]);
+    }
+    for (const id of members) {
+      if (new RegExp(`(?<![\\w$])${id}(?![\\w$])`).test(code)) found.push([idx + 1, `uses ${id}`]);
     }
   });
+  found.sort((a, b) => a[0] - b[0]);
+  for (const [line, message] of found) violations.push(`${rule} ${rel}:${line} ${message}`);
 }
 
 for (const f of walk(path.join(root, "src/lib/auth"))) {
-  if (LR10_ADAPTERS.has(path.basename(f))) continue;
-  checkFile(f, "LR-10", LR10_IDENTS, true);
+  if (LR10_EXEMPT.has(path.basename(f))) continue;
+  checkFile(f, "LR-10", { idents: LR10_IDENTS, allowImport: LR10_IMPORTS });
 }
 for (const f of walk(path.join(root, "worker/src/domain"))) {
-  checkFile(f, "LR-11", LR11_IDENTS, false);
+  checkFile(f, "LR-11", { idents: LR11_IDENTS, members: LR11_MEMBERS, allowImport: LR11_IMPORTS });
 }
 
 if (violations.length) {

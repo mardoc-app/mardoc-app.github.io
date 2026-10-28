@@ -158,6 +158,50 @@ describe("f44_empty_installations_message", () => {
   });
 });
 
+describe("framed (F-19, SR-1)", () => {
+  const expectNewTabLink = () => {
+    const link = screen.getByRole("link", { name: "Open MarDoc in a new tab" });
+    expect(link.getAttribute("href")).toBe(window.location.href);
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("rel")).toMatch(/\bnoopener\b/);
+  };
+
+  for (const [name, status, key] of [
+    ["signed_out", "signed-out", null],
+    ["pat_active", "signed-out", "pat"],
+    ["expired", "expired", "sign-in:octo"],
+  ] as const) {
+    it(`f19_framed_settings_${name}_offers_new_tab_not_sign_in_sr1`, () => {
+      window.location.hash = "#/acme/docs/blob/main/docs/spec.md";
+      setCtx(status, key, {}, { isFramed: true });
+      openConnect();
+      expect(screen.queryByRole("button", { name: /^Sign in/ })).toBeNull();
+      expectNewTabLink();
+    });
+  }
+
+  it("f19_framed_settings_still_offers_the_token_sr1", () => {
+    setCtx("signed-out", null, {}, { isFramed: true });
+    openConnect();
+    expect(screen.getByRole("button", { name: "Use a personal access token" })).toBeTruthy();
+  });
+
+  it("f19_framed_banner_offers_new_tab_not_sign_in_again_sr1", () => {
+    setCtx("expired", "sign-in:octo", {}, { isFramed: true });
+    render(<SignInBanner />);
+    expect(screen.getByText("Your GitHub sign-in has ended")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Sign in again" })).toBeNull();
+    expectNewTabLink();
+  });
+
+  it("f19_embed_mode_shows_no_new_tab_link_sr1", () => {
+    // The VS Code webview frames MarDoc on purpose; sign-in is simply hidden there (F-15).
+    setCtx("signed-out", null, {}, { isFramed: true, isEmbedded: true });
+    openConnect();
+    expect(screen.queryByRole("link", { name: "Open MarDoc in a new tab" })).toBeNull();
+  });
+});
+
 describe("banner (F-32, F-33, F-37, F-38, NF-22)", () => {
   it("f33_banner_expiring", () => {
     setCtx("expiring", "sign-in:octo");
