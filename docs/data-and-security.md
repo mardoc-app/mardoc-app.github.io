@@ -4,15 +4,30 @@ Reviewed against `4abb8f5` on 2026-09-23; corrected against `2b94d90` on 2026-10
 
 ## What leaves the browser
 
-MarDoc has no application backend receiving repository content or authenticating users. The browser sends the PAT directly to GitHub for REST and GraphQL requests. Reading files downloads repository content; submitting reviews, commits, or image uploads sends data to GitHub.
+No MarDoc server receives repository content. The browser sends its token (PAT or sign-in token) directly to GitHub for REST and GraphQL requests. One server-side piece exists: the sign-in Worker, described in the next section. Reading files downloads repository content; submitting reviews, commits, or image uploads sends data to GitHub.
 
 Rendered documents can reference remote images, styles, media, and scripts. Those resources create requests to their own hosts. HTML scripts execute in the current viewers. “No data leaves the browser” and “the token never leaves the machine” are therefore inaccurate descriptions.
+
+## Sign in with GitHub
+
+A stateless Worker, run by MarDoc on Cloudflare at `mardoc.app/api/auth/*`, exchanges the sign-in code with GitHub using the MarDoc GitHub App's client secret. It sees the GitHub access token and the refresh token while it handles one exchange. Cloudflare is therefore a party in the credential path: a compromised Worker deploy or Cloudflare account could capture tokens (RK-2 in [risks.md](risks.md)). Only the MarDoc owner can deploy the Worker, and the Cloudflare account uses a hardware security key.
+
+- The Worker keeps no data and logs nothing. Its only state is an attempt cookie that lasts 10 minutes.
+- The Worker returns the access token to the MarDoc tab and discards the refresh token. MarDoc has no refresh route, so a sign-in lasts 8 hours and then ends.
+- The tab keeps the sign-in token in memory only. It is not written to localStorage, sessionStorage or a cookie, and a reload ends the sign-in.
+- Disconnect revokes the token at GitHub through the Worker, then clears it from memory.
+- A PAT never goes through the Worker.
+
+The sign-in token reaches only repositories where the MarDoc GitHub App is installed and that your account can reach. The HTML isolation gap below still applies: a script in a rendered document can read the in-memory token while the tab is signed in. The 8-hour lifetime and the installed-repository limit bound that exposure (SEC-01, RK-1).
 
 ## Where state lives
 
 | Data | Location / lifetime | Recovery or clearing behavior |
 | --- | --- | --- |
 | Browser-entered PAT | `localStorage`: `mardoc_github_token`; also React and Octokit memory | Restored on startup; Disconnect removes the saved key and clears the module-level Octokit client and the in-memory content, tree and image caches. |
+| Sign-in token | Memory only; expires after 8 hours | Not saved. Gone on reload, expiry or Disconnect; Disconnect also revokes it at GitHub. |
+| Sign-in marker | `localStorage`: `mardoc_auth_method` | Non-secret value that records the tab was signed in, so a reload can offer Sign in again. Holds no token. |
+| Sign-in attempt cookie | Cookie on `mardoc.app`, `HttpOnly`, path `/api/auth`, 10 minutes | Set by the Worker when sign-in starts; checked when GitHub returns. JavaScript cannot read it. |
 | Last repository | `localStorage`: `mardoc_current_repo` | Restored when a deep link does not take precedence; removed on Disconnect. |
 | Existing repository Markdown draft | `localStorage`: `mardoc:draft:v1:{repo}:{branch}:{path}` | Includes Markdown and timestamp. Restore is offered when different from the baseline. New/local files are excluded. |
 | Display preferences | `localStorage`: `theme`, `mardoc_wide_format` | Persist independently of the connection. |
@@ -26,7 +41,7 @@ Rendered documents can reference remote images, styles, media, and scripts. Thos
 
 localStorage is origin-scoped and not encrypted by MarDoc. It is distinct from the browser's HTTP cache. Browser settings, storage limits, or clearing site data can remove it. Storage failures are caught and may silently prevent saving drafts/preferences; autosave is not a backup guarantee.
 
-Disconnect removes the saved PAT, the repository preference and the cached repository list, and resets the in-memory GitHub client, but leaves drafts and preferences. To remove persisted local data, use the browser's clear-site-data controls for the MarDoc origin and close its tabs. To revoke the credential itself, delete it in [GitHub token settings](https://github.com/settings/tokens). Deleting browser data does not delete submitted GitHub content.
+Disconnect removes the saved PAT, the repository preference and the cached repository list, and resets the in-memory GitHub client, but leaves drafts and preferences. To remove persisted local data, use the browser's clear-site-data controls for the MarDoc origin and close its tabs. To revoke a PAT, delete it in [GitHub token settings](https://github.com/settings/tokens). Deleting browser data does not delete submitted GitHub content.
 
 ## Known HTML isolation gap
 
