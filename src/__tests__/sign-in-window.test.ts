@@ -324,6 +324,8 @@ describe("close detection, deadline and health check", () => {
   for (const [name, health] of [
     ["pages_404", async () => new Response("<!DOCTYPE html><title>404</title>", { status: 404, headers: { "x-github-request-id": "X" } })],
     ["503", async () => new Response("Service Unavailable", { status: 503 })],
+    // CR-4: the Worker's own answer when CLIENT_ID or CLIENT_SECRET is empty.
+    ["503_ok_false_unconfigured_cr4", async () => new Response(JSON.stringify({ ok: false }), { status: 503, headers: { "content-type": "application/json" } })],
     ["network_error", async () => { throw new TypeError("Failed to fetch"); }],
     ["200_without_ok", async () => new Response(JSON.stringify({ status: "fine" }), { status: 200 })],
     ["200_html", async () => new Response("<html></html>", { status: 200 })],

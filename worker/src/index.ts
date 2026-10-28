@@ -66,15 +66,25 @@ function callbackUrl(env: Env): string {
   return `${env.APP_ORIGIN}${AUTH_ROUTES.callback}`;
 }
 
-function github(env: Env) {
-  return createGitHub({
+/** The App's configuration; the one place the secret is read from env (C-13). */
+function appConfig(env: Env) {
+  return {
     clientId: env.CLIENT_ID,
     clientSecret: env.CLIENT_SECRET,
     redirectUri: callbackUrl(env),
-  });
+  };
+}
+
+function github(env: Env) {
+  return createGitHub(appConfig(env));
 }
 
 function health(env: Env): Response {
+  // A deploy without the client ID or secret cannot sign anyone in; saying so
+  // here makes the tab report worker_unavailable within 5 s (F-51, CR-4).
+  // The body never names which value is missing.
+  const config = appConfig(env);
+  if (!config.clientId || !config.clientSecret) return json(503, { ok: false });
   const body: HealthResponse = { ok: true, version: env.VERSION || "dev" };
   return json(200, body);
 }
