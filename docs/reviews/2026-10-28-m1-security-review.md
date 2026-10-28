@@ -286,3 +286,17 @@ SR-2 and SR-3 are hardening fixes.
   has no runtime dependencies. Licensing (LGPL in sharp/libvips through
   miniflare) is a compliance point for the main review, not a security
   one.
+
+---
+
+## Dispositions
+
+WP-9 fixes on branch `wp-9-fixes` (from `adbae0a`). Each fix has its failing test committed first; "test → fix".
+
+| ID | Disposition | Commits | Tests |
+|---|---|---|---|
+| SR-1 | Fixed. New requirement F-19 and test T-34. `createSignInWindow().start()` does nothing when `window.top !== window.self` (or reading `top` throws), and the result listener ignores messages while framed. The app exposes `isFramed`; outside embed mode, Settings and the banner replace every Sign in button with "Open MarDoc in a new tab" (the current URL, `target="_blank"`, `rel="noopener noreferrer"`) and keep the token option. Design § Security and privacy records the framing threat and the later `frame-ancestors 'none'` layer for D-2. No new result code: a framed start is silent, because the UI never offers it. | `6c2c67a` → `b3116ee` | Unit: `f19_start_refuses_when_framed_sr1`, `f19_start_runs_when_top_level_sr1`, `f19_result_ignored_when_framed_sr1`, `f19_reading_top_that_throws_counts_as_framed_sr1`. Component: `f19_framed_settings_{signed_out,pat_active,expired}_offers_new_tab_not_sign_in_sr1`, `f19_framed_settings_still_offers_the_token_sr1`, `f19_framed_banner_offers_new_tab_not_sign_in_again_sr1`, `f19_embed_mode_shows_no_new_tab_link_sr1`. Playwright (a `127.0.0.1` page frames the app on `localhost`): `f19_framed_app_offers_a_new_tab_not_sign_in_sr1`, control `f19_top_level_app_still_offers_sign_in_sr1` |
+| SR-2 | Fixed. `/revoke` reads the body through a 4 KiB cap and cancels the stream once it is passed, with or without `Content-Length`; a declared length over 4 KiB is still refused unread. Refusing a missing `Content-Length` was not chosen, because the existing `t22_a_thrown_error_still_gets_the_common_headers` sends a stream without one and expects the read error to surface. The design's revoke row says so. | `d23ee6d` → `ede0ebe` | `f61_revoke_chunked_oversize_body_is_refused_within_4_kib_sr2` (8 MiB stream, no length: `400`, at most 16 KiB pulled; before the fix all 8 MiB were pulled), `f61_revoke_chunked_small_body_still_revokes_sr2` |
+| SR-3 | Fixed. The page script reads `#result`, clears it and removes it from the DOM before either branch, so a page left open without an opener holds no token. The optional page-side revoke was not added (it would need `connect-src 'self'` in the callback CSP). T-32 still passes in Chromium against the real Worker. | `6b33e0c` → `6e56f0e` | `f23_callback_page_removes_result_after_reading_it_without_opener_sr3`, `f23_callback_page_removes_result_after_reading_it_with_opener_sr3`, `f23_callback_page_script_removes_the_result_element_sr3` (`worker/test/page.test.ts`) |
+
+Still open from "Not proven": the owner step in SR-1 (does GitHub re-authorize a returning user silently?) and the RK-1 wording it may change; COOP on github.com (SP-3); `/revoke` flooding against GitHub's limit; the Actions `permissions:` block; the harness's listen address; cookie tossing (`__Secure-` versus `__Host-`). None is changed by WP-9.
