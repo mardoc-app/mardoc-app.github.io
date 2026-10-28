@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { Settings, X, Github, LogIn, LogOut, RefreshCw, Lock, Globe, Search, FolderOpen } from "lucide-react";
+import { Settings, X, RefreshCw, Lock, Globe, Search, FolderOpen } from "lucide-react";
 import { useApp } from "@/lib/app-context";
 import { fetchUserRepos } from "@/lib/github-api";
 import FeedbackAISettings from "./FeedbackAISettings";
