@@ -8,6 +8,12 @@ Reviewed against `4abb8f5` on 2026-09-23; corrected against `2b94d90` on 2026-10
 
 Closure requires a repaired boundary and real-browser tests demonstrating storage isolation while rendering, selection, resizing, and comments work. Include document resource policy, Markdown/PR-description HTML rendering, and iframe/extension message-source validation in the security review. The `init` message listener in `app-context.tsx` checks neither origin nor source and runs outside embed mode, so a document script can post a token or file to the app; closing SEC-01 includes that check ([RK-3](risks.md), Q-11). No exploit against user credentials was performed in this audit.
 
+## AUTH-01: Sign-in ends after 8 hours or on a 401
+
+A sign-in token expires after 8 hours. MarDoc keeps no refresh token, so it cannot renew the token. When the lifetime is close, a banner warns that the sign-in is ending. When it ends, or when GitHub answers a request with 401 (for example after you revoke the app), MarDoc stops sending the token, shows "Your GitHub sign-in has ended" and offers **Sign in again**. The open page, route and unsaved edits stay. After a reload the token is gone; MarDoc offers Sign in again for the document you had open. Settings also offers a personal access token at any time.
+
+The token sits in tab memory, so SEC-01 applies to it: a script in a rendered HTML document can read it while the tab is signed in. The 8-hour lifetime and the installed-repository limit bound the exposure (RK-1). Stage 1 has no refresh route, to keep that bound. See [data and security](data-and-security.md).
+
 ## DATA-01: Draft and pending-review recovery
 
 `draft-store.ts` excludes new/local files. `PRDetail` holds pending comments in React state; there is no durable pending-review queue or cross-device recovery. The local-file exclusion also affects the dirty signal used by navigation/embed reload guards. Storage failures silently skip persistence.

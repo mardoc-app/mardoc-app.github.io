@@ -1,5 +1,7 @@
 # Connect GitHub with a personal access token
 
+**Sign in with GitHub is the simpler option.** Use it first: Settings → **GitHub Connection** → **Sign in with GitHub**. It needs no token to create or paste, but it reaches only repositories where the MarDoc GitHub App is installed, and it lasts 8 hours. Use a personal access token when sign-in is unavailable, when the app is not installed on the repository, or when you want a longer-lived token.
+
 MarDoc calls GitHub directly from your browser using a personal access token (PAT). It supports classic and fine-grained tokens; choose one your organization permits and scope it to the work you need. No Auth0 setup or environment variable is required.
 
 The token is saved in browser localStorage and sent to GitHub to authenticate requests. Read [data storage and security](data-and-security.md), including the current HTML isolation gap, before connecting sensitive repositories.
