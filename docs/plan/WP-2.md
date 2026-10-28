@@ -38,6 +38,9 @@ ADO-1 stays with SEC-01.
 | `src/lib/app-context.tsx` | In the `init` listener (`handleMessage`, about lines 353-376): call `isTrustedInit` with `event.data`, `event.source`, `window.parent`, `window` and `window.location.search`, and return early when it is false. Replay the module-level cached `vsCodeInitData` only when `?embed=true`. No other change to `applyInitData` | no |
 | `src/__tests__/embed-init.test.ts` | Unit tests for `isTrustedInit` | yes |
 | `e2e/embed-init.spec.ts` | Playwright T-15 (below) | yes |
+| `e2e/fixtures/embed-host.ts` | The shared host page that stands in for the VS Code webview (below), used by both embed specs | yes |
+| `e2e/embed-mode-clipboard.spec.ts` | The Cmd+C test posts `init` from the host page and selects, copies and reads the clipboard inside the `#mardoc` frame; the copy-path assertion is unchanged. F-16 rejects the `init` this test used to post to its own top-level page (lead decision 2026-10-27, after increment 2 found it) | no |
+| `e2e/README.md` | Coverage map lists `embed-init.spec.ts` | no |
 | `docs/risks.md` | RK-3: mitigation in progress, then DONE for stage 1 with the test name once merged. The `file:content` and other embed messages stay with SEC-01 (ADO-1) | no |
 
 Nothing outside these paths. `applyInitData`, the `ready` handshake and the

@@ -2,7 +2,7 @@
  * F-16 (T-15, RK-3): the embed `init` message is applied only in embed mode
  * and only when it comes from MarDoc's own parent window.
  *
- * The host page mirrors the VS Code webview (mardoc-vscode `src/extension.ts`):
+ * The host page (`fixtures/embed-host.ts`) mirrors the VS Code webview:
  * MarDoc sits in `<iframe id="mardoc" src="/?embed=true">` and the host posts
  * with `iframe.contentWindow.postMessage(payload, '*')`. A sibling iframe
  * stands in for a hostile document next to MarDoc.
@@ -16,6 +16,7 @@
  */
 import { test, expect, type Page, type FrameLocator } from "@playwright/test";
 import { waitForHydration } from "./fixtures/helpers";
+import { openEmbedHost, sendInitFromHost } from "./fixtures/embed-host";
 
 const TRUSTED_TOKEN = "e2e-trusted-init-token";
 const ATTACKER_TOKEN = "e2e-attacker-init-token";
@@ -32,22 +33,6 @@ const forgedInit = {
   filePath: "pwned.md",
   fileContent: `# ${PWNED}\n`,
 };
-
-const HOST_HTML = `<!doctype html>
-<html><head><title>VS Code webview stand-in</title>
-<style>html,body{margin:0;height:100%}iframe{border:0}</style></head>
-<body>
-<iframe id="mardoc" src="/?embed=true" style="width:100%;height:85vh"></iframe>
-<iframe id="sibling" name="sibling" srcdoc="<!doctype html><p>sibling</p>" style="width:100%;height:10vh"></iframe>
-<script>
-  window.__mardocReady = 0;
-  var mardoc = document.getElementById("mardoc");
-  window.addEventListener("message", function (e) {
-    if (e.source === mardoc.contentWindow && e.data && e.data.type === "ready") window.__mardocReady++;
-  });
-  window.sendInit = function (payload) { mardoc.contentWindow.postMessage(payload, "*"); };
-</script>
-</body></html>`;
 
 const POPUP_HTML = (payload: unknown) => `<!doctype html><title>popup</title>
 <script>
@@ -75,23 +60,6 @@ async function mockGitHub(page: Page): Promise<string[]> {
   return auth;
 }
 
-async function serveHost(page: Page) {
-  await page.route("**/__host.html", route =>
-    route.fulfill({ contentType: "text/html", body: HOST_HTML }));
-}
-
-/** Open the host page and wait until MarDoc has posted `ready` (its listener is live). */
-async function openHost(page: Page): Promise<FrameLocator> {
-  await serveHost(page);
-  await page.goto("/__host.html");
-  await page.waitForFunction(() => (window as any).__mardocReady > 0, null, { timeout: 20_000 });
-  return page.frameLocator("#mardoc");
-}
-
-async function sendFromHost(page: Page, payload: unknown) {
-  await page.evaluate(p => (window as any).sendInit(p), payload);
-}
-
 /** Give a posted message time to be handled before asserting nothing changed. */
 async function settle(page: Page) {
   await page.waitForTimeout(750);
@@ -107,7 +75,7 @@ function usedToken(auth: string[], token: string) {
  */
 async function expectTrustedInitStillApplies(page: Page, mardoc: FrameLocator) {
   const control = `control-${Date.now()}`;
-  await sendFromHost(page, {
+  await sendInitFromHost(page, {
     type: "init",
     fileName: "control.md",
     filePath: "control.md",
@@ -119,9 +87,9 @@ async function expectTrustedInitStillApplies(page: Page, mardoc: FrameLocator) {
 test.describe("Embed init trust (F-16, T-15)", () => {
   test("f16_init_from_parent_in_embed_mode_is_applied", async ({ page }) => {
     const auth = await mockGitHub(page);
-    const mardoc = await openHost(page);
+    const mardoc = await openEmbedHost(page);
     const sentinel = `trusted-${Date.now()}`;
-    await sendFromHost(page, {
+    await sendInitFromHost(page, {
       type: "init",
       token: TRUSTED_TOKEN,
       owner: "acme",
@@ -138,7 +106,7 @@ test.describe("Embed init trust (F-16, T-15)", () => {
 
   test("f16_init_from_sibling_iframe_is_ignored", async ({ page }) => {
     const auth = await mockGitHub(page);
-    const mardoc = await openHost(page);
+    const mardoc = await openEmbedHost(page);
     const sibling = page.frame({ name: "sibling" });
     expect(sibling).not.toBeNull();
     // The sibling reaches MarDoc through the shared parent (MarDoc is frames[0]).
@@ -157,7 +125,7 @@ test.describe("Embed init trust (F-16, T-15)", () => {
 
   test("f16_init_from_rendered_document_is_ignored", async ({ page }) => {
     const auth = await mockGitHub(page);
-    const mardoc = await openHost(page);
+    const mardoc = await openEmbedHost(page);
     // The host opens a local HTML file whose script attacks MarDoc through
     // window.parent once HtmlViewer renders it (sandbox allow-scripts
     // allow-same-origin).
@@ -166,7 +134,7 @@ test.describe("Embed init trust (F-16, T-15)", () => {
   window.parent.postMessage(${JSON.stringify(forgedInit)}, "*");
   document.body.setAttribute("data-attacked", "yes");
 </script></body></html>`;
-    await sendFromHost(page, {
+    await sendInitFromHost(page, {
       type: "init",
       fileName: "report.html",
       filePath: "report.html",
