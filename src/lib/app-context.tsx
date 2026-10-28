@@ -13,8 +13,9 @@ import { isReloadShortcut, postReloadRequest, shouldApplyFileContent, isBlockedB
 import { isTrustedInit } from "./embed-init";
 import { next as nextSession, initialSessionState, startupCredential, isAttemptStatus, isSignInKey } from "./auth/session";
 import * as credential from "./auth/credential";
-import type { SessionEffect, SessionEvent, SessionKey, SessionState, StartSignIn, TimerName } from "./auth/types";
-import { EXPIRING_WARNING_MS } from "./auth/contract";
+import type { SessionEffect, SessionEvent, SessionKey, SessionState, StartSignIn } from "./auth/types";
+import { EXPIRING_WARNING_MS, USER_CHECK_DEADLINE_MS } from "./auth/contract";
+import { createSignInWindow, type SignInWindow } from "./auth/sign-in-window";
 
 interface AppState {
   // Auth. The token itself is never in React state (I-10): it lives in
@@ -380,17 +381,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [replaceSession]);
 
-  // Pop-up, health check and revoke belong to the sign-in window adapter
-  // (src/lib/auth/sign-in-window.ts, WP-5). Until it exists these effects do
-  // nothing. `revoke` must read credential.getToken() synchronously: the
-  // `reset-client` effect after it clears the credential.
-  const signInWindowEffect = useRef<(effect: SessionEffect) => void>(() => {});
-  // WP-5 replaces this placeholder with the real start of an attempt.
-  const startSignIn = useCallback<StartSignIn>(() => {}, []);
+  // The sign-in window adapter (src/lib/auth/sign-in-window.ts) owns the
+  // pop-up, the result listener (I-11), the health check and the attempt
+  // timers. It is created after mount, so Strict Mode's remount disposes the
+  // first one and its listener.
+  const signInWindow = useRef<SignInWindow | null>(null);
+  // Called inside the click handler: the pop-up opens before this returns,
+  // because dispatchSession runs the `open-popup` effect synchronously.
+  const startSignIn = useCallback<StartSignIn>(() => {
+    signInWindow.current?.start();
+  }, []);
+  const userCheck = useRef<AbortController | null>(null);
 
-  // Timers armed by the reducer (`arm-timer`), keyed by name; each fires the
-  // event the reducer expects. A `user-check` deadline is a failed user check.
-  const attemptTimers = useRef(new Map<TimerName, { nonce: string; id: ReturnType<typeof setTimeout> }>());
   const expiryTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const clearExpiryTimers = useCallback(() => {
     expiryTimers.current.forEach(clearTimeout);
@@ -428,50 +430,53 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         case "focus-popup":
         case "close-popup":
         case "health-check":
-        case "revoke":
-          signInWindowEffect.current(effect);
+        case "arm-timer":
+        case "clear-timer":
+          signInWindow.current?.run(effect);
           break;
-        case "arm-timer": {
-          const timers = attemptTimers.current;
-          const old = timers.get(effect.name);
-          if (old) clearTimeout(old.id);
-          const { name, nonce } = effect;
-          const id = setTimeout(() => {
-            timers.delete(name);
-            if (name === "deadline") dispatchSession({ type: "deadline", nonce });
-            else if (name === "close-grace") dispatchSession({ type: "close-grace-passed", nonce });
-            else dispatchSession({ type: "user-failed", nonce });
-          }, Math.max(0, effect.at - Date.now()));
-          timers.set(name, { nonce, id });
-          break;
-        }
-        case "clear-timer": {
-          const timer = attemptTimers.current.get(effect.name);
-          if (timer && timer.nonce === effect.nonce) {
-            clearTimeout(timer.id);
-            attemptTimers.current.delete(effect.name);
-          }
+        case "revoke": {
+          // Read the token now: the `reset-client` effect after this one
+          // clears the credential. Only a sign-in token is ever revoked.
+          const token = credential.getCredentialInfo()?.kind === "sign-in" ? credential.getToken() : null;
+          if (token) void signInWindow.current?.revoke(token);
           break;
         }
         case "get-user": {
-          // GET /user with the pending token, which is not applied yet.
+          // GET /user with the pending token, which is not applied yet. The
+          // reducer's `user-check` timer fails the check at 10 s; the request
+          // is aborted then too (F-52).
           const { nonce } = effect;
           const token = credential.peekPendingToken();
           if (!token) {
             dispatchSession({ type: "user-failed", nonce });
             break;
           }
-          fetchLoginForToken(token).then(
-            (login) => dispatchSession({ type: "user", nonce, login, dirty: editorIsDirtyRef.current }),
+          userCheck.current?.abort();
+          const controller = new AbortController();
+          userCheck.current = controller;
+          const timeout = setTimeout(() => controller.abort(), USER_CHECK_DEADLINE_MS);
+          fetchLoginForToken(token, controller.signal).then(
+            (login) => {
+              // The token must still be pending to be applied; if it is gone,
+              // the check fails rather than signing in without it.
+              if (!credential.hasPendingToken()) dispatchSession({ type: "user-failed", nonce });
+              else dispatchSession({ type: "user", nonce, login, dirty: editorIsDirtyRef.current });
+            },
             () => dispatchSession({ type: "user-failed", nonce }),
-          );
+          ).finally(() => {
+            clearTimeout(timeout);
+            if (userCheck.current === controller) userCheck.current = null;
+          });
           break;
         }
         case "apply-same-login": {
           // Same login: swap the token only; sessionKey is unchanged, so no
           // navigation re-runs and the dirty editor keeps its text (F-35).
           const token = credential.takePendingToken();
-          if (!token) break;
+          if (!token) {
+            failClosedWithoutPendingToken();
+            break;
+          }
           if (credential.applySignInCredential(token, effect.login, effect.expiresAt)) bumpTokenRevision();
           setIsDemoMode(false);
           break;
@@ -480,7 +485,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           // Another login: the full reset connecting does, without writing
           // the token anywhere (F-36, I-10, F-53).
           const token = credential.takePendingToken();
-          if (!token) break;
+          if (!token) {
+            failClosedWithoutPendingToken();
+            break;
+          }
           resetForCredentialChange();
           if (credential.applySignInCredential(token, effect.login, effect.expiresAt)) bumpTokenRevision();
           setIsDemoMode(false);
@@ -493,7 +501,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           const { nonce, login } = effect;
           guardNavigation(
             `sign in as ${login}, which closes the open document`,
-            () => dispatchSession({ type: "discard-confirmed", nonce }),
+            () => dispatchSession(credential.hasPendingToken()
+              ? { type: "discard-confirmed", nonce }
+              : { type: "user-failed", nonce }),
             () => dispatchSession({ type: "discard-cancelled", nonce }),
           );
           break;
@@ -545,6 +555,42 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // An apply effect found the pending slot empty. The `user` and
+  // `discard-confirmed` dispatches check the slot first, so this is a guard,
+  // not a path: the session already says signed-in, so end it as expired
+  // (requests fail as auth errors) rather than run on the old credential.
+  function failClosedWithoutPendingToken() {
+    dispatchSession({ type: "auth-error" });
+  }
+
+  // Create the sign-in window adapter after mount (it listens on window).
+  useEffect(() => {
+    const adapter = createSignInWindow({
+      window,
+      getSession: () => sessionRef.current,
+      dispatch: dispatchSession,
+      setPendingToken: credential.setPendingToken,
+    });
+    signInWindow.current = adapter;
+    // Test hook for Playwright only: set `window.__MARDOC_E2E__ = true` before
+    // the app loads. It exposes nothing a same-origin script can't already do
+    // and never the token (I-10).
+    const w = window as typeof window & { __MARDOC_E2E__?: boolean; __mardocAuth?: unknown };
+    if (w.__MARDOC_E2E__ === true) {
+      w.__mardocAuth = {
+        startSignIn: () => adapter.start(),
+        getSession: () => sessionRef.current,
+        disconnect: () => dispatchSession({ type: "disconnect" }),
+      };
+    }
+    return () => {
+      adapter.dispose();
+      if (signInWindow.current === adapter) signInWindow.current = null;
+      userCheck.current?.abort();
+      if (w.__mardocAuth) delete w.__mardocAuth;
+    };
+  }, [dispatchSession]);
+
   // A 401 on a sign-in token, reported once per credential by the client (F-34).
   useEffect(() => {
     setOnAuthError(() => dispatchSession({ type: "auth-error" }));
@@ -555,11 +601,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const onVisible = () => { if (document.visibilityState === "visible") dispatchSession({ type: "tick" }); };
     document.addEventListener("visibilitychange", onVisible);
-    const timers = attemptTimers.current;
     return () => {
       document.removeEventListener("visibilitychange", onVisible);
-      timers.forEach((t) => clearTimeout(t.id));
-      timers.clear();
       clearExpiryTimers();
     };
   }, [dispatchSession, clearExpiryTimers]);
