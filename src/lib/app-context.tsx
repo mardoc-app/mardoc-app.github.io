@@ -15,7 +15,7 @@ import { next as nextSession, initialSessionState, startupCredential, isAttemptS
 import * as credential from "./auth/credential";
 import type { SessionEffect, SessionEvent, SessionKey, SessionState, StartSignIn } from "./auth/types";
 import { EXPIRING_WARNING_MS, USER_CHECK_DEADLINE_MS } from "./auth/contract";
-import { createSignInWindow, type SignInWindow } from "./auth/sign-in-window";
+import { createSignInWindow, isTopLevelWindow, type SignInWindow } from "./auth/sign-in-window";
 
 interface AppState {
   // Auth. The token itself is never in React state (I-10): it lives in
@@ -84,6 +84,9 @@ interface AppState {
   addFileToPR: (pr: PullRequest) => void;
   openLocalFile: (name: string, content: string) => void;
   isEmbedded: boolean;
+  // True inside a frame (window.top !== window.self). Sign-in is then not
+  // offered; Settings links to MarDoc in a new tab instead (F-19, SR-1).
+  isFramed: boolean;
   // Bumped each time the extension re-sends the current file's content
   // (embed-mode reload). Editor includes it in its content-load effect
   // deps so the same filePath re-renders with fresh content.
@@ -112,10 +115,12 @@ let vsCodeInitData: Record<string, any> | null = null;
 export function AppProvider({ children }: { children: React.ReactNode }) {
   // Embed mode — detected from URL query param, deferred to avoid hydration mismatch
   const [isEmbedded, setIsEmbedded] = useState(false);
+  const [isFramed, setIsFramed] = useState(false);
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("embed") === "true") {
       setIsEmbedded(true);
     }
+    setIsFramed(!isTopLevelWindow(window));
   }, []);
 
   // Embed-mode Cmd+C fix.
@@ -1167,6 +1172,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         addFileToPR,
         openLocalFile,
         isEmbedded,
+        isFramed,
         reloadNonce,
         requestEmbedReload,
         editorIsDirty,

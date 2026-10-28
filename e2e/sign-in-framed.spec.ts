@@ -26,8 +26,13 @@ async function openFramed(page: Page, baseURL: string, route: string): Promise<F
     }),
   );
   await page.goto(framer.href);
-  const frame = page.frames().find((f) => f.url().startsWith(new URL(baseURL).origin));
-  if (!frame) throw new Error("MarDoc frame not found");
+  // The iframe starts on about:blank; wait until it has navigated to the app.
+  const appOrigin = new URL(baseURL).origin;
+  let found: Frame | undefined;
+  await expect
+    .poll(() => (found = page.frames().find((f) => f.url().startsWith(appOrigin))) !== undefined, { timeout: 20_000 })
+    .toBe(true);
+  const frame = found!;
   await frame.waitForFunction(() => !!(window as unknown as { __mardocAuth?: unknown }).__mardocAuth, null, {
     timeout: 20_000,
   });
@@ -36,7 +41,11 @@ async function openFramed(page: Page, baseURL: string, route: string): Promise<F
 }
 
 test.describe("T-34 framed by another site", () => {
-  test("f19_framed_app_offers_a_new_tab_not_sign_in_sr1", async ({ page, context, baseURL }) => {
+  test("f19_framed_app_offers_a_new_tab_not_sign_in_sr1", async ({ page, context, baseURL, browserName }) => {
+    // Chromium's Local Network Access check blocks a routed (address-unknown)
+    // page from framing localhost; the permission stands in for the user's
+    // consent. A real attacker's public page framing mardoc.app is not affected.
+    if (browserName === "chromium") await context.grantPermissions(["local-network-access"]);
     await page.addInitScript(() => {
       (window as unknown as { __MARDOC_E2E__: boolean }).__MARDOC_E2E__ = true;
     });
