@@ -28,3 +28,6 @@ npm-debug.log*
 .sdlc/state/
 .sdlc/worktrees/
 .claude/settings.local.json
+
+# local wrangler dev secrets
+.dev.vars
