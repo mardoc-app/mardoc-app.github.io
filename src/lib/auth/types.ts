@@ -1,5 +1,6 @@
 // Frozen auth types shared by the sign-in work packages. Types only.
-import type { SignInResult, SignInResultCode } from "./contract";
+// Frozen at the wave 1 checkpoint (docs/reviews/2026-10-28-m1-wave1-contract-checkpoint.md).
+import type { SignInResultCode } from "./contract";
 
 export type SessionStatus =
   | "signed-out"
@@ -12,24 +13,37 @@ export type SessionStatus =
 
 export type SessionKey = "pat" | "embed" | `sign-in:${string}` | null;
 
+export type TimerName = "deadline" | "close-grace" | "user-check";
+
+// Events never carry a token (I-10). The sign-in window adapter checks the
+// message origin, event.source and nonce, keeps the token in the credential
+// module's pending slot, and dispatches a token-free `result` (CP-6).
+// Attempt-scoped events carry the attempt's nonce; the reducer ignores a
+// mismatch, so a late event from an earlier attempt changes nothing (CP-5).
 export type SessionEvent =
   | { type: "start"; nonce: string }
-  | { type: "health-failed" }
-  // `source` is the message event's source, compared by identity; unknown here.
-  | { type: "result"; result: SignInResult; source: unknown }
-  | { type: "popup-closed" }
-  | { type: "close-grace-passed" }
-  | { type: "deadline" }
-  | { type: "user"; login: string }
-  | { type: "user-failed" }
+  | { type: "popup-blocked"; nonce: string }
+  | { type: "health-failed"; nonce: string }
+  | { type: "result"; nonce: string; ok: true; expiresIn: number }
+  | { type: "result"; nonce: string; ok: false; error: SignInResultCode }
+  | { type: "popup-closed"; nonce: string }
+  | { type: "close-grace-passed"; nonce: string }
+  | { type: "deadline"; nonce: string }
+  | { type: "user"; nonce: string; login: string; dirty: boolean }
+  | { type: "user-failed"; nonce: string }
+  | { type: "discard-confirmed"; nonce: string }
+  | { type: "discard-cancelled"; nonce: string }
   | { type: "tick" }
   | { type: "auth-error" }
   | { type: "continue-without" }
   | { type: "connect-pat" }
+  | { type: "connect-embed" }
   | { type: "disconnect" }
   | { type: "disconnect-and-remove-pat" };
 
 // The token is never a field: it is never in React state or this record (I-10).
+// `expiresAt` belongs to the active credential; `pendingExpiresAt` and
+// `pendingLogin` belong to the attempt's new token until it is applied (CP-2, CP-3).
 export interface SessionState {
   status: SessionStatus;
   sessionKey: SessionKey;
@@ -38,18 +52,24 @@ export interface SessionState {
   statusBeforeAttempt: SessionStatus;
   expiresAt: number | null;
   attempt: { nonce: string; deadline: number } | null;
+  pendingLogin: string | null;
+  pendingExpiresAt: number | null;
 }
 
-// Effects may carry the token transiently (get-user); state never does (I-10).
+// Effects never carry a token either: the effect runner reads the active or
+// pending token from the credential module (src/lib/auth/credential.ts).
 export type SessionEffect =
   | { type: "open-popup"; nonce: string }
   | { type: "focus-popup" }
   | { type: "close-popup" }
-  | { type: "health-check" }
-  | { type: "get-user"; token: string; expiresIn: number }
-  | { type: "apply-same-login"; login: string }
-  | { type: "apply-new-login"; login: string }
-  | { type: "confirm-discard"; login: string }
+  | { type: "health-check"; nonce: string }
+  | { type: "arm-timer"; name: TimerName; nonce: string; at: number }
+  | { type: "clear-timer"; name: TimerName; nonce: string }
+  | { type: "get-user"; nonce: string }
+  | { type: "apply-same-login"; login: string; expiresAt: number }
+  | { type: "apply-new-login"; login: string; expiresAt: number }
+  | { type: "discard-pending-token" }
+  | { type: "confirm-discard"; nonce: string; login: string }
   | { type: "reset-client" }
   | { type: "revoke" }
   | { type: "remove-marker" }

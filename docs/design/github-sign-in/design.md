@@ -628,6 +628,12 @@ script, which can read the token from the tab's memory directly (RK-1).
 
 ### Session status (App auth state, `src/lib/auth/session.ts`)
 
+**Events and effects** are the frozen types in `src/lib/auth/types.ts`.
+Events and effects carry no token: the sign-in window adapter keeps the new
+token in the credential module's pending slot, and attempt-scoped events
+carry the attempt nonce so late events are ignored
+([checkpoint review](../../reviews/2026-10-28-m1-wave1-contract-checkpoint.md)).
+
 **Purpose and contract:** a pure function `next(state, event, now)` that
 returns the new state and the effects to run. It holds no timers and makes
 no I/O, so tests drive it with a fake clock (LR-10). The function is total:
@@ -666,6 +672,9 @@ the banner still moves to "ended" at expiry.
 | `checking-user` | `user(other login)`, editor clean | `signed-in` | `applySignInCredential`: full UI reset as `setGithubToken` does, without writing `TOKEN_KEY`; `sessionKey = "sign-in:<login>"`; `lastLogin = login`; remove `mardoc_user_repos`; set marker; schedule expiry |
 | `checking-user` | `user(other login)`, editor dirty | `checking-user` | ask through `guardNavigation`: "Signing in as `<login>` closes the open document. Discard unsaved changes?" Confirm → the clean row; cancel → `failed(cancelled)`, new token discarded |
 | `checking-user` | `user-failed` (401, network) or 10 s† deadline (F-52) | `failed(exchange_failed)` | discard the new token; previous credential untouched |
+| `checking-user` | `discard-confirmed` (the `guardNavigation` answer) | `signed-in` | as the clean other-login row |
+| `checking-user` | `discard-cancelled` | `failed(cancelled)` | discard the new token |
+| `signing-in`, `checking-user` | `tick` past the active credential's `expiresAt`, or `auth-error` for it | unchanged | `statusBeforeAttempt` becomes `expired` (or `expiring` at the warning time); reset the GitHub client at expiry |
 | any except `signing-in`, `checking-user` | `result` or `user` | unchanged | ignore (late event) |
 | `signed-in` | `now ≥ expiresAt − 10 min`† | `expiring` | banner |
 | `signed-in`, `expiring` | `now ≥ expiresAt` or `auth-error` | `expired` | reset the GitHub client; keep `sessionKey` |

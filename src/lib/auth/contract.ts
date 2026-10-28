@@ -15,6 +15,30 @@ export const ERROR_CODE_PATTERN = /^[a-z_]{1,40}$/;
 export const ATTEMPT_COOKIE_PREFIX = "__Secure-mardoc_auth_";
 export const ATTEMPT_MAX_AGE_SECONDS = 600;
 
+// GitHub always returns 28800 for a user token; anything above a day is refused
+// so a forged or broken value can't make a token "never expire" (I-15, CP-8).
+export const MAX_EXPIRES_IN_SECONDS = 86400;
+
+// Timings and names shared by the app's work packages (design.md; † values are
+// the owner-reviewable defaults from requirements.md) (CP-9).
+export const SIGN_IN_POPUP_NAME = "mardoc-sign-in";
+export const SIGN_IN_POPUP_FEATURES = "popup,width=600,height=720";
+export const ATTEMPT_DEADLINE_MS = ATTEMPT_MAX_AGE_SECONDS * 1000;
+export const CLOSE_GRACE_MS = 1000;
+export const USER_CHECK_DEADLINE_MS = 10_000;
+export const HEALTH_TIMEOUT_MS = 5000;
+export const REVOKE_TIMEOUT_MS = 5000;
+export const EXPIRING_WARNING_MS = 10 * 60 * 1000;
+export const SIGN_IN_MARKER_KEY = "mardoc_auth_method";
+
+/** Margin taken off GitHub's lifetime: min(60 s, expiresIn × 100 ms). */
+export function expiryMarginMs(expiresInSeconds: number): number {
+  return Math.min(60_000, expiresInSeconds * 100);
+}
+
+export type HealthResponse = { ok: true; version?: string };
+export type RevokeRequest = { token: string };
+
 export type SignInResultCode =
   | "access_denied"
   | "state_mismatch"
@@ -57,7 +81,14 @@ export function parseSignInResult(data: unknown): SignInResult | null {
     if (d.ok === true) {
       const { token, expiresIn } = d;
       if (typeof token !== "string" || token.length === 0) return null;
-      if (typeof expiresIn !== "number" || !Number.isInteger(expiresIn) || expiresIn <= 0) return null;
+      if (nonce === null) return null;
+      if (
+        typeof expiresIn !== "number" ||
+        !Number.isInteger(expiresIn) ||
+        expiresIn <= 0 ||
+        expiresIn > MAX_EXPIRES_IN_SECONDS
+      )
+        return null;
       return { type: "mardoc-sign-in-result", v: 1, nonce, ok: true, token, expiresIn };
     }
     if (d.ok === false) {

@@ -110,40 +110,47 @@ describe("auth contract", () => {
     expect(other).toBe("some_other_code");
   });
 
-  it("auth_types_event_names_match_design_table", () => {
-    const names: SessionEvent["type"][] = [
-      "start",
-      "health-failed",
-      "result",
-      "popup-closed",
-      "close-grace-passed",
-      "deadline",
-      "user",
-      "user-failed",
-      "tick",
-      "auth-error",
-      "continue-without",
-      "connect-pat",
-      "disconnect",
-      "disconnect-and-remove-pat",
-    ];
-    expect(names).toHaveLength(14);
+  it("auth_contract_rejects_unbounded_or_anonymous_success (I-15, CP-8)", () => {
+    const ok = { type: "mardoc-sign-in-result", v: 1, nonce: NONCE, ok: true, token: "t" };
+    expect(parseSignInResult({ ...ok, expiresIn: 28800 })).not.toBeNull();
+    expect(parseSignInResult({ ...ok, expiresIn: 86401 })).toBeNull();
+    expect(parseSignInResult({ ...ok, expiresIn: 1e21 })).toBeNull();
+    expect(parseSignInResult({ ...ok, nonce: null, expiresIn: 28800 })).toBeNull();
+    // A failure may still carry a null nonce (state_mismatch before a nonce is known).
+    expect(
+      parseSignInResult({ type: "mardoc-sign-in-result", v: 1, nonce: null, ok: false, error: "state_mismatch" }),
+    ).not.toBeNull();
   });
 
-  it("auth_types_payloads_and_no_token_in_state (I-10)", () => {
-    const start: SessionEvent = { type: "start", nonce: NONCE };
-    const eff: SessionEffect = { type: "get-user", token: "t", expiresIn: 60 };
+  it("auth_types_event_and_effect_names_are_exhaustive (CP-10)", () => {
+    // `satisfies` fails type-checking if a name is missing or extra.
+    const events = {
+      start: 1, "popup-blocked": 1, "health-failed": 1, result: 1, "popup-closed": 1,
+      "close-grace-passed": 1, deadline: 1, user: 1, "user-failed": 1,
+      "discard-confirmed": 1, "discard-cancelled": 1, tick: 1, "auth-error": 1,
+      "continue-without": 1, "connect-pat": 1, "connect-embed": 1, disconnect: 1,
+      "disconnect-and-remove-pat": 1,
+    } satisfies Record<SessionEvent["type"], 1>;
+    const effects = {
+      "open-popup": 1, "focus-popup": 1, "close-popup": 1, "health-check": 1,
+      "arm-timer": 1, "clear-timer": 1, "get-user": 1, "apply-same-login": 1,
+      "apply-new-login": 1, "discard-pending-token": 1, "confirm-discard": 1,
+      "reset-client": 1, revoke: 1, "remove-marker": 1, "set-marker": 1,
+      "remove-user-repos": 1, "remove-saved-pat": 1, "schedule-expiry": 1,
+    } satisfies Record<SessionEffect["type"], 1>;
+    expect(Object.keys(events)).toHaveLength(18);
+    expect(Object.keys(effects)).toHaveLength(18);
+  });
+
+  it("auth_types_carry_no_token (I-10)", () => {
     const state: SessionState = {
-      status: "signed-out",
-      sessionKey: null,
-      lastLogin: null,
-      lastError: null,
-      statusBeforeAttempt: "signed-out",
-      expiresAt: null,
-      attempt: null,
+      status: "signed-out", sessionKey: null, lastLogin: null, lastError: null,
+      statusBeforeAttempt: "signed-out", expiresAt: null, attempt: null,
+      pendingLogin: null, pendingExpiresAt: null,
     };
-    expect(start.type).toBe("start");
-    expect(eff.type).toBe("get-user");
     expect(Object.keys(state)).not.toContain("token");
+    // @ts-expect-error events carry no token
+    const bad: SessionEvent = { type: "result", nonce: NONCE, ok: true, expiresIn: 60, token: "t" };
+    expect(bad.type).toBe("result");
   });
 });
