@@ -1,8 +1,9 @@
-// T-10 (unit part), T-13 (state), T-24, F-35, F-36, F-32/F-38 (state): the
-// credential module and AppProvider running on the session model. Real
-// github-api and Octokit; the only fake is `globalThis.fetch`. The sign-in
-// window adapter (WP-5) does not exist yet, so these tests stand in for it:
-// they put the token in the pending slot and dispatch `start` and `result`.
+// T-10 (unit part), T-13 (state), T-24, F-35, F-36, F-32/F-38 (state), F-61
+// and the effect runner's pending-token checks: the credential module and
+// AppProvider running on the session model. Real github-api, Octokit and
+// sign-in window adapter; the fakes are `globalThis.fetch` and `window.open`,
+// which returns an iframe's window standing in for the pop-up. A sign-in
+// starts with `startSignIn()` and ends with a message posted from that window.
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, act, cleanup, waitFor, screen, fireEvent } from "@testing-library/react";
@@ -41,13 +42,26 @@ function storageDump(): string {
   return parts.join("\n");
 }
 
-let attempt = 0;
+let popupFrame: HTMLIFrameElement;
+let openSpy: ReturnType<typeof vi.fn>;
+const popup = () => popupFrame.contentWindow!;
+
+function postResult(data: unknown, source: Window | null = popup()) {
+  window.dispatchEvent(new MessageEvent("message", { data, origin: window.location.origin, source }));
+}
+
+/** Starts an attempt as the Sign in button does and returns its nonce. */
+async function startAttempt(): Promise<string> {
+  openSpy.mockClear();
+  await act(async () => state.startSignIn());
+  expect(openSpy).toHaveBeenCalledTimes(1);
+  return new URL(openSpy.mock.calls[0][0] as string, window.location.origin).searchParams.get("n")!;
+}
+
 async function signIn(token: string, as: string) {
   login = as;
-  const nonce = `nonce_${String(++attempt).padStart(20, "0")}`;
-  await act(async () => state.dispatchSession({ type: "start", nonce }));
-  credential.setPendingToken(token);
-  await act(async () => state.dispatchSession({ type: "result", nonce, ok: true, expiresIn: 28800 }));
+  const nonce = await startAttempt();
+  await act(async () => postResult({ type: "mardoc-sign-in-result", v: 1, nonce, ok: true, token, expiresIn: 28800 }));
   return nonce;
 }
 
@@ -57,6 +71,10 @@ async function mount() {
 }
 
 beforeEach(() => {
+  popupFrame = document.createElement("iframe");
+  document.body.appendChild(popupFrame);
+  openSpy = vi.fn(() => popup());
+  vi.spyOn(window, "open").mockImplementation(openSpy as unknown as typeof window.open);
   localStorage.clear();
   sessionStorage.clear();
   window.history.replaceState(null, "", "/");
@@ -64,7 +82,9 @@ beforeEach(() => {
   resetGitHubSession();
   login = "alice";
   fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
-    const url = new URL(String(input instanceof Request ? input.url : input));
+    const url = new URL(String(input instanceof Request ? input.url : input), window.location.origin);
+    if (url.pathname === "/api/auth/health") return json({ ok: true });
+    if (url.pathname === "/api/auth/revoke") return new Response(null, { status: 204 });
     if (url.pathname === "/user") return json({ login });
     return json({ default_branch: "main" });
   });
@@ -72,6 +92,8 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  popupFrame.remove();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
   window.history.replaceState(null, "", "/");
 });
@@ -272,6 +294,75 @@ describe("AppProvider on the session model", () => {
     expect(state.isDemoMode).toBe(true);
     expect(state.repoFiles.length).toBeGreaterThan(0);
     expect(localStorage.getItem(SIGN_IN_MARKER_KEY)).toBeNull();
+  });
+
+  it("t12_app_ignores_a_result_from_another_window", async () => {
+    await mount();
+    const nonce = await startAttempt();
+    const result = { type: "mardoc-sign-in-result", v: 1, nonce, ok: true, token: SIGN_IN, expiresIn: 28800 };
+    await act(async () => postResult(result, window));
+    await act(async () => postResult(result, null));
+    expect(state.session.status).toBe("signing-in");
+    expect(credential.hasPendingToken()).toBe(false);
+    await act(async () => postResult(result));
+    await waitFor(() => expect(state.session.status).toBe("signed-in"));
+    expect(credential.getToken()).toBe(SIGN_IN);
+  });
+
+  it("f61_disconnect_revokes_the_sign_in_token_before_reset", async () => {
+    await mount();
+    await signIn(SIGN_IN, "alice");
+    await waitFor(() => expect(state.session.status).toBe("signed-in"));
+    fetchSpy.mockClear();
+    await act(async () => state.setGithubToken(null));
+    expect(credential.getToken()).toBeNull();
+    const revokes = fetchSpy.mock.calls.filter((c) => String(c[0]) === "/api/auth/revoke");
+    expect(revokes).toHaveLength(1);
+    const init = revokes[0][1] as RequestInit;
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(String(init.body))).toEqual({ token: SIGN_IN });
+  });
+
+  it("f61_disconnect_of_a_pat_revokes_nothing", async () => {
+    localStorage.setItem(TOKEN_KEY, PAT);
+    await mount();
+    await waitFor(() => expect(state.sessionKey).toBe("pat"));
+    fetchSpy.mockClear();
+    await act(async () => state.setGithubToken(null));
+    expect(fetchSpy.mock.calls.some((c) => String(c[0]).includes("/api/auth/revoke"))).toBe(false);
+  });
+
+  it("f52_pending_token_missing_after_user_check_gives_exchange_failed", async () => {
+    localStorage.setItem(TOKEN_KEY, PAT);
+    await mount();
+    await waitFor(() => expect(state.sessionKey).toBe("pat"));
+    let answer!: () => void;
+    const answered = new Promise<void>((resolve) => { answer = resolve; });
+    const base = fetchSpy.getMockImplementation() as (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+    fetchSpy.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input instanceof Request ? input.url : input).endsWith("/user")) await answered;
+      return base(input, init);
+    });
+    await signIn(SIGN_IN, "alice");
+    expect(state.session.status).toBe("checking-user");
+    credential.discardPendingToken();
+    await act(async () => { answer(); });
+    await waitFor(() => expect(state.session.lastError).toBe("exchange_failed"));
+    expect(state.session).toMatchObject({ status: "signed-out", sessionKey: "pat" });
+    expect(credential.getToken()).toBe(PAT);
+  });
+
+  it("f52_pending_token_missing_at_discard_confirm_gives_exchange_failed", async () => {
+    await mount();
+    await signIn(SIGN_IN, "alice");
+    await waitFor(() => expect(state.session.status).toBe("signed-in"));
+    await act(async () => { state.openLocalFile("notes.md", "draft text"); state.setEditorIsDirty(true); });
+    await signIn("ghu_signin_token_bob", "bob");
+    await screen.findByText("Discard unsaved changes?");
+    credential.discardPendingToken();
+    await act(async () => { fireEvent.click(screen.getByText("Discard changes")); });
+    expect(state.session).toMatchObject({ status: "signed-in", lastError: "exchange_failed", sessionKey: "sign-in:alice" });
+    expect(credential.getToken()).toBe(SIGN_IN);
   });
 
   it("f50_saved_pat_wins_over_marker_and_connect_removes_it", async () => {
