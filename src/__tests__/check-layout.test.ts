@@ -181,6 +181,12 @@ describe("layout check", () => {
     fails({ "worker/src/domain/callback.ts": "caches.default.match(r);\n" }, /LR-11 .* uses caches$/m);
   });
 
+  it("t30_template_text_is_not_code_but_expressions_are_cr8", () => {
+    const ok = run(fixture({ "worker/src/domain/page.ts": "export const s = `var o=window.opener; fetch(x)`;\n" }));
+    expect(ok.out).toBe("layout check: ok\n");
+    fails({ "worker/src/domain/page.ts": "export const s = `a ${fetch(x)} b`;\n" }, /^LR-11 .*page\.ts:1 uses fetch$/m);
+  });
+
   it("t30_lr10_lr11_allow_names_used_as_declarations_cr8", () => {
     // A local or field called `location` (login.ts) is not the browser global.
     const ok = run(
