@@ -13,6 +13,7 @@ MarDoc: a browser-only, statically exported Next.js app (GitHub Pages, mardoc.ap
 - `REVIEW.md`: the review rubric
 - `src/lib/`: domain helpers and GitHub adapters (`github-api.ts`, `rate-limit.ts`, `app-context.tsx`)
 - `src/components/`: React UI; `src/app/`: Next.js entry
+- `worker/`: the Auth Worker (`mardoc.app/api/auth/*`); `dev/local-auth/`: local harness serving the app and the Worker on one origin (`npm run dev:auth`)
 - `src/__tests__/`: Vitest unit and component tests; `e2e/`: Playwright (desktop and mobile)
 - `docs/` reference docs (index: `docs/README.md`); `docs/features/`: feature stories
 

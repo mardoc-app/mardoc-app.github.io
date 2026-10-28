@@ -46,8 +46,9 @@ export default function GitHubConnectionTab({ patOpen, setPatOpen, onPatConnecte
   const hasSavedPat = signedIn && safeStorage.getItem(TOKEN_KEY) !== null;
   void savedPatRevision; // re-read the saved-PAT flag after Remove saved token
   const login = signedIn ? sessionKey.slice("sign-in:".length) : null;
-  // The token option is always offered where a failure or an ended sign-in leaves the user stuck (F-51, F-52).
-  const showPatOption = !patActive && sessionKey !== "embed" && (!signedIn || expired || !!session.lastError);
+  // The token option is always offered where a failure or an ended sign-in leaves the user stuck (F-51, F-52),
+  // and whenever a message elsewhere asked for the token form (F-42, F-44; M1-5).
+  const showPatOption = !patActive && sessionKey !== "embed" && (!signedIn || expired || !!session.lastError || patOpen);
 
   const connectPat = () => {
     const token = tokenInput.trim();

@@ -5,7 +5,7 @@ written in plan mode before product code. The bar: an engineer who has never
 seen the conversation could implement the change from this plan alone. The
 builder reads this file and the docs it links, not the planning conversation.
 
-- **Status:** PENDING
+- **Status:** PARTIAL (increment 3 waits on the owner's development App)
 - **Milestone:** M1. **Row:** [plan.md § M1 work packages](../plan.md#m1-work-packages)
 - **Model / agent:** the lead (Opus) owns integration. A builder may write
   the dev harness and specs under the lead's review.
@@ -54,9 +54,9 @@ local certificate, and the change is recorded.
 
 | Increment | Claim or bounded change | Prerequisite | Proof and PASS criterion | Result and evidence |
 |---|---|---|---|---|
-| 1 | The real Worker and the app work together on one local origin (T-32) | WP-5 merged | `STUB_GITHUB=1 npm run dev:auth`, then `npx playwright test e2e/sign-in-real-worker.spec.ts`. Clicking Sign in opens the real `/api/auth/login`. The stub redirects to the real callback with a code. The callback page's CSP allows only its nonce script. The tab reaches signed-in, and the pop-up closes. Runs in Chromium and Firefox | PENDING |
-| 2 | The stage 1 gate and every journey pass with mocks (T-10, T-11, T-31) | Increment 1 | `npx playwright test e2e/sign-in-stage1-gate.spec.ts e2e/sign-in-journeys.spec.ts`. After sign-in, no `localStorage`, `sessionStorage` or readable cookie holds the token, and neither does any URL, history entry or `performance` entry name. `/api/auth/refresh` gives 404. Each journey reaches its designed end state. Then `npm run ci` | PENDING |
-| 3 | The owner can demo and sign in for real | Increment 2; **owner:** registers the development App | `npm run demo -- m1` writes `demos/m1-demo-report.md`, all PASS. The owner follows `demos/m1.md` Part B and signs in at `http://localhost:8787` with the development App | PENDING |
+| 1 | The real Worker and the app work together on one local origin (T-32) | WP-5 merged | `STUB_GITHUB=1 npm run dev:auth`, then `npx playwright test e2e/sign-in-real-worker.spec.ts`. Clicking Sign in opens the real `/api/auth/login`. The stub redirects to the real callback with a code. The callback page's CSP allows only its nonce script. The tab reaches signed-in, and the pop-up closes. Runs in Chromium and Firefox | PASS in Chromium, 4 tests (`REAL_WORKER=1 npx playwright test --project real-worker`); Firefox BLOCKED (DEBT-2) |
+| 2 | The stage 1 gate and every journey pass with mocks (T-10, T-11, T-31) | Increment 1 | `npx playwright test e2e/sign-in-stage1-gate.spec.ts e2e/sign-in-journeys.spec.ts`. After sign-in, no `localStorage`, `sessionStorage` or readable cookie holds the token, and neither does any URL, history entry or `performance` entry name. `/api/auth/refresh` gives 404. Each journey reaches its designed end state. Then `npm run ci` | PASS: 42 tests on desktop and mobile; found M1-5 (fixed). `npm run ci` fails only on M1-1 |
+| 3 | The owner can demo and sign in for real | Increment 2; **owner:** registers the development App | `npm run demo -- m1` writes `demos/m1-demo-report.md`, all PASS. The owner follows `demos/m1.md` Part B and signs in at `http://localhost:8787` with the development App | Scripted part PASS ([report](../../demos/m1-demo-report.md)); owner part PENDING |
 
 ## Interfaces touched
 
