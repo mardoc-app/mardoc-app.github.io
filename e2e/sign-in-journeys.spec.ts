@@ -376,6 +376,23 @@ test.describe("WP-9 review fixes", () => {
     await expect(view.getByPlaceholder("ghp_...")).toBeVisible();
   });
 
+  test("f51_unconfigured_worker_health_shows_unavailable_cr4", async ({ page, context }) => {
+    // CR-4: a Worker deployed without CLIENT_ID or CLIENT_SECRET answers health with
+    // 503 {"ok":false} (worker/test/routes.test.ts); the tab shows F-51's message
+    // and the token option within 5 s, and closes the pop-up.
+    await setUp(page, context, { login: { stay: true } });
+    await page.route("**/api/auth/health", (route) =>
+      route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ ok: false }) }),
+    );
+    const started = Date.now();
+    const popup = await signInFromSettings(page);
+    await expect(connection(page).getByTestId("sign-in-error")).toHaveText("Sign-in with GitHub is unavailable right now.");
+    expect(Date.now() - started).toBeLessThan(5_000);
+    await expect(connection(page).getByRole("button", { name: "Use a personal access token" })).toBeVisible();
+    await expect.poll(() => popup.isClosed()).toBe(true);
+    expect((await session(page)).lastError).toBe("worker_unavailable");
+  });
+
   test("f35_same_login_sign_in_again_keeps_dirty_editor_cr2", async ({ page, context }) => {
     // CR-2: F-35's acceptance. Make the editor dirty, expire the token, sign in again as
     // the same login: the edit and route stay and the open file is not fetched again.
