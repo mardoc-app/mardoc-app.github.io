@@ -84,22 +84,24 @@ export default function SettingsPanel({ isOpen, onClose, showPat }: SettingsPane
   // F-40), so it reloads whenever the session key changes, even while
   // Settings stays open (CR-1).
   const listKey = useRef<SessionKey | undefined>(undefined);
-  const currentKey = useRef<SessionKey>(sessionKey);
-  currentKey.current = sessionKey;
+  // Load generation: every reload, credential change and Disconnect bumps it,
+  // and a response applies only if its generation is still current (CR-9). A
+  // key comparison is not enough: two PATs share the key "pat".
+  const loadGen = useRef(0);
 
   const loadRepos = useCallback(() => {
-    const key = currentKey.current;
+    const gen = ++loadGen.current;
     setLoadingRepos(true);
     fetchUserRepos()
       .then((repos) => {
-        // A response for an earlier credential is dropped.
-        if (currentKey.current !== key) return;
+        // A response for an earlier load or credential is dropped.
+        if (loadGen.current !== gen) return;
         setUserRepos(repos);
         safeStorage.setItem("mardoc_user_repos", JSON.stringify(repos));
       })
       .catch(console.error)
       .finally(() => {
-        if (currentKey.current === key) setLoadingRepos(false);
+        if (loadGen.current === gen) setLoadingRepos(false);
       });
   }, []);
 
@@ -108,7 +110,11 @@ export default function SettingsPanel({ isOpen, onClose, showPat }: SettingsPane
     if (!isOpen) return;
     const changed = listKey.current !== undefined && listKey.current !== sessionKey;
     listKey.current = sessionKey;
-    if (changed) setUserRepos([]);
+    if (changed) {
+      loadGen.current++;
+      setUserRepos([]);
+      setLoadingRepos(false);
+    }
     if (!isAuthenticated) return;
     // The cache is shown only on opening; after a credential change it may
     // belong to the previous credential.
@@ -189,7 +195,9 @@ export default function SettingsPanel({ isOpen, onClose, showPat }: SettingsPane
               setPatOpen={setPatOpen}
               onPatConnected={() => setActiveTab("repo")}
               onDisconnected={() => {
+                loadGen.current++;
                 setUserRepos([]);
+                setLoadingRepos(false);
                 safeStorage.removeItem("mardoc_user_repos");
                 setActiveTab("connect");
               }}
