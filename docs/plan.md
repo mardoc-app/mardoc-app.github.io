@@ -16,7 +16,7 @@ them. This file carries history: rows are updated, never silently deleted.
   so [ADR 0001](adr/0001-web-sign-in-github-app-worker-route.md) is Accepted.
   The L1 design for sign-in (stage 1) is ACCEPTED (GSI-L1, 2026-10-27), with
   Q-8 and Q-19 to Q-28 answered at their defaults. M1 (sign-in stage 1) is
-  planned; the WP-1 and WP-2 slice plans wait for the owner's acceptance. ⭐ The Cloudflare hosting L0 (D-2) waits for the owner's
+  active: ⭐ WP-1 and WP-2 (slice plans accepted by the owner 2026-10-27). ⭐ The Cloudflare hosting L0 (D-2) waits for the owner's
   decision. Open owner questions: Q-1, Q-2, Q-3 and Q-5 in
   [requirements.md](design/mardoc/requirements.md#open-questions), and Q-29 to Q-35.
 - **Last updated:** 2026-10-27
@@ -136,8 +136,8 @@ GitHub token is in `localStorage`, `sessionStorage` or a readable cookie
 
 | WP | Scope | Paths | Model | Depends on | Proves | Status |
 |---|---|---|---|---|---|---|
-| WP-1 | Build prerequisites and frozen contracts: the `worker/` project with its own package and tsconfig, the layout check in `npm run ci`, and the shared sign-in contract and auth types ([slice plan](plan/WP-1.md)) | `worker/` (scaffold), `src/lib/auth/contract.ts`, `src/lib/auth/types.ts`, `scripts/check-layout.mjs`, `tsconfig.json`, `vitest.config.ts`, `package.json`, `.github/workflows/test.yml`, `.gitignore` | Sonnet; the lead reviews the dependency list | — | LR-10, LR-11 (T-30); contract tests | PENDING |
-| WP-2 | Embed `init` accepted only in embed mode and only from the parent window ([slice plan](plan/WP-2.md)) | `src/lib/embed-init.ts`, the `init` listener in `src/lib/app-context.tsx`, `e2e/embed-init.spec.ts` | Opus (credential handling) | — | F-16 (T-15); closes RK-3 for stage 1 | PENDING |
+| WP-1 | Build prerequisites and frozen contracts: the `worker/` project with its own package and tsconfig, the layout check in `npm run ci`, and the shared sign-in contract and auth types ([slice plan](plan/WP-1.md)) | `worker/` (scaffold), `src/lib/auth/contract.ts`, `src/lib/auth/types.ts`, `scripts/check-layout.mjs`, `tsconfig.json`, `vitest.config.ts`, `package.json`, `.github/workflows/test.yml`, `.gitignore` | Sonnet; the lead reviews the dependency list | — | LR-10, LR-11 (T-30); contract tests | ⭐ |
+| WP-2 | Embed `init` accepted only in embed mode and only from the parent window ([slice plan](plan/WP-2.md)) | `src/lib/embed-init.ts`, the `init` listener in `src/lib/app-context.tsx`, `e2e/embed-init.spec.ts` | Opus (credential handling) | — | F-16 (T-15); closes RK-3 for stage 1 | ⭐ |
 | WP-3 | Auth Worker: health, login, callback, revoke and install-return routes; the callback check order; the callback page | `worker/src/**`, `worker/test/**` | Opus (credential handling) | WP-1 | F-20 to F-29, F-61, I-12, I-13, I-16, I-17, NF-14, NF-15, C-13, C-16 (T-20 to T-23, T-27) | PENDING |
 | WP-4 | App auth state: the session machine, the sign-in credential beside the PAT, session key gating, expiry and 401 handling in the GitHub client | `src/lib/auth/session.ts`, `src/lib/auth/credential.ts`, `src/lib/github-api.ts`, auth parts of `src/lib/app-context.tsx` | Opus (credential handling) | WP-1; WP-2 (same file) | F-30 to F-36, F-50, F-53, F-60, I-14, I-15, NF-12 (T-13 state, T-14, T-19, T-24) | PENDING |
 | WP-5 | Pop-up hand-off: start, nonce, result listener with origin, source and nonce checks, timeouts and failure codes | `src/lib/auth/sign-in-window.ts` | Opus (credential handling) | WP-3, WP-4, SP-3 | F-11, F-12, F-14, F-51, F-52, I-11 (T-12, T-17, T-18 codes) | PENDING |
