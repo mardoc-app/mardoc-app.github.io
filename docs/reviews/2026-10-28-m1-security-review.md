@@ -300,3 +300,60 @@ WP-9 fixes on branch `wp-9-fixes` (from `adbae0a`). Each fix has its failing tes
 | SR-3 | Fixed. The page script reads `#result`, clears it and removes it from the DOM before either branch, so a page left open without an opener holds no token. The optional page-side revoke was not added (it would need `connect-src 'self'` in the callback CSP). T-32 still passes in Chromium against the real Worker. | `6b33e0c` → `6e56f0e` | `f23_callback_page_removes_result_after_reading_it_without_opener_sr3`, `f23_callback_page_removes_result_after_reading_it_with_opener_sr3`, `f23_callback_page_script_removes_the_result_element_sr3` (`worker/test/page.test.ts`) |
 
 Still open from "Not proven": the owner step in SR-1 (does GitHub re-authorize a returning user silently?) and the RK-1 wording it may change; COOP on github.com (SP-3); `/revoke` flooding against GitHub's limit; the Actions `permissions:` block; the harness's listen address; cookie tossing (`__Secure-` versus `__Host-`). None is changed by WP-9.
+
+---
+
+## Re-review (2026-10-28)
+
+- **Reviewer:** independent reviewer agent (fresh context; did not write the fixes). **Pass:** Security. **Date:** 2026-10-28.
+- **Fix commits:** `git diff adbae0a..ce064c7`: SR-1 `6c2c67a` → `b3116ee`, SR-2 `d23ee6d` → `ede0ebe`, SR-3 `6b33e0c` → `6e56f0e`, merged in `3ad6eea`.
+- **Baseline (run by me in a scratch worktree detached at `ce064c7`; `node_modules` linked from the main checkout):**
+  - Vitest: 86 files, 1205 passed, 5 expected fail.
+  - Worker: 8 files, 86 passed.
+  - Playwright `sign-in-*` and `embed-mode`, desktop (Chromium) and mobile (WebKit): 109 passed, 1 skipped.
+  - T-32 (`REAL_WORKER=1`, Chromium, after `next build`): 4 passed.
+- **How:** I read the fix diff and its context. I reverted each fix in the scratch worktree and ran its tests to confirm they fail, then restored it and checked `git status` was clean. I traced the bypass routes the lead named. No browser outside Playwright was launched, nothing was sent to GitHub or Cloudflare, and no product file is changed.
+
+### Verdict
+
+**SR-1, SR-2 and SR-3 are CLOSED. There are no new security findings.** On Q-1, I agree a framed `start()` should stay silent (reasons below). The "Not proven" items from the original review are unchanged, and the owner step in SR-1 still settles RK-1's wording.
+
+### Per finding
+
+| ID | Status | Evidence |
+|---|---|---|
+| SR-1 | CLOSED | **Adapter.** `start()` returns before dispatching when `!isTopLevelWindow(win)`. `onMessage` also refuses while framed. `isTopLevelWindow` is `try { win.top === win.self } catch { false }`. **Reverted** both checks: `f19_start_refuses_when_framed_sr1`, `f19_result_ignored_when_framed_sr1` and `f19_reading_top_that_throws_counts_as_framed_sr1` fail. With only the `start` check reverted, 2 fail; with only the `onMessage` check reverted, 1 fails. So each layer has its own test. **UI.** I forced `isFramed` to false in `GitHubConnectionTab` and `SignInBanner`: the four `f19_framed_*_offers_new_tab_*` component tests fail. **Browser.** `f19_framed_app_offers_a_new_tab_not_sign_in_sr1` passes in Chromium and WebKit. A `127.0.0.1` page frames the app on `localhost`. The test asserts that no Sign in button is shown, that the new-tab link has the frame's URL, `_blank` and `noopener`, and that the token option is there. It also asserts that a scripted `startSignIn()` leaves the session `signed-out`, with 0 `/login` requests, 0 health requests and no pop-up. The control `f19_top_level_app_still_offers_sign_in_sr1` passes. The original failure scenario (an attacker frames `mardoc.app/` and the user is clickjacked into Sign in) now reaches neither `window.open` nor the listener. |
+| SR-2 | CLOSED | `/revoke` still refuses unread when `Content-Length` is over 4096 or not a number. Otherwise it reads through `readCapped`, which cancels the reader as soon as the byte count passes 4096. **Reverted** to `request.text()` with the post-read length check: `f61_revoke_chunked_oversize_body_is_refused_within_4_kib_sr2` fails (the 8 MiB stream is pulled whole); restored, it passes, with at most 16 KiB pulled. This is the original reproduction, now as a test. `f61_revoke_chunked_small_body_still_revokes_sr2` shows that a chunked valid body still revokes. The cap now counts bytes, not UTF-16 units, so it is slightly stricter, and a real token body is under 300 bytes. The residual is one runtime chunk read past the cap before the check, which the runtime's chunk size bounds. |
+| SR-3 | CLOSED | The page script now reads `#result`, sets `textContent = ""` and calls `remove()` before it looks at `window.opener`, so both branches leave no token in the DOM. **Reverted** `worker/src/domain/page.ts` to `adbae0a`: all three `f23_callback_page_removes_result_*_sr3` tests fail. T-32 against the real Worker under `wrangler dev` still passes (4/4), so the CSP nonce script still runs and posts. The residual is not a finding. The token stays in the HTTP response, so DevTools' Network panel shows it if it was already open. A reload re-requests the page, but the attempt cookie was cleared, so it gets `state_mismatch` and no token. |
+
+### Bypass routes traced for SR-1
+
+- **Embed path (`?embed=true` framed by a hostile page).** `isEmbedded` hides every sign-in control, and `start()` still refuses, because the page is framed. `isTrustedInit` still requires `source === window.parent`, so a hostile parent can only inject its own token. That is RK-3 as accepted, not a sign-in token. The new-tab link renders only when `!isEmbedded`, so its `href` never carries `embed=true`.
+- **`window.top` that throws.** Browsers do not throw on reading `top` across origins (it is a `WindowProxy`, and identity comparison is allowed). The `catch` treats a host that does throw as framed, which fails closed. The unit test covers it.
+- **Sandboxed frame** (for example `sandbox="allow-scripts allow-popups"`, with or without `allow-popups-to-escape-sandbox`). The frame gets an opaque origin, but `top !== self` still holds, so it is refused. Without `allow-popups`, the new-tab link cannot open; the token option remains, and an opaque origin has no `localStorage` anyway.
+- **Hydration window.** `isFramed` starts `false` and is set in a mount effect, so the first paint can show Sign in. A click in that moment reaches `start()`, which refuses. Nothing opens and no event is dispatched.
+- **Other ways to start an attempt.** The only `open-popup` effect comes from a `start` event. `start` is dispatched only by `createSignInWindow().start()`, which the e2e hook also uses (the Playwright case above covers that path). Even if a `start` event were dispatched some other way, `onMessage` refuses the result while framed.
+- **A top-level window the attacker opened** (`window.open("https://mardoc.app/")`). It is not framed, so sign-in is offered, and the opener can later change its fragment to steer the signed-in tab to a PR. This is not clickjacking: the window is a real top-level tab that the attacker cannot overlay, and a saved PAT was exposed the same way before M1. No change is needed for M1. When hosting moves to Cloudflare (D-2), `Cross-Origin-Opener-Policy: same-origin` (with `frame-ancestors 'none'`) would cut the opener's handle. I suggest adding COOP to the D-2 note in design.md § Security and privacy. This is optional.
+- **The new-tab link's `href`** is the frame's current URL, so a framer chooses the route the new tab opens at. That is no more than any link can do, and `noopener noreferrer` gives the new tab no handle back.
+
+### Q-1: should a framed `start()` stay silent or report a result code?
+
+**Stay silent (agree with the recommendation).**
+- The UI never offers Sign in in a frame. The only user-reachable call is a click during the one-effect hydration window, and the button becomes the new-tab link straight away.
+- A result code would add a value to the shared failure-code set, the message table and the reducer's rows. That is more surface for a path no user can take.
+- Silence also tells a framing page nothing.
+
+Record this as an interpretation in design.md § Top level only ("start does nothing; no result code") if it is not already explicit. The current text, "no pop-up, no health check, no session event", already implies it.
+
+### New findings
+
+None in the security pass. The re-review's code findings CR-8 to CR-10 are in [the code review](2026-10-28-m1-code-review.md#re-review-2026-10-28).
+
+### Checked in the fixes and found sound
+
+- `OpenInNewTabLink`: `target="_blank"` and `rel="noopener noreferrer"`. The `href` is `window.location.href`, or `/` when rendering on the server. It carries no token.
+- `FRAMED_HINT` and the link text match F-19's acceptance and design.md § Settings screen.
+- `isFramed` is exposed through context and never persisted. `SignInBanner` shows the link in place of Sign in again but keeps "Continue without signing in".
+- The `/revoke` order is unchanged: `Origin`, then content type, then declared length, then capped read, then JSON and token pattern. `readCapped` returns `""` for a missing body, which then fails `JSON.parse` and gives 400.
+- `health()`'s 503 body is `{"ok":false}`, with no value or variable name. The test asserts that neither the secret nor the client ID appears.
+- The callback page script stays one nonce'd inline script. Its new statements add no input reflection (I-17 is unchanged).

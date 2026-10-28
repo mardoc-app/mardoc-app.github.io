@@ -204,7 +204,7 @@ spend separate from estimates and quota/credit usage. `sdlc:loop` records it.
 | DEBT-3 | GitHub Actions does not run T-32, nor the harness type check `tsc -p dev/local-auth/tsconfig.json` that `npm run ci` runs (M1 code review) | Follow-up: add `npm --prefix worker ci`, the harness type check and a `REAL_WORKER=1` step to `test.yml`. Impact: only local ci and the demo catch a T-32 regression or a type error in `dev/local-auth/` | PENDING |
 | DEBT-4 | The stub's consent hop is same-origin, so the attempt cookie's `SameSite=Lax` return from github.com is unproven | Follow-up: Part B and SP-3 prove it. Impact: none until release, which waits on SP-3 | PENDING |
 | DEBT-5 | `npm run ci` stops at the e2e step while M1-1 fails, so its last step (T-32) does not run | Follow-up: fix M1-1. The demo runs T-32 regardless | PENDING |
-| DEBT-6 | `docs/design/github-sign-in/architecture.html` does not yet show F-19 (framed sign-in refused) or the health 503 when the Worker is unconfigured | WP-9 fixes, 2026-10-28. Follow-up: failure-picker entry and auth-state card line, then review. Impact: the explainer lags design.md | ⭐ |
+| DEBT-6 | `docs/design/github-sign-in/architecture.html` does not yet show F-19 (framed sign-in refused) or the health 503 when the Worker is unconfigured | WP-9 fixes, 2026-10-28. Follow-up: failure-picker entry and auth-state card line, then review. Impact: the explainer lags design.md | DONE: 15538ef; re-review agrees |
 
 ## Backlog from the GSI review
 
