@@ -11,8 +11,8 @@
     "test": "vitest",
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
-    "check": "vitest --run",
-    "ci": "vitest --run && next build && playwright test",
+    "check": "node scripts/check-layout.mjs && vitest --run",
+    "ci": "node scripts/check-layout.mjs && vitest --run && npm --prefix worker ci && npm --prefix worker run typecheck && npm --prefix worker test && next build && playwright test",
     "demo": "sh scripts/demo.sh"
   },
   "dependencies": {
