@@ -373,10 +373,12 @@ script-src 'nonce-<random>'; base-uri 'none'; form-action 'none';
 frame-ancestors 'none'`. The result is serialised with `JSON.stringify`,
 with `<`, `>` and `&` escaped as `\u003c`, `\u003e` and `\u0026`, into a
 `<script type="application/json" id="result">` element. The one nonce'd
-script parses that element, runs `window.opener.postMessage(result,
-APP_ORIGIN)` and then `window.close()`. The page reflects no other input
-(I-17). If `window.opener` is null it shows "Return to MarDoc and try
-again"; the `BroadcastChannel` fallback needs its own ADR (A-10).
+script parses that element and removes it from the DOM, then runs
+`window.opener.postMessage(result, APP_ORIGIN)` and `window.close()`. The
+page reflects no other input (I-17). If `window.opener` is null it shows
+"Return to MarDoc and try again" and holds no token, because the result
+element is already gone; the `BroadcastChannel` fallback needs its own ADR
+(A-10).
 
 **Free-plan exhaustion.** `/login` is unauthenticated, so a script could
 spend the Free plan's 100,000 daily requests (NF-17). Sign-in then fails
