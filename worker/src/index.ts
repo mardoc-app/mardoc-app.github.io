@@ -21,7 +21,7 @@ export interface Env {
 
 const UNCONFIGURED = {} as Env;
 
-/** Revoke bodies are tiny; anything bigger is refused unread. */
+/** Revoke bodies are tiny; a bigger declared length is refused unread, and a body is read only up to this cap. */
 const MAX_REVOKE_BODY_BYTES = 4096;
 /** GitHub tokens are base62 plus `_`, at most 255 characters. */
 const TOKEN_PATTERN = /^[A-Za-z0-9_]{1,255}$/;
@@ -113,14 +113,43 @@ async function callback(request: Request, url: URL, env: Env): Promise<Response>
   return respond(200, renderCallbackPage(outcome.result, env.APP_ORIGIN, cspNonce), headers);
 }
 
+/**
+ * The body as text, or null once more than `max` bytes have arrived. It stops
+ * reading at the cap, so a chunked body is never buffered whole (SR-2).
+ */
+async function readCapped(request: Request, max: number): Promise<string | null> {
+  if (!request.body) return "";
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > max) {
+      await reader.cancel().catch(() => undefined);
+      return null;
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const c of chunks) {
+    bytes.set(c, offset);
+    offset += c.byteLength;
+  }
+  return new TextDecoder().decode(bytes);
+}
+
 async function revoke(request: Request, env: Env): Promise<Response> {
   if (request.headers.get("origin") !== env.APP_ORIGIN) return json(403, { error: "forbidden" });
   const type = (request.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
   if (type !== "application/json") return json(400, { error: "bad_request" });
   const declared = Number(request.headers.get("content-length") ?? "0");
   if (!(declared <= MAX_REVOKE_BODY_BYTES)) return json(400, { error: "bad_request" });
-  const raw = await request.text();
-  if (raw.length > MAX_REVOKE_BODY_BYTES) return json(400, { error: "bad_request" });
+  // A body without a Content-Length (chunked) is read through the cap too (SR-2).
+  const raw = await readCapped(request, MAX_REVOKE_BODY_BYTES);
+  if (raw === null) return json(400, { error: "bad_request" });
   let token: unknown;
   try {
     const body: unknown = JSON.parse(raw);
