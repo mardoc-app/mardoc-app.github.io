@@ -778,16 +778,18 @@ contains no `ghr_`. `?code=c&state=N.x` with the cookie holding `N.s` gives
   `tsconfig.json` excludes it, so `next build` does not type-check Worker
   code against the DOM library. A layout-check script for LR-10 and LR-11
   joins `npm run ci`, with the Worker tests. New dev dependencies (wrangler,
-  Workers types, a Workers test pool) are listed with a reason and reviewed
-  as a supply-chain change. Until that package lands, LR-10 and LR-11 are
-  review-only.
+  Workers types, a test runner) are listed with a reason and reviewed as a
+  supply-chain change. The Worker tests run under plain Vitest in Node (no
+  Workers test pool), with `wrangler`, `@cloudflare/workers-types`,
+  `typescript` and `vitest` pinned exactly in `worker/package.json`; the
+  real runtime is covered by T-32.
 
 ### Layout rules
 
 | ID | Rule | Checked by |
 |---|---|---|
-| LR-10 | `src/lib/auth/session.ts` imports nothing from React, `window`, `document`, `localStorage` or `fetch`. | T-30 (after the build-prerequisites package) |
-| LR-11 | `worker/src/domain/**` makes no `fetch` and reads no `env`; GitHub calls go through `worker/src/adapters/github.ts`. | T-30 (after the build-prerequisites package) |
+| LR-10 | `src/lib/auth/session.ts` imports nothing from React, `window`, `document`, `localStorage` or `fetch`. | T-30, checked in `ci` by `scripts/check-layout.mjs` |
+| LR-11 | `worker/src/domain/**` makes no `fetch` and reads no `env`; GitHub calls go through `worker/src/adapters/github.ts`. | T-30, checked in `ci` by `scripts/check-layout.mjs` |
 
 ## Decisions and accepted risks
 
