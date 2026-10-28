@@ -1,7 +1,7 @@
 "use client";
 
 // The GitHub Connection tab of Settings (WP-6; F-10, F-13, F-15, F-17, F-18,
-// F-41, F-54, F-55, F-71, F-72). It owns only whether the PAT form is open.
+// F-19, F-41, F-54, F-55, F-71, F-72). It owns only whether the PAT form is open.
 // It never holds a token beyond the text field's own value, which is passed
 // to setGithubToken and cleared.
 import React, { useState } from "react";
@@ -15,6 +15,7 @@ import {
   DATA_AND_SECURITY_URL,
   signInErrorText,
 } from "./sign-in-text";
+import OpenInNewTabLink, { FRAMED_HINT } from "./OpenInNewTabLink";
 
 const TOKEN_KEY = "mardoc_github_token";
 const link = "text-[var(--accent)] underline";
@@ -33,7 +34,7 @@ interface Props {
 }
 
 export default function GitHubConnectionTab({ patOpen, setPatOpen, onPatConnected, onDisconnected }: Props) {
-  const { session, sessionKey, hasCredential, startSignIn, setGithubToken, dispatchSession, isEmbedded } = useApp();
+  const { session, sessionKey, hasCredential, startSignIn, setGithubToken, dispatchSession, isEmbedded, isFramed } = useApp();
   const [tokenInput, setTokenInput] = useState("");
   const [savedPatRevision, setSavedPatRevision] = useState(0);
 
@@ -73,12 +74,20 @@ export default function GitHubConnectionTab({ patOpen, setPatOpen, onPatConnecte
     onDisconnected();
   };
 
-  const signInButton = (label: string) => (
-    <button type="button" onClick={() => startSignIn()} className={primaryBtn}>
-      <Github size={14} />
-      {label}
-    </button>
-  );
+  // Inside another page's frame, sign-in is not offered: a link opens MarDoc
+  // in its own tab instead (F-19, SR-1). The token option stays.
+  const signInButton = (label: string) =>
+    isFramed ? (
+      <div className="space-y-1" data-testid="framed-sign-in">
+        <p className="text-xs text-[var(--text-muted)]">{FRAMED_HINT}</p>
+        <OpenInNewTabLink className={`${primaryBtn} w-fit`} />
+      </div>
+    ) : (
+      <button type="button" onClick={() => startSignIn()} className={primaryBtn}>
+        <Github size={14} />
+        {label}
+      </button>
+    );
 
   return (
     <div className="space-y-4">

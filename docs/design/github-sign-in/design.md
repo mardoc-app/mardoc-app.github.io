@@ -192,6 +192,12 @@ When the installations cover nothing, the repository list shows F-44's
 message. The help text replaces "there is no server" with the
 data-and-security.md wording (F-72, Q-10).
 
+**Framed:** when MarDoc is inside another page's frame
+(`window.top !== window.self`) and not in embed mode, every Sign in with
+GitHub and Sign in again button is replaced by "Open MarDoc in a new tab", a
+link to the current address with `target="_blank"` and
+`rel="noopener noreferrer"`; the PAT option stays (F-19).
+
 **Does not do:** hold the token, open the pop-up itself or talk to the
 Worker; auth state does. It is hidden in embed mode (F-15).
 
@@ -208,7 +214,8 @@ in again (`expiring`), "Your GitHub sign-in has ended" with Sign in again
 (`expired`), and, after a reload, "Sign in again to open `<path>`" with
 Sign in again and "Continue without signing in" (`sign-in-again`, F-37,
 F-38). A deep-link 404 for a sign-in credential shows F-42's message in the
-existing error area of the main pane.
+existing error area of the main pane. Framed, it shows "Open MarDoc in a
+new tab" in place of Sign in again (F-19).
 
 **Owns:** nothing. **Interfaces:** reads the session status; calls
 `startSignIn()` from its button's click. **Does not do:** hold state or
@@ -237,6 +244,12 @@ attempt (pop-up handle, nonce, deadline).
 - **To the GitHub client:** `initOctokit(token)` on sign-in and sign-in again; `resetGitHubSession()` on expiry and Disconnect.
 - **To GitHub, through the client:** `GET /user` once after each result, to learn the login (F-13, F-35).
 - **To localStorage:** only the sign-in marker (Q-20), and removal of `mardoc_user_repos` whenever the session key changes. A sign-in never writes or removes `mardoc_github_token` (I-10, F-53); `applySignInCredential` is a separate function from `setGithubToken`, which persists the token (`app-context.tsx:297`).
+
+**Top level only:** the adapter's `start` does nothing when
+`window.top !== window.self` (or reading `top` throws): no pop-up, no health
+check, no session event. Its `message` listener also ignores results while
+framed. The app exposes the same check as `isFramed`, which Settings and the
+banner read (F-19).
 
 **Does not do:** store the token; render UI (Settings and the banner do);
 check repository access (GitHub does).
@@ -763,6 +776,17 @@ contains no `ghr_`. `?code=c&state=N.x` with the cookie holding `N.s` gives
   Q-27's default (2026-10-27), so stage 1 ships only with these checks.
 - **Third party (RK-2):** Cloudflare runs the Worker and could see tokens.
   The Worker logs nothing (I-16); F-70 says so in the docs.
+- **Framing and clickjacking (F-19):** the static app cannot send
+  `frame-ancestors` or `X-Frame-Options` from GitHub Pages, so any site can
+  frame `mardoc.app`. A frame's `localStorage` is partitioned by top-level
+  site, so it never sees a saved PAT, but a sign-in in a frame would give it a
+  token: the pop-up is first-party, `/login` sees `Sec-Fetch-Site:
+  same-origin`, and the result reaches the framed opener. The framing page
+  could then clickjack actions such as approving a pull request and steer the
+  frame by changing its fragment. So sign-in is offered and started only in
+  a top-level window; a frame gets "Open MarDoc in a new tab" instead. When
+  hosting moves to Cloudflare (D-2), `frame-ancestors 'none'` on non-embed
+  responses adds a second layer.
 - **Revoke route abuse:** it needs the token itself, so a caller can only
   revoke a token it already holds. The `Origin` check keeps it from being an
   open relay.
@@ -829,6 +853,7 @@ contains no `ghr_`. `?code=c&state=N.x` with the cookie holding `N.s` gives
 | T-24 | Unit | Disconnect drops the token, resets the client and caches, removes the marker | F-60, F-32 |
 | T-32 | Playwright, real Worker under `wrangler dev`, GitHub stubbed | The real callback page posts to the real tab; CSP allows the nonce script; the pop-up closes | F-14, F-23, NF-19 |
 | T-33 | Review | In-app PAT instructions match the guide; data-and-security.md lists `mardoc_auth_method`; known-issues.md describes the sign-in 401 path | F-54, F-73 |
+| T-34 | Unit + component + Playwright, framed from another origin | Framed (`window.top !== window.self`), Settings and the banner offer "Open MarDoc in a new tab" (current URL, `_blank`, `noopener`) instead of Sign in, the token option stays, and the adapter neither starts an attempt nor accepts a result; top level still offers Sign in | F-19 |
 | T-25 | Live probe (owner) | `/` serves Pages; `/api/auth/health` is the Worker; `/refresh` 404; `no-store` | C-10, C-12, F-25, NF-14 |
 | T-26 | Owner demo | Click count, installed-only picker, org request journey, revoke, latency, browsers, permissions | F-11, F-40, F-43, F-61, NF-10, NF-16, NF-20, C-11 |
 | T-27 | Review | No `client_secret` value in repo or `out/`; secret read only from `env`; no agent deploy commands | C-13, C-14 |
@@ -888,6 +913,7 @@ contains no `ghr_`. `?code=c&state=N.x` with the cookie holding `N.s` gives
 | F-54 | Settings screen | T-33 |
 | F-55 | Settings screen; session `disconnect-and-remove-pat` | T-13 |
 | F-18 | Settings screen | T-16 |
+| F-19 | Security: framing; Settings screen and banner (framed); sign-in window adapter (top level only) | T-34 |
 | F-60 | Session `disconnect` | T-24 |
 | F-61 | Worker `revoke` | T-23, T-26 |
 | F-70 | Security: third party | T-28 |
