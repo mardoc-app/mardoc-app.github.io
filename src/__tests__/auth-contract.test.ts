@@ -12,7 +12,7 @@ import {
   parseSignInResult,
   type SignInResultCode,
 } from "@/lib/auth/contract";
-import type { SessionEvent } from "@/lib/auth/types";
+import type { SessionEvent, SessionEffect, SessionState } from "@/lib/auth/types";
 
 const NONCE = "A".repeat(22);
 
@@ -128,5 +128,22 @@ describe("auth contract", () => {
       "disconnect-and-remove-pat",
     ];
     expect(names).toHaveLength(14);
+  });
+
+  it("auth_types_payloads_and_no_token_in_state (I-10)", () => {
+    const start: SessionEvent = { type: "start", nonce: NONCE };
+    const eff: SessionEffect = { type: "get-user", token: "t", expiresIn: 60 };
+    const state: SessionState = {
+      status: "signed-out",
+      sessionKey: null,
+      lastLogin: null,
+      lastError: null,
+      statusBeforeAttempt: "signed-out",
+      expiresAt: null,
+      attempt: null,
+    };
+    expect(start.type).toBe("start");
+    expect(eff.type).toBe("get-user");
+    expect(Object.keys(state)).not.toContain("token");
   });
 });
