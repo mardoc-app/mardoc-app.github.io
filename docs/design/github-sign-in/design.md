@@ -189,7 +189,9 @@ session ends (F-53). While signed in with a saved PAT, the view says "A saved
 personal access token will be used after you disconnect", with "Remove
 saved token" and "Disconnect and remove saved token" (F-55). The install link opens with `rel="noopener noreferrer"`.
 When the installations cover nothing, the repository list shows F-44's
-message. The help text replaces "there is no server" with the
+message. The repository list belongs to the session key: it empties and
+reloads whenever the key changes, even with Settings open, and drops a
+response that arrives for an earlier key (F-40, F-44). The help text replaces "there is no server" with the
 data-and-security.md wording (F-72, Q-10).
 
 **Framed:** when MarDoc is inside another page's frame

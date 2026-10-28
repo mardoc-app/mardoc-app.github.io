@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Settings, X, RefreshCw, Lock, Globe, Search, FolderOpen } from "lucide-react";
 import { useApp } from "@/lib/app-context";
 import { fetchUserRepos } from "@/lib/github-api";
@@ -8,6 +8,7 @@ import FeedbackAISettings from "./FeedbackAISettings";
 import GitHubConnectionTab from "./GitHubConnectionTab";
 import { INSTALL_URL } from "./sign-in-text";
 import { isSignInKey } from "@/lib/auth/session";
+import type { SessionKey } from "@/lib/auth/types";
 import * as safeStorage from "@/lib/safe-storage";
 import {
   getImageUploadFolder,
@@ -78,28 +79,49 @@ export default function SettingsPanel({ isOpen, onClose, showPat }: SettingsPane
     setTimeout(() => setImageFolderSaved(false), 1500);
   };
 
+  // The credential the repository list was loaded for. The list lists what
+  // that credential can reach (a PAT: /user/repos; a sign-in: installations,
+  // F-40), so it reloads whenever the session key changes, even while
+  // Settings stays open (CR-1).
+  const listKey = useRef<SessionKey | undefined>(undefined);
+  const currentKey = useRef<SessionKey>(sessionKey);
+  currentKey.current = sessionKey;
+
+  const loadRepos = useCallback(() => {
+    const key = currentKey.current;
+    setLoadingRepos(true);
+    fetchUserRepos()
+      .then((repos) => {
+        // A response for an earlier credential is dropped.
+        if (currentKey.current !== key) return;
+        setUserRepos(repos);
+        safeStorage.setItem("mardoc_user_repos", JSON.stringify(repos));
+      })
+      .catch(console.error)
+      .finally(() => {
+        if (currentKey.current === key) setLoadingRepos(false);
+      });
+  }, []);
+
   // Load user repos: show cached immediately, refresh in background
   useEffect(() => {
-    if (isAuthenticated && isOpen) {
-      // Show cached repos instantly
-      const cached = safeStorage.getItem("mardoc_user_repos");
-      if (cached) {
-        try {
-          setUserRepos(JSON.parse(cached));
-        } catch { /* ignore corrupt cache */ }
-      }
-
-      // Fetch fresh list in background
-      setLoadingRepos(!cached);
-      fetchUserRepos()
-        .then((repos) => {
-          setUserRepos(repos);
-          safeStorage.setItem("mardoc_user_repos", JSON.stringify(repos));
-        })
-        .catch(console.error)
-        .finally(() => setLoadingRepos(false));
+    if (!isOpen) return;
+    const changed = listKey.current !== undefined && listKey.current !== sessionKey;
+    listKey.current = sessionKey;
+    if (changed) setUserRepos([]);
+    if (!isAuthenticated) return;
+    // The cache is shown only on opening; after a credential change it may
+    // belong to the previous credential.
+    const cached = changed ? null : safeStorage.getItem("mardoc_user_repos");
+    if (cached) {
+      try {
+        setUserRepos(JSON.parse(cached));
+      } catch { /* ignore corrupt cache */ }
     }
-  }, [isAuthenticated, isOpen]);
+    // Fetch fresh list in background
+    loadRepos();
+    if (cached) setLoadingRepos(false);
+  }, [isAuthenticated, isOpen, sessionKey, loadRepos]);
 
   const handleSelectRepo = (repo: string) => {
     setRepoInput(repo);
@@ -213,16 +235,7 @@ export default function SettingsPanel({ isOpen, onClose, showPat }: SettingsPane
                       )}
                     </label>
                     <button
-                      onClick={() => {
-                        setLoadingRepos(true);
-                        fetchUserRepos()
-                          .then((repos) => {
-                            setUserRepos(repos);
-                            safeStorage.setItem("mardoc_user_repos", JSON.stringify(repos));
-                          })
-                          .catch(console.error)
-                          .finally(() => setLoadingRepos(false));
-                      }}
+                      onClick={loadRepos}
                       className="toolbar-btn"
                       title="Refresh"
                     >
