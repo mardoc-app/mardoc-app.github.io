@@ -13,7 +13,7 @@
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
     "check": "node scripts/check-layout.mjs && vitest --run",
-    "ci": "node scripts/check-layout.mjs && vitest --run && npm --prefix worker ci && npm --prefix worker run typecheck && npm --prefix worker test && next build && playwright test",
+    "ci": "node scripts/check-layout.mjs && vitest --run && npm --prefix worker ci && npm --prefix worker run typecheck && worker/node_modules/.bin/tsc -p dev/local-auth/tsconfig.json && npm --prefix worker test && next build && playwright test && REAL_WORKER=1 playwright test --project real-worker",
     "demo": "sh scripts/demo.sh"
   },
   "dependencies": {
