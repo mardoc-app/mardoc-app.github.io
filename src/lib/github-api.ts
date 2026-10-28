@@ -16,6 +16,8 @@ import {
   markRateLimited,
   extractResetFromError,
   isTransientError,
+  setCredentialKind,
+  getCredentialKind,
 } from "@/lib/rate-limit";
 import { computeBackoff } from "@/lib/fetch-retry";
 import { requestEmbedImage } from "@/lib/embed-image-bridge";
@@ -26,12 +28,32 @@ import { RequestCache, isCommitSha } from "./request-cache";
 
 let octokitInstance: Octokit | null = null;
 
+export type GitHubCredentialKind = "pat" | "embed" | "sign-in";
+
+// The active credential's kind and expiry (design.md § GitHub client). A
+// sign-in token is never sent at or after `expiresAt` (I-15, NF-12).
+let credentialExpiresAt: number | null = null;
+// Set by expireGitHubSession: the sign-in session has ended (expiry or a 401)
+// and every request fails as an auth error without leaving the tab.
+let sessionEnded = false;
+let onAuthError: (() => void) | null = null;
+
 const contentCache = new RequestCache<{ content: string; encoding: string }>();
 const revisionRequests = new RequestCache<string>();
 const treeCache = new RequestCache<RepoFile[]>(32, 8 * 1024 * 1024);
 
-export function resetGitHubSession(): void {
-  octokitInstance = null;
+/** The auth state's hook for a sign-in token's 401 (F-34). Called at most once per credential. */
+export function setOnAuthError(fn: (() => void) | null): void {
+  onAuthError = fn;
+}
+
+function signInEndedError(): Error & { status: number } {
+  const err = new Error("Your GitHub sign-in has ended. Sign in again.") as Error & { status: number };
+  err.status = 401;
+  return err;
+}
+
+function clearSessionCaches(): void {
   clearMermaidCache();
   contentCache.clear();
   revisionRequests.clear();
@@ -40,25 +62,66 @@ export function resetGitHubSession(): void {
   imageDataUriCache.clear();
 }
 
-export function initOctokit(token: string) {
+export function resetGitHubSession(): void {
+  octokitInstance = null;
+  credentialExpiresAt = null;
+  sessionEnded = false;
+  setCredentialKind(null);
+  clearSessionCaches();
+}
+
+/**
+ * Ends a sign-in session without dropping the client (expiry or a 401): the
+ * caches are cleared and every later request is refused with `status: 401`
+ * before it is sent, so callers see an auth error with the sign-in wording.
+ */
+export function expireGitHubSession(): void {
+  sessionEnded = true;
+  clearSessionCaches();
+}
+
+export function initOctokit(
+  token: string,
+  opts: { kind?: GitHubCredentialKind; expiresAt?: number | null } = {}
+) {
   resetGitHubSession();
-  octokitInstance = new Octokit({ auth: token });
+  const kind = opts.kind ?? "pat";
+  // A sign-in token without an expiry is treated as already expired (I-15).
+  credentialExpiresAt = kind === "sign-in" ? opts.expiresAt ?? 0 : null;
+  setCredentialKind(kind);
+  const instance = new Octokit({ auth: token });
+  octokitInstance = instance;
+  let authErrorReported = false;
+  const reportAuthError = () => {
+    if (authErrorReported || kind !== "sign-in" || octokitInstance !== instance) return;
+    authErrorReported = true;
+    onAuthError?.();
+  };
+  const signInEnded = () =>
+    kind === "sign-in" &&
+    (octokitInstance !== instance || sessionEnded || Date.now() >= (credentialExpiresAt ?? 0));
 
   // Track rate-limit headers on every response so the circuit
   // breaker can proactively pause before we get a hard 403.
-  octokitInstance.hook.after("request", (response) => {
+  instance.hook.after("request", (response) => {
     const headers = (response as any)?.headers;
     if (headers) updateFromHeaders(headers);
   });
 
   // Wrap every request so that:
+  //   0. a sign-in token at or past its expiry is never sent (I-15)
   //   1. rate-limit errors mark the circuit breaker
   //   2. transient errors (5xx, network) retry with backoff
-  octokitInstance.hook.wrap("request", async (request, options) => {
+  //   3. a 401 on a sign-in token reports the end of the session once (F-34)
+  instance.hook.wrap("request", async (request, options) => {
     const signal = options.request?.signal as AbortSignal | undefined;
     const MAX_ATTEMPTS = 3;
     let lastErr: unknown;
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      if (signInEnded()) {
+        reportAuthError();
+        throw signInEndedError();
+      }
       try {
         signal?.throwIfAborted();
         return await request(options);
@@ -66,6 +129,10 @@ export function initOctokit(token: string) {
         signal?.throwIfAborted();
         if (err instanceof Error && err.name === "AbortError") throw err;
         lastErr = err;
+        if ((err as { status?: number } | null)?.status === 401) {
+          reportAuthError();
+          throw err;
+        }
         if (isRateLimitError(err)) {
           markRateLimited(extractResetFromError(err));
           throw err;
@@ -78,11 +145,22 @@ export function initOctokit(token: string) {
     throw lastErr;
   });
 
-  return octokitInstance;
+  return instance;
 }
 
 export function getOctokit(): Octokit | null {
   return octokitInstance;
+}
+
+/**
+ * `GET /user` with a token that is not applied yet (the pending sign-in
+ * token), to learn its login (F-13, F-35). Uses a throwaway client so the
+ * active credential and caches are untouched.
+ */
+export async function fetchLoginForToken(token: string, signal?: AbortSignal): Promise<string> {
+  const client = new Octokit({ auth: token });
+  const { data } = await client.users.getAuthenticated({ request: { signal } });
+  return data.login;
 }
 
 function parseOwnerRepo(repo: string): { owner: string; repo: string } {
@@ -1410,6 +1488,32 @@ export async function fetchUserRepos(): Promise<
 > {
   const octokit = getOctokit();
   if (!octokit) throw new Error("Not authenticated");
+
+  // A sign-in token reaches only the repositories of the App's installations,
+  // so list those rather than everything the user can see (A-16, F-40).
+  if (getCredentialKind() === "sign-in") {
+    const installations = await octokit.paginate(
+      octokit.apps.listInstallationsForAuthenticatedUser,
+      { per_page: 100 }
+    );
+    const byName = new Map<string, { fullName: string; description: string; isPrivate: boolean }>();
+    for (const installation of installations) {
+      const repos = await octokit.paginate(
+        octokit.apps.listInstallationReposForAuthenticatedUser,
+        { installation_id: installation.id, per_page: 100 }
+      );
+      for (const r of repos) {
+        byName.set(r.full_name, {
+          fullName: r.full_name,
+          description: r.description || "",
+          isPrivate: r.private,
+        });
+      }
+    }
+    return Array.from(byName.values()).sort((a, b) =>
+      a.fullName.toLowerCase().localeCompare(b.fullName.toLowerCase())
+    );
+  }
 
   const data = await octokit.paginate(octokit.repos.listForAuthenticatedUser, {
     sort: "full_name",
