@@ -14,6 +14,6 @@ export default defineConfig({
     // Node 25+ ships a global localStorage that shadows jsdom's; turn it off
     execArgv: ["--no-experimental-webstorage"],
     // Playwright tests live in e2e/ and have their own runner; .claude holds agent worktrees
-    exclude: ["node_modules", "e2e", ".next", "out", ".claude", "worker"],
+    exclude: ["node_modules", "e2e", ".next", "out", ".claude", "worker", "docs"],
   },
 });
