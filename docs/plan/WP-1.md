@@ -5,7 +5,7 @@ written in plan mode before product code. The bar: an engineer who has never
 seen the conversation could implement the change from this plan alone. The
 builder reads this file and the docs it links, not the planning conversation.
 
-- **Status:** PENDING
+- **Status:** ⭐ Accepted by the owner 2026-10-27; building
 - **Milestone:** M1. **Row:** [plan.md § M1 work packages](../plan.md#m1-work-packages)
 - **Model / agent:** sdlc:builder (Sonnet), own worktree. The lead reviews the
   dependency list before the first install.
