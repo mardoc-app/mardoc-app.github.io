@@ -206,6 +206,16 @@ spend separate from estimates and quota/credit usage. `sdlc:loop` records it.
 | DEBT-5 | `npm run ci` stops at the e2e step while M1-1 fails, so its last step (T-32) does not run | Follow-up: fix M1-1. The demo runs T-32 regardless | PENDING |
 | DEBT-6 | `docs/design/github-sign-in/architecture.html` does not yet show F-19 (framed sign-in refused) or the health 503 when the Worker is unconfigured | WP-9 fixes, 2026-10-28. Follow-up: failure-picker entry and auth-state card line, then review. Impact: the explainer lags design.md | DONE: 15538ef; re-review agrees |
 
+## Backlog from M1 acceptance (Part B, 2026-10-28)
+
+Owner's real sign-in at `http://localhost:8787` with the development App "MarDoc Dev": sign-in, the reload prompt, Sign in again and the installed-repository list all worked against real GitHub.
+
+| ID | Item | Evidence | Status |
+|---|---|---|---|
+| AT-1 | After signing in before the App was installed anywhere, then installing it, the Repository list stayed empty until Settings was reopened or refreshed. It should reload when the tab regains focus after the install link (F-44) | Owner, Part B, 2026-10-28 | PENDING |
+| AT-2 | A failed repository-list request shows the same "MarDoc isn't installed on any repository you can reach" message as an empty list; the error goes only to the console. A failure should say so and offer Retry (F-44, F-51) | `SettingsPanel.tsx` `loadRepos` catches with `console.error`; owner, Part B, 2026-10-28 | PENDING |
+| AT-3 | Opening an organisation repository (`Cloudzero/...`) where the App is not installed: the owner expected it in the list. The F-42 notice and the install guidance should name the organisation and say an org owner must install or approve the App | Owner, Part B, 2026-10-28 | PENDING |
+
 ## Backlog from the GSI review
 
 Every finding in [2026-10-20-github-sign-in-l0.md](reviews/2026-10-20-github-sign-in-l0.md)
