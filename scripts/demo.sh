@@ -8,7 +8,7 @@
 #   PLAYWRIGHT_PORT   port for the mocked specs' dev server (config default 3000)
 #   REAL_WORKER_PORT  port for the local harness under wrangler dev (default 8787)
 # Nothing here reaches GitHub or Cloudflare: GitHub and /api/auth/* are mocked
-# or stubbed, and the Worker bundle check is wrangler's --dry-run (no upload).
+# or stubbed, and the Worker bundle check runs esbuild locally; nothing uploads.
 set -e
 milestone="${1:-}"
 echo "MarDoc demo ${milestone:-(no milestone)}"
@@ -71,12 +71,19 @@ grep -E '✓|✘|^ +[0-9]+ (passed|failed)' "$logs/real-firefox.log" | head -8 |
 
 echo "== 5/5 the dev harness ships nowhere: out/ and the Worker bundle"
 bundle="$logs/bundle"
-(cd worker && WRANGLER_SEND_METRICS=false node_modules/.bin/wrangler deploy --dry-run --outdir "$bundle" > "$logs/bundle.log" 2>&1)
+# Bundle the production entry with esbuild (wrangler's own bundler, from
+# worker/node_modules), using wrangler's Workers settings: ESM, the
+# workerd/worker/browser export conditions. Nothing here can upload (C-14).
+mkdir -p "$bundle"
+worker/node_modules/.bin/esbuild worker/src/index.ts --bundle --format=esm --platform=neutral \
+  --target=es2022 --conditions=workerd,worker,browser --main-fields=workerd,worker,browser,module,main \
+  --sourcemap --outfile="$bundle/index.js" > "$logs/bundle.log" 2>&1
 dev_in_out=$(find out -path '*local-auth*' | wc -l | tr -d ' ')
 stub_in_out=$(grep -rlE 'stub-github|STUB_GITHUB|ghu_stub|local-auth' out | wc -l | tr -d ' ')
 if [ -f "$bundle/index.js" ]; then
   stub_in_bundle=$(grep -cE 'stub-github|STUB_GITHUB|ghu_stub|local-auth' "$bundle/index.js")
-  dev_sources=$(node -e 'const m=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));console.log(m.sources.filter(s=>s.includes("dev/")).length)' "$bundle/index.js.map")
+  # Source paths in the map are relative to the bundle; count those under the repo's dev/.
+  dev_sources=$(node -e 'const fs=require("fs"),p=require("path");const map=process.argv[1];const m=JSON.parse(fs.readFileSync(map,"utf8"));console.log(m.sources.map(s=>p.relative(process.cwd(),p.resolve(p.dirname(map),s))).filter(s=>s.split(p.sep)[0]==="dev").length)' "$bundle/index.js.map")
 else
   stub_in_bundle="no bundle"; dev_sources="no bundle"
 fi
@@ -85,7 +92,7 @@ if [ "$dev_in_out" = 0 ] && [ "$stub_in_out" = 0 ] && [ "$stub_in_bundle" = 0 ] 
 else
   result=FAIL; overall="FAIL"
 fi
-row 5 "\`dev/\` absent from \`out/\` and from the Worker bundle (\`wrangler deploy --dry-run\`, no upload)" "$result" \
+row 5 "\`dev/\` absent from \`out/\` and from the Worker bundle (esbuild of \`worker/src/index.ts\`, no upload)" "$result" \
   "out/: ${dev_in_out} dev files, ${stub_in_out} files with stub strings; bundle: ${stub_in_bundle} stub strings, ${dev_sources} dev/ sources"
 
 commit=$(git rev-parse --short HEAD)
