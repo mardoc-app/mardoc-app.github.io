@@ -1,0 +1,4 @@
+# wrangler dev local state
+.wrangler/
+# local wrangler dev secrets (also ignored at the repo root)
+.dev.vars
