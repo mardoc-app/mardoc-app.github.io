@@ -158,6 +158,22 @@ test.describe("increment 2: a mocked sign-in completes", () => {
     expect(await page.evaluate(() => localStorage.getItem("mardoc_auth_method"))).toBe("github-app");
   });
 
+  test("f10_settings_button_starts_mocked_sign_in", async ({ page, context }) => {
+    // WP-6's real Settings button, not the test hook (F-10, F-13).
+    const { auth } = await setUp(page, context);
+    const hashBefore = await page.evaluate(() => location.hash);
+    await page.getByTitle("Settings", { exact: true }).click();
+    await page.getByRole("button", { name: "GitHub Connection" }).click();
+    const popup = page.waitForEvent("popup");
+    await page.getByRole("button", { name: "Sign in with GitHub" }).click();
+    await popup;
+    expect(auth.requests.login).toHaveLength(1);
+    await waitForSession(page, { status: "signed-in", sessionKey: "sign-in:octo" });
+    await expect(page.getByText("Signed in with GitHub as octo")).toBeVisible();
+    expect(await page.evaluate(() => location.hash)).toBe(hashBefore);
+    expect(await tokenTraces(page)).not.toContain(MOCK_SIGN_IN_TOKEN);
+  });
+
   test("f61_disconnect_posts_revoke_with_origin_and_restores_the_pat", async ({ page, context }) => {
     const { auth, reads } = await setUp(page, context);
     await signInWithPopup(page);

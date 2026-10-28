@@ -129,8 +129,18 @@ function json(route: Route, status: number, body: unknown) {
 export async function mockAuth(context: BrowserContext, initial: AuthMockOptions = {}): Promise<AuthMocks> {
   let options: AuthMockOptions = { ...initial };
   const requests: AuthMocks["requests"] = { health: 0, login: [], revoke: [], github: [] };
+  // Handlers tolerate a page that closed mid-request: the tab closes the
+  // pop-up as soon as an attempt fails, sometimes before its page has loaded.
+  const on = (url: string | RegExp, handler: (route: Route) => Promise<unknown>) =>
+    context.route(url, async (route) => {
+      try {
+        await handler(route);
+      } catch (e) {
+        if (!/has been closed|Target closed/i.test(String(e))) throw e;
+      }
+    });
 
-  await context.route("**/api/auth/health", async (route) => {
+  await on("**/api/auth/health", async (route) => {
     requests.health++;
     const health = options.health ?? "ok";
     if (health === "ok") return json(route, 200, { ok: true, version: "mock" });
@@ -147,7 +157,7 @@ export async function mockAuth(context: BrowserContext, initial: AuthMockOptions
     // "hang": never answer; the tab's timeout ends it.
   });
 
-  await context.route("**/api/auth/login?**", async (route) => {
+  await on("**/api/auth/login?**", async (route) => {
     const nonce = new URL(route.request().url()).searchParams.get("n") ?? "";
     requests.login.push(nonce);
     const chosen = options.login ?? { ok: true };
@@ -160,7 +170,7 @@ export async function mockAuth(context: BrowserContext, initial: AuthMockOptions
     });
   });
 
-  await context.route("**/api/auth/revoke", async (route) => {
+  await on("**/api/auth/revoke", async (route) => {
     const request = route.request();
     let body: unknown = null;
     try {
@@ -173,7 +183,7 @@ export async function mockAuth(context: BrowserContext, initial: AuthMockOptions
     await route.fulfill({ status: options.revokeStatus ?? 204, body: "" });
   });
 
-  await context.route(/^https:\/\/api\.github\.com\/user(\/installations.*)?(\?.*)?$/, async (route) => {
+  await on(/^https:\/\/api\.github\.com\/user(\/installations.*)?(\?.*)?$/, async (route) => {
     const request = route.request();
     const url = new URL(request.url());
     const authorization = (await request.allHeaders())["authorization"] ?? null;
