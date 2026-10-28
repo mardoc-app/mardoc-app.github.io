@@ -1,0 +1,36 @@
+# M1 wave 1 checkpoint: frozen contract and types
+
+- **Reviewer:** fresh-eyes agent. **Date:** 2026-10-27 (file dated for wave 1 close).
+- **Scope:** `src/lib/auth/contract.ts`, `src/lib/auth/types.ts`, `src/__tests__/auth-contract.test.ts` at `plan/m1-github-sign-in` 6036a2a. Checked against design.md (Worker routes, result message, codes, Data, App state, Session status table) and WP-1, WP-3, WP-4. WP-5 has no slice plan yet, so it was judged against plan.md and the design's pop-up rows.
+- **How:** read-only desk check. I did not run the tests.
+
+## Verdict: freeze after listed changes
+
+- **WP-3 (Worker): yes, as is.** It uses only `contract.ts`, and names, codes, patterns, route paths and the cookie prefix all match design.md.
+- **WP-4 and WP-5: no.** `types.ts` cannot express several table rows (CP-1 to CP-3), has no timer effects (CP-4) and lets stale events or the token pass through the reducer (CP-5, CP-6). Fixing these after WP-4 starts means an ADR and a re-plan. Fixing them now costs about 20 lines.
+
+## Findings
+
+| ID | Sev | Finding, failure scenario, change |
+|---|---|---|
+| CP-1 | High | **Pop-up blocked is unrepresentable.** The `start` row says "open pop-up; if `null` → `failed(popup_blocked)`", but no event reports the null. WP-5 sees `window.open` return null and has nothing to dispatch; a fabricated `result` cannot pass the source check. The attempt then waits 10 minutes. **Add** `{ type: "popup-blocked"; nonce: string }`. |
+| CP-2 | High | **Dirty-editor row is unrepresentable.** `user` carries only `login`, so the reducer cannot choose between "editor clean" and "editor dirty". Nothing reports the Discard answer, so `confirm-discard` can never lead to "the clean row" or `failed(cancelled)`. **Change** `user` to `{ login; nonce; dirty: boolean }`. **Add** `{ type: "discard-confirmed"; nonce }` and `{ type: "discard-cancelled"; nonce }`. **Add** `pendingLogin: string \| null` to `SessionState`. |
+| CP-3 | High | **The new token's expiry has no home.** `SessionState.expiresAt` must keep the old credential's expiry while `signing-in` or `checking-user`, because failure restores the old credential and `tick` still applies to it. `get-user` carries `expiresIn` (not `expiresAt`), and `user` carries nothing. The reducer therefore cannot emit `schedule-expiry` or give `apply-*` the right time. The runner would recompute it with its own clock, and the margin formula would exist twice. **Add** `pendingExpiresAt: number \| null` to `SessionState`. **Change** `get-user` to `{ expiresAt }`. **Change** `apply-same-login` and `apply-new-login` to carry `{ login; expiresAt }`. |
+| CP-4 | Medium | **No timer effects.** The table needs a 10-minute deadline, a 1 s close grace, a "cancel the close grace" and a 10 s user-check deadline. The reducer holds no timers and the effect union has no way to arm or clear one. WP-4 and WP-5 will each guess. **Add** `{ type: "arm-timer"; timer: "deadline" \| "close-grace"; at: number }` and `{ type: "clear-timer"; timer: "deadline" \| "close-grace" }`. |
+| CP-5 | Medium | **Late events from attempt 1 act on attempt 2.** `user`, `user-failed`, `deadline`, `popup-closed`, `close-grace-passed` and `health-failed` carry no nonce. Attempt 1's `GET /user` times out at 10 s and fails. The user starts attempt 2, which reaches `checking-user`. Attempt 1's late `user{login:A}` arrives, and attempt 2's token is applied with `sessionKey = sign-in:A`. That is an identity mix-up (I-14). A stale `deadline` also fails attempt 2 as `timeout`. **Add** `nonce: string` to each of those events. The reducer ignores a mismatch with `state.attempt.nonce`. |
+| CP-6 | Medium | **The token passes through React, and I-11's source check has no owner.** `result` carries the whole `SignInResult` including the token. WP-4 plans `useReducer`, so the token sits in React's dispatch queue, against design "never in React state". `source: unknown` is compared "by identity", but `SessionState.attempt` has no pop-up handle. The reducer cannot do the compare, and design assigns I-11 to the adapter. **Change** `result` to `{ type: "result"; nonce: string \| null; fromPopup: boolean } & ({ ok: true; expiresIn: number } \| { ok: false; error: SignInResultCode })`. The adapter checks origin and source, then keeps the token in the credential closure. **Change** `get-user` to `{ expiresAt }`. The runner reads the pending token from the closure. |
+| CP-7 | Medium | **No event for an embed credential.** `applyInitData` (`app-context.tsx:324`) sets the token when VS Code's init message arrives, after start-up. `sessionKey` can be `"embed"`, but only `connect-pat` exists. **Add** `{ type: "connect-embed" }`. It behaves as `connect-pat` with `sessionKey = "embed"`. State in WP-4 that `connect-pat` and `connect-embed` store the token outside the reducer. |
+| CP-8 | Low | **Parser holes.** (a) `ok: true` with `nonce: null` parses. Return `null` for it, so a token never travels without a nonce (I-11). (b) `expiresIn` is any positive integer, so `1e21` gives an `expiresAt` of effectively never and defeats I-15. **Add** `expiresIn <= 86400` (design's tokens are 28800), and mirror it in the Worker's `non_expiring_token` check. Add tests for both. |
+| CP-9 | Low | **Shared constants live outside the contract.** The timings (health 5 s, user check 10 s, attempt 10 min, grace 1 s, expiring window 10 min, margin 60 s) are needed by both WP-4 (deadlines) and WP-5 (timers). The pop-up name `mardoc-sign-in` is also missing. The health and revoke body shapes are not named either. **Add** `AUTH_TIMINGS`, `POPUP_NAME`, `type HealthBody`, `type RevokeBody`. |
+| CP-10 | Low | **Two tests are vacuous.** `auth_types_event_names_match_design_table` checks the length of an array it builds itself, so a missing or extra event name still passes. `auth_types_payloads_*` is the same kind of check. **Change** to a type-level check, for example `const all = { start: 1, … } satisfies Record<SessionEvent["type"], 1>`, and `Record<SessionEffect["type"], 1>` for effects. |
+
+Note for the design owner (not a contract change): `tick` and `auth-error` are unlisted in `signing-in` and `checking-user`, so the table's total-function rule ignores them. If the old token passes its expiry during a 10-minute wait, `statusBeforeAttempt` stays `signed-in`. Add a row: they update `statusBeforeAttempt`.
+
+## Checked and found sound
+
+- Routes, `AUTH_BASE`, the cookie prefix and Max-Age, `NONCE_PATTERN` and `ERROR_CODE_PATTERN` match design.md, with no `/refresh` anywhere.
+- All 10 result codes match the design table, and the test reads design.md to prove it. `string & {}` keeps the other GitHub codes.
+- `parseSignInResult` rebuilds a fresh object, so `refresh_token` and extra fields cannot pass through. It never throws, including on throwing getters. JS `$` has no trailing-newline hole, and the regexes have no `g` flag.
+- `nonceFromState` splits at the first dot, and the nonce alphabet excludes `.`, so the split is unambiguous.
+- `SessionState` has no token field, and all 14 event names and 15 effect names in WP-1 and the table are present.
+- The remaining table effects (`reset-client`, `revoke`, markers, `remove-user-repos`, `remove-saved-pat`) have a home.
