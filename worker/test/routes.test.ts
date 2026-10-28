@@ -315,6 +315,67 @@ describe("revoke (T-23)", () => {
     expect(JSON.parse(c.body)).toEqual({ access_token: "ghu_abc" });
   });
 
+  // SR-2: a body with no Content-Length (chunked) is read through a 4 KiB cap,
+  // not buffered whole before the size check.
+  const streamed = (total: number, chunk = 1024) => {
+    let pulled = 0;
+    const body = new ReadableStream<Uint8Array>(
+      {
+        pull(controller) {
+          if (pulled >= total) return controller.close();
+          const n = Math.min(chunk, total - pulled);
+          pulled += n;
+          controller.enqueue(new Uint8Array(n).fill(0x20));
+        },
+      },
+      { highWaterMark: 0 },
+    );
+    return { body, pulled: () => pulled };
+  };
+
+  it("f61_revoke_chunked_oversize_body_is_refused_within_4_kib_sr2", async () => {
+    const calls = stubGitHub(new Response(null, { status: 204 }));
+    const s = streamed(8 * 1024 * 1024);
+    const request = new Request(`${APP}/api/auth/revoke`, {
+      method: "POST",
+      headers: { origin: APP, "content-type": "application/json" },
+      body: s.body,
+      duplex: "half",
+    } as RequestInit);
+    expect(request.headers.get("content-length")).toBeNull();
+    const res = await worker.fetch(request, ENV);
+    assertCommonHeaders(res);
+    expect(res.status).toBe(400);
+    expect(JSON.parse(await res.text())).toEqual({ error: "bad_request" });
+    // At most the cap plus a few chunks in flight, never the 8 MiB.
+    expect(s.pulled()).toBeLessThanOrEqual(16 * 1024);
+    expect(calls).toHaveLength(0);
+  });
+
+  it("f61_revoke_chunked_small_body_still_revokes_sr2", async () => {
+    const calls = stubGitHub(new Response(null, { status: 204 }));
+    const encode = (t: string) => new TextEncoder().encode(t);
+    const res = await worker.fetch(
+      new Request(`${APP}/api/auth/revoke`, {
+        method: "POST",
+        headers: { origin: APP, "content-type": "application/json" },
+        body: new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(encode('{"token":'));
+            controller.enqueue(encode('"ghu_abc"}'));
+            controller.close();
+          },
+        }),
+        duplex: "half",
+      } as RequestInit),
+      ENV,
+    );
+    assertCommonHeaders(res);
+    expect(res.status).toBe(204);
+    expect(calls).toHaveLength(1);
+    expect(JSON.parse(calls[0].body)).toEqual({ access_token: "ghu_abc" });
+  });
+
   it("t23_revoke_github_404_is_204", async () => {
     stubGitHub(new Response('{"message":"Not Found"}', { status: 404 }));
     const r = await post('{"token":"ghu_abc"}');
