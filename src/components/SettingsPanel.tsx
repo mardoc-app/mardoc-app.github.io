@@ -20,7 +20,6 @@ interface SettingsPanelProps {
 export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   const {
     isAuthenticated,
-    githubToken,
     setGithubToken,
     currentRepo,
     setCurrentRepo,
