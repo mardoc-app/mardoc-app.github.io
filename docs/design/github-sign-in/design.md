@@ -189,8 +189,16 @@ session ends (F-53). While signed in with a saved PAT, the view says "A saved
 personal access token will be used after you disconnect", with "Remove
 saved token" and "Disconnect and remove saved token" (F-55). The install link opens with `rel="noopener noreferrer"`.
 When the installations cover nothing, the repository list shows F-44's
-message. The help text replaces "there is no server" with the
+message. The repository list belongs to the session key: it empties and
+reloads whenever the key changes, even with Settings open, and drops a
+response that arrives for an earlier key (F-40, F-44). The help text replaces "there is no server" with the
 data-and-security.md wording (F-72, Q-10).
+
+**Framed:** when MarDoc is inside another page's frame
+(`window.top !== window.self`) and not in embed mode, every Sign in with
+GitHub and Sign in again button is replaced by "Open MarDoc in a new tab", a
+link to the current address with `target="_blank"` and
+`rel="noopener noreferrer"`; the PAT option stays (F-19).
 
 **Does not do:** hold the token, open the pop-up itself or talk to the
 Worker; auth state does. It is hidden in embed mode (F-15).
@@ -208,7 +216,8 @@ in again (`expiring`), "Your GitHub sign-in has ended" with Sign in again
 (`expired`), and, after a reload, "Sign in again to open `<path>`" with
 Sign in again and "Continue without signing in" (`sign-in-again`, F-37,
 F-38). A deep-link 404 for a sign-in credential shows F-42's message in the
-existing error area of the main pane.
+existing error area of the main pane. Framed, it shows "Open MarDoc in a
+new tab" in place of Sign in again (F-19).
 
 **Owns:** nothing. **Interfaces:** reads the session status; calls
 `startSignIn()` from its button's click. **Does not do:** hold state or
@@ -237,6 +246,12 @@ attempt (pop-up handle, nonce, deadline).
 - **To the GitHub client:** `initOctokit(token)` on sign-in and sign-in again; `resetGitHubSession()` on expiry and Disconnect.
 - **To GitHub, through the client:** `GET /user` once after each result, to learn the login (F-13, F-35).
 - **To localStorage:** only the sign-in marker (Q-20), and removal of `mardoc_user_repos` whenever the session key changes. A sign-in never writes or removes `mardoc_github_token` (I-10, F-53); `applySignInCredential` is a separate function from `setGithubToken`, which persists the token (`app-context.tsx:297`).
+
+**Top level only:** the adapter's `start` does nothing when
+`window.top !== window.self` (or reading `top` throws): no pop-up, no health
+check, no session event. Its `message` listener also ignores results while
+framed. The app exposes the same check as `isFramed`, which Settings and the
+banner read (F-19).
 
 **Does not do:** store the token; render UI (Settings and the banner do);
 check repository access (GitHub does).
@@ -354,11 +369,11 @@ and no `Access-Control-*` headers.
 
 | Route | Request | Response | Errors |
 |---|---|---|---|
-| `GET /health` | none | `200` JSON containing `"ok": true` (and `"version": "<git sha>"`) | none; absence is the signal |
+| `GET /health` | none | `200` JSON containing `"ok": true` (and `"version": "<git sha>"`) | `503 {"ok": false}` when `CLIENT_ID` or `CLIENT_SECRET` is empty, naming neither; otherwise none, absence is the signal. The tab treats either as `worker_unavailable` (F-51) |
 | `GET /login?n=<nonce>` | `n`: base64url, 22 to 64 chars (`^[A-Za-z0-9_-]{22,64}$`); `Sec-Fetch-Site: same-origin` and `Sec-Fetch-Dest: document` | `302` to `https://github.com/login/oauth/authorize?client_id&redirect_uri=https://mardoc.app/api/auth/callback&state&code_challenge&code_challenge_method=S256`; sets the attempt cookie | `400` plain-text page if `n` fails the pattern (no message can be posted without a nonce); `403` plain-text page if the `Sec-Fetch-*` headers are missing or different, so other sites and fetches can't start attempts. It also expires every `__Secure-mardoc_auth_*` cookie on the request except the newest two, so repeated starts can't pile cookies up |
 | `GET /callback?code&state` or `?error&state` | GitHub's redirect, plus the attempt cookie | `200 text/html` callback page carrying a [sign-in result](#sign-in-result-message); clears the cookie | Result codes below; never a redirect |
 | `GET /callback?installation_id&setup_action` with no `state` | The install page's return, if GitHub sends one (A-11) | `200 text/html` "MarDoc is installed. Go back to the MarDoc tab and press Refresh." No script, no exchange (F-29) | — |
-| `POST /revoke` | `Origin: https://mardoc.app`, `Content-Type: application/json`, body `{"token":"…"}` | `204`; also `204` when GitHub answers 404 (token already expired or revoked) | `403` when `Origin` is missing or different; `400` on a bad body; `502 {"error":"revoke_failed"}` on other GitHub failures |
+| `POST /revoke` | `Origin: https://mardoc.app`, `Content-Type: application/json`, body `{"token":"…"}` | `204`; also `204` when GitHub answers 404 (token already expired or revoked) | `403` when `Origin` is missing or different; `400` on a bad body, including one over 4 KiB (a body with or without `Content-Length` is read no further than 4 KiB); `502 {"error":"revoke_failed"}` on other GitHub failures |
 | anything else, including `/refresh` | — | `404` | — |
 
 **Values.** `state` = `<nonce>.<r>`, where `r` is 32 random bytes,
@@ -373,10 +388,12 @@ script-src 'nonce-<random>'; base-uri 'none'; form-action 'none';
 frame-ancestors 'none'`. The result is serialised with `JSON.stringify`,
 with `<`, `>` and `&` escaped as `\u003c`, `\u003e` and `\u0026`, into a
 `<script type="application/json" id="result">` element. The one nonce'd
-script parses that element, runs `window.opener.postMessage(result,
-APP_ORIGIN)` and then `window.close()`. The page reflects no other input
-(I-17). If `window.opener` is null it shows "Return to MarDoc and try
-again"; the `BroadcastChannel` fallback needs its own ADR (A-10).
+script parses that element and removes it from the DOM, then runs
+`window.opener.postMessage(result, APP_ORIGIN)` and `window.close()`. The
+page reflects no other input (I-17). If `window.opener` is null it shows
+"Return to MarDoc and try again" and holds no token, because the result
+element is already gone; the `BroadcastChannel` fallback needs its own ADR
+(A-10).
 
 **Free-plan exhaustion.** `/login` is unauthenticated, so a script could
 spend the Free plan's 100,000 daily requests (NF-17). Sign-in then fails
@@ -761,6 +778,17 @@ contains no `ghr_`. `?code=c&state=N.x` with the cookie holding `N.s` gives
   Q-27's default (2026-10-27), so stage 1 ships only with these checks.
 - **Third party (RK-2):** Cloudflare runs the Worker and could see tokens.
   The Worker logs nothing (I-16); F-70 says so in the docs.
+- **Framing and clickjacking (F-19):** the static app cannot send
+  `frame-ancestors` or `X-Frame-Options` from GitHub Pages, so any site can
+  frame `mardoc.app`. A frame's `localStorage` is partitioned by top-level
+  site, so it never sees a saved PAT, but a sign-in in a frame would give it a
+  token: the pop-up is first-party, `/login` sees `Sec-Fetch-Site:
+  same-origin`, and the result reaches the framed opener. The framing page
+  could then clickjack actions such as approving a pull request and steer the
+  frame by changing its fragment. So sign-in is offered and started only in
+  a top-level window; a frame gets "Open MarDoc in a new tab" instead. When
+  hosting moves to Cloudflare (D-2), `frame-ancestors 'none'` on non-embed
+  responses adds a second layer.
 - **Revoke route abuse:** it needs the token itself, so a caller can only
   revoke a token it already holds. The `Origin` check keeps it from being an
   open relay.
@@ -797,8 +825,8 @@ contains no `ghr_`. `?code=c&state=N.x` with the cookie holding `N.s` gives
 
 | ID | Rule | Checked by |
 |---|---|---|
-| LR-10 | `src/lib/auth/session.ts` imports nothing from React, `window`, `document`, `localStorage` or `fetch`. | T-30, checked in `ci` by `scripts/check-layout.mjs` |
-| LR-11 | `worker/src/domain/**` makes no `fetch` and reads no `env`; GitHub calls go through `worker/src/adapters/github.ts`. | T-30, checked in `ci` by `scripts/check-layout.mjs` |
+| LR-10 | `src/lib/auth/session.ts`, and every other file in `src/lib/auth/` except the adapters `sign-in-window.ts` and `credential.ts` and the build-time `config.ts`, imports only `./types` and `./contract`, and uses none of `window`, `document`, `localStorage`, `sessionStorage`, `fetch`, `globalThis`, `self` or `process`, including as `globalThis.fetch` or `process.env`. | T-30, checked in `ci` by `scripts/check-layout.mjs` |
+| LR-11 | `worker/src/domain/**` imports only its own siblings and `src/lib/auth/contract.ts`, makes no `fetch` and reads no `env` (nor `globalThis`, `self` or `process`); GitHub calls go through `worker/src/adapters/github.ts`. | T-30, checked in `ci` by `scripts/check-layout.mjs` |
 
 ## Decisions and accepted risks
 
@@ -823,10 +851,11 @@ contains no `ghr_`. `?code=c&state=N.x` with the cookie holding `N.s` gives
 | T-20 | Worker unit (stubbed GitHub) | Each step of the callback decision order; state mismatch → no exchange; S256 challenge; no CORS headers; install return page without exchange | F-20, F-21, F-22, F-29, I-12 |
 | T-21 | Worker unit | Refresh token absent from every response; `/refresh` is 404; result posted only to `APP_ORIGIN`; a hostile `error` or `state` value never appears unescaped in the page | F-23, F-24, F-25, I-13, I-17 |
 | T-22 | Worker unit | `console` never called; every response `no-store`; attempt cookie `Max-Age=600` then `0`; `/login` refuses a cross-site or non-document request and keeps at most three attempt cookies; no storage bindings in `wrangler.toml` | F-26, F-28, NF-14, NF-15, I-16 |
-| T-23 | Worker unit | Health JSON contains `ok: true`; revoke refuses a missing or foreign `Origin`, maps GitHub 404 to 204, and calls GitHub with basic auth | F-27, F-61 |
+| T-23 | Worker unit | Health JSON contains `ok: true`, and is `503 {"ok": false}` without the client ID or secret; revoke reads at most 4 KiB of body, refuses a missing or foreign `Origin`, maps GitHub 404 to 204, and calls GitHub with basic auth | F-27, F-61 |
 | T-24 | Unit | Disconnect drops the token, resets the client and caches, removes the marker | F-60, F-32 |
 | T-32 | Playwright, real Worker under `wrangler dev`, GitHub stubbed | The real callback page posts to the real tab; CSP allows the nonce script; the pop-up closes | F-14, F-23, NF-19 |
 | T-33 | Review | In-app PAT instructions match the guide; data-and-security.md lists `mardoc_auth_method`; known-issues.md describes the sign-in 401 path | F-54, F-73 |
+| T-34 | Unit + component + Playwright, framed from another origin | Framed (`window.top !== window.self`), Settings and the banner offer "Open MarDoc in a new tab" (current URL, `_blank`, `noopener`) instead of Sign in, the token option stays, and the adapter neither starts an attempt nor accepts a result; top level still offers Sign in | F-19 |
 | T-25 | Live probe (owner) | `/` serves Pages; `/api/auth/health` is the Worker; `/refresh` 404; `no-store` | C-10, C-12, F-25, NF-14 |
 | T-26 | Owner demo | Click count, installed-only picker, org request journey, revoke, latency, browsers, permissions | F-11, F-40, F-43, F-61, NF-10, NF-16, NF-20, C-11 |
 | T-27 | Review | No `client_secret` value in repo or `out/`; secret read only from `env`; no agent deploy commands | C-13, C-14 |
@@ -886,6 +915,7 @@ contains no `ghr_`. `?code=c&state=N.x` with the cookie holding `N.s` gives
 | F-54 | Settings screen | T-33 |
 | F-55 | Settings screen; session `disconnect-and-remove-pat` | T-13 |
 | F-18 | Settings screen | T-16 |
+| F-19 | Security: framing; Settings screen and banner (framed); sign-in window adapter (top level only) | T-34 |
 | F-60 | Session `disconnect` | T-24 |
 | F-61 | Worker `revoke` | T-23, T-26 |
 | F-70 | Security: third party | T-28 |

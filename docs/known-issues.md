@@ -60,7 +60,7 @@ Measure the production export before changes. Track time to first readable file,
 
 ## TOOL-01: Development and test maintenance
 
-`npm start` uses `next start` despite static export; the lint script lacks a configured ESLint setup. E2E tests include fixed waits. Deployment and test workflows are independent. The current in-app/demo token help still differs from the updated [PAT guide](setup-github-pat.md). Track code/config/sample-copy cleanup separately from this documentation-only refresh.
+`npm start` uses `next start` despite static export; the lint script lacks a configured ESLint setup. E2E tests include fixed waits. Deployment and test workflows are independent. Track this code and config cleanup separately.
 
 ## Product and integration gaps
 

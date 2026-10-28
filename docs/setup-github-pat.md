@@ -35,7 +35,7 @@ Fine-grained tokens are scoped to a resource owner and selected repositories. Or
 4. Generate and copy the token. For an organization using SAML SSO, authorize the token through **Configure SSO** as described in [GitHub's SSO guide](https://docs.github.com/en/authentication/authenticating-with-single-sign-on/authorizing-a-personal-access-token-for-use-with-single-sign-on).
 5. Paste it into Settings → **GitHub Connection**, connect, and select a repository.
 
-The current in-app help also suggests `read:org`. That scope concerns organization membership information; it is not a universal prerequisite for listing repositories accessible to the authenticated user. Start troubleshooting missing repositories with account access, token scope, SSO authorization, and organization policy rather than assuming this extra scope fixes every case. [Repository listing permissions](https://docs.github.com/en/rest/repos/repos#list-repositories-for-the-authenticated-user)
+MarDoc does not ask for `read:org`. That scope concerns organization membership information; it is not a universal prerequisite for listing repositories accessible to the authenticated user. Start troubleshooting missing repositories with account access, token scope, SSO authorization, and organization policy rather than assuming this extra scope fixes every case. [Repository listing permissions](https://docs.github.com/en/rest/repos/repos#list-repositories-for-the-authenticated-user)
 
 Some organizations restrict classic PATs or require approval for fine-grained PATs. Follow the organization's policy; [GitHub documents these controls](https://docs.github.com/en/organizations/managing-programmatic-access-to-your-organization/setting-a-personal-access-token-policy-for-your-organization).
 

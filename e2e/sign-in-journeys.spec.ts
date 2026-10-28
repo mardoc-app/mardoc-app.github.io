@@ -312,3 +312,113 @@ test.describe("M1-4 live-session Settings", () => {
     await expect(view.getByRole("button", { name: "Sign in with GitHub" })).toBeVisible();
   });
 });
+
+// WP-9: findings from the M1 code review (docs/reviews/2026-10-28-m1-code-review.md).
+test.describe("WP-9 review fixes", () => {
+  test("f40_picker_reloads_on_sign_in_cr1", async ({ page, context }) => {
+    // CR-1: a saved PAT lists every repo from /user/repos. Signing in from the open
+    // Settings must replace that list with the installed repositories only (F-40).
+    await setUp(page, context, { pat: true, route: "/" });
+    await openSettings(page, "Repository");
+    await expect(pickerRepo(page, "acme/not-installed")).toBeVisible();
+    await signIn(page);
+    await openSettings(page, "Repository");
+    await expect(pickerRepo(page, "acme/docs")).toBeVisible();
+    await expect(pickerRepo(page, "acme/not-installed")).toHaveCount(0);
+  });
+
+  test("f44_empty_installations_reachable_after_sign_in_over_pat_cr1", async ({ page, context }) => {
+    // CR-1: with no installations, F-44's message appears instead of the PAT's list.
+    await setUp(page, context, { pat: true, route: "/", installations: [] });
+    await openSettings(page, "Repository");
+    await expect(pickerRepo(page, "acme/not-installed")).toBeVisible();
+    await signIn(page);
+    await openSettings(page, "Repository");
+    await expect(connection(page).getByTestId("no-installations")).toBeVisible();
+    await expect(pickerRepo(page, "acme/not-installed")).toHaveCount(0);
+  });
+
+  test("f53_picker_refills_after_disconnect_restores_the_pat_cr1", async ({ page, context }) => {
+    // CR-1: Disconnect makes the saved PAT active again (F-53); its list comes back.
+    await setUp(page, context, { pat: true, route: "/" });
+    await signIn(page);
+    await openSettings(page, "Repository");
+    await expect(pickerRepo(page, "acme/docs")).toBeVisible();
+    await openSettings(page, "GitHub Connection");
+    await connection(page).getByRole("button", { name: "Disconnect", exact: true }).click();
+    await waitForSession(page, { sessionKey: "pat" });
+    await openSettings(page, "Repository");
+    await expect(pickerRepo(page, "acme/not-installed")).toBeVisible();
+    await expect(pickerRepo(page, "acme/docs")).toHaveCount(0);
+  });
+
+  test("f34_signed_in_401_shows_expired_view_with_sign_in_again_cr2", async ({ page, context }) => {
+    // CR-2: a real 401 on a signed-in read (the App revoked on github.com) ends the
+    // session: expired, the banner, Sign in again and the token form (F-34).
+    await setUp(page, context);
+    await signIn(page);
+    await closeSettings(page);
+    await expectHeading(page);
+    await page.route("https://api.github.com/repos/**", (route) =>
+      route.fulfill({ status: 401, contentType: "application/json", body: JSON.stringify({ message: "Bad credentials" }) }),
+    );
+    await page.getByRole("button", { name: "Refresh document", exact: true }).click();
+    await waitForSession(page, { status: "expired", sessionKey: "sign-in:octo" });
+    const banner = page.getByTestId("sign-in-banner");
+    await expect(banner).toContainText("Your GitHub sign-in has ended");
+    await expect(banner.getByRole("button", { name: "Sign in again" })).toBeVisible();
+    await expect(page.getByText("Open Settings to re-authenticate")).toHaveCount(0);
+    await openSettings(page);
+    const view = connection(page);
+    await expect(view.getByText("This sign-in has ended.")).toBeVisible();
+    await expect(view.getByRole("button", { name: "Sign in again" })).toBeVisible();
+    await view.getByRole("button", { name: "Use a personal access token" }).click();
+    await expect(view.getByPlaceholder("ghp_...")).toBeVisible();
+  });
+
+  test("f51_unconfigured_worker_health_shows_unavailable_cr4", async ({ page, context }) => {
+    // CR-4: a Worker deployed without CLIENT_ID or CLIENT_SECRET answers health with
+    // 503 {"ok":false} (worker/test/routes.test.ts); the tab shows F-51's message
+    // and the token option within 5 s, and closes the pop-up.
+    await setUp(page, context, { login: { stay: true } });
+    await page.route("**/api/auth/health", (route) =>
+      route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ ok: false }) }),
+    );
+    const started = Date.now();
+    const popup = await signInFromSettings(page);
+    await expect(connection(page).getByTestId("sign-in-error")).toHaveText("Sign-in with GitHub is unavailable right now.");
+    expect(Date.now() - started).toBeLessThan(5_000);
+    await expect(connection(page).getByRole("button", { name: "Use a personal access token" })).toBeVisible();
+    await expect.poll(() => popup.isClosed()).toBe(true);
+    expect((await session(page)).lastError).toBe("worker_unavailable");
+  });
+
+  test("f35_same_login_sign_in_again_keeps_dirty_editor_cr2", async ({ page, context }) => {
+    // CR-2: F-35's acceptance. Make the editor dirty, expire the token, sign in again as
+    // the same login: the edit and route stay and the open file is not fetched again.
+    await page.clock.install();
+    const { auth, repos } = await setUp(page, context, { login: { ok: true, expiresIn: 90 } });
+    await signIn(page, "octo", "expiring");
+    await closeSettings(page);
+    await expectHeading(page);
+    const edit = " Edited before expiry.";
+    await page.locator(".ProseMirror p").first().click();
+    await page.keyboard.press("End");
+    await page.keyboard.type(edit);
+    await expect(page.locator(".ProseMirror")).toContainText(edit);
+    const hash = await page.evaluate(() => location.hash);
+
+    await page.clock.fastForward("01:22");
+    await waitForSession(page, { status: "expired" });
+    auth.set({ login: { ok: true, token: "ghu_mock_second_token_0123456789", expiresIn: 28800 } });
+    const before = repos.reads.length;
+    const popup = page.waitForEvent("popup");
+    await page.getByTestId("sign-in-banner").getByRole("button", { name: "Sign in again" }).click();
+    await popup;
+    await waitForSession(page, { status: "signed-in", sessionKey: "sign-in:octo" });
+    await expect(page.locator(".ProseMirror")).toContainText(edit);
+    await expectHeading(page);
+    expect(await page.evaluate(() => location.hash)).toBe(hash);
+    expect(repos.reads.slice(before).some((r) => r.path.includes("/contents/"))).toBe(false);
+  });
+});

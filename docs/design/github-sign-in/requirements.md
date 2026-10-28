@@ -96,6 +96,7 @@ The full list, with sources, is in [intent.md](intent.md#owners-statements).
 | F-13 | Once signed in, Settings shall show the GitHub login and that the connection is a GitHub sign-in. | Derived from S-10, F-11 | Should | 1 | Playwright with a mocked exchange: Settings shows "Signed in with GitHub as `octo`". |
 | F-14 | The app shall accept a sign-in result only from the sign-in window it opened, carrying the one-time value it generated for that attempt. | Derived from S-19 | Must | 1 | Unit and Playwright: a correctly shaped result posted from another window, from a rendered-HTML iframe, or with a different one-time value is ignored, and the active credential is unchanged. |
 | F-15 | Sign in with GitHub shall not be offered inside the VS Code embed (`?embed=true`). | Derived from A-20 | Must | 1 | Playwright: load `/?embed=true`; no "Sign in with GitHub" control is rendered. |
+| F-19 | When MarDoc runs inside a frame on another page (`window.top !== window.self`) outside embed mode, the app shall neither offer nor start Sign in with GitHub; Settings and the banner shall offer "Open MarDoc in a new tab" (a link to the current address that opens a new tab with `noopener`) and keep the token option. | M1 security review SR-1 | Must | 1 | Playwright (T-34): a page on another origin frames MarDoc; Settings shows no Sign in button and an "Open MarDoc in a new tab" link with the frame's URL, `target="_blank"` and `rel` containing `noopener`, plus "Use a personal access token"; a script calling start in the frame opens no pop-up and leaves the session `signed-out`. Unit: the adapter's start and result listener do nothing when framed. |
 | F-16 | The app shall accept an embed `init` message only in embed mode and only from its parent window. | RK-3; Q-27 | Must | 1 | Playwright: an `init` posted by a rendered-HTML iframe, by another window, or outside `?embed=true` leaves the credential unchanged (T-15). |
 
 ### The exchange
@@ -214,7 +215,7 @@ the default shown. If an assumption turns out wrong, only the parts named in
 
 **When it goes wrong:** they deny consent; the window closes and Settings says sign-in was cancelled, with the token option.
 
-**Covers:** F-10, F-11, F-12, F-13, F-14, F-17, F-18, F-20, F-21, F-23, F-24, F-28, F-30, F-40, NF-11, NF-16
+**Covers:** F-10, F-11, F-12, F-13, F-14, F-17, F-18, F-19, F-20, F-21, F-23, F-24, F-28, F-30, F-40, NF-11, NF-16
 
 ### An org member asks for an install
 

@@ -10,6 +10,8 @@
 //      `signing-in` on that attempt.
 // An accepted token goes to the credential module's pending slot; the event
 // dispatched is token-free (I-10, CP-6). Everything else is ignored.
+// Inside a frame (`window.top !== window.self`) the adapter starts nothing
+// and accepts nothing (F-19, SR-1).
 //
 // The adapter holds no session state of its own beyond the pop-up handle: it
 // reads the session through `getSession` and reports through `dispatch`. All
@@ -36,10 +38,27 @@ export type PopupHandle = { readonly closed: boolean; focus(): void; close(): vo
 /** The parts of the opener window the adapter uses. */
 export type SignInHost = {
   location: { origin: string };
+  /** `window.top` and `window.self`: sign-in runs only when they are the same window (F-19). */
+  readonly top?: unknown;
+  readonly self?: unknown;
   open(url: string, target: string, features: string): PopupHandle | null | undefined;
   addEventListener(type: "message", listener: (event: MessageEvent) => void): void;
   removeEventListener(type: "message", listener: (event: MessageEvent) => void): void;
 };
+
+/**
+ * Whether the window is a top-level browsing context, not a frame inside
+ * another page (F-19, SR-1). A frame can be clickjacked into signing in and
+ * then steered by its parent, so sign-in is offered and started only at the
+ * top level. Reading `top` that throws counts as framed.
+ */
+export function isTopLevelWindow(win: { readonly top?: unknown; readonly self?: unknown }): boolean {
+  try {
+    return win.top === win.self;
+  } catch {
+    return false;
+  }
+}
 
 type TimerId = ReturnType<typeof setTimeout>;
 
@@ -113,6 +132,7 @@ export function createSignInWindow(deps: SignInWindowDeps): SignInWindow {
   const onMessage = (event: MessageEvent) => {
     const a = attempt;
     if (!a || a.settled) return;
+    if (!isTopLevelWindow(win)) return; // defence in depth: start refuses first (F-19)
     if (event.origin !== win.location.origin) return;
     if (event.source !== a.popup) return;
     const result = parseSignInResult(event.data);
@@ -221,7 +241,8 @@ export function createSignInWindow(deps: SignInWindowDeps): SignInWindow {
 
   return {
     start() {
-      if (disposed) return;
+      // Inside a frame nothing starts: no pop-up, no health check, no event (F-19).
+      if (disposed || !isTopLevelWindow(win)) return;
       deps.dispatch({ type: "start", nonce: makeNonce(randomValues) });
     },
     run(effect) {

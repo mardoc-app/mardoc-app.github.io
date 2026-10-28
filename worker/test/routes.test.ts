@@ -28,6 +28,24 @@ describe("health and unknown routes (T-21, T-22, T-23)", () => {
     expect(JSON.parse(v.body)).toEqual({ ok: true, version: "abc123" });
   });
 
+  it("f27_health_not_ok_without_client_id_or_secret_cr4 (F-51)", async () => {
+    // CR-4: a deploy missing CLIENT_ID or CLIENT_SECRET reports not ok, so the tab
+    // shows worker_unavailable within 5 s instead of sending the pop-up to GitHub.
+    for (const env of [
+      { ...ENV, CLIENT_ID: "" },
+      { ...ENV, CLIENT_SECRET: "" },
+      { ...ENV, CLIENT_ID: "", CLIENT_SECRET: "" },
+      { APP_ORIGIN: APP } as typeof ENV,
+    ]) {
+      const r = await call("/api/auth/health", {}, env);
+      expect(r.status).toBe(503);
+      expect(r.res.headers.get("content-type")).toBe("application/json");
+      expect(JSON.parse(r.body)).toEqual({ ok: false });
+      expect(r.body).not.toContain(SECRET);
+      expect(r.body).not.toContain("Iv1.testclient");
+    }
+  });
+
   it("t21_no_refresh_route_get_and_post_are_404 (F-25, C-16)", async () => {
     const calls = stubGitHub(ghJson({}));
     for (const method of ["GET", "POST", "PUT", "DELETE"]) {
@@ -313,6 +331,67 @@ describe("revoke (T-23)", () => {
     expect(c.headers.accept).toBe("application/vnd.github+json");
     expect(c.headers["user-agent"]).toBeTruthy();
     expect(JSON.parse(c.body)).toEqual({ access_token: "ghu_abc" });
+  });
+
+  // SR-2: a body with no Content-Length (chunked) is read through a 4 KiB cap,
+  // not buffered whole before the size check.
+  const streamed = (total: number, chunk = 1024) => {
+    let pulled = 0;
+    const body = new ReadableStream<Uint8Array>(
+      {
+        pull(controller) {
+          if (pulled >= total) return controller.close();
+          const n = Math.min(chunk, total - pulled);
+          pulled += n;
+          controller.enqueue(new Uint8Array(n).fill(0x20));
+        },
+      },
+      { highWaterMark: 0 },
+    );
+    return { body, pulled: () => pulled };
+  };
+
+  it("f61_revoke_chunked_oversize_body_is_refused_within_4_kib_sr2", async () => {
+    const calls = stubGitHub(new Response(null, { status: 204 }));
+    const s = streamed(8 * 1024 * 1024);
+    const request = new Request(`${APP}/api/auth/revoke`, {
+      method: "POST",
+      headers: { origin: APP, "content-type": "application/json" },
+      body: s.body,
+      duplex: "half",
+    } as RequestInit);
+    expect(request.headers.get("content-length")).toBeNull();
+    const res = await worker.fetch(request, ENV);
+    assertCommonHeaders(res);
+    expect(res.status).toBe(400);
+    expect(JSON.parse(await res.text())).toEqual({ error: "bad_request" });
+    // At most the cap plus a few chunks in flight, never the 8 MiB.
+    expect(s.pulled()).toBeLessThanOrEqual(16 * 1024);
+    expect(calls).toHaveLength(0);
+  });
+
+  it("f61_revoke_chunked_small_body_still_revokes_sr2", async () => {
+    const calls = stubGitHub(new Response(null, { status: 204 }));
+    const encode = (t: string) => new TextEncoder().encode(t);
+    const res = await worker.fetch(
+      new Request(`${APP}/api/auth/revoke`, {
+        method: "POST",
+        headers: { origin: APP, "content-type": "application/json" },
+        body: new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(encode('{"token":'));
+            controller.enqueue(encode('"ghu_abc"}'));
+            controller.close();
+          },
+        }),
+        duplex: "half",
+      } as RequestInit),
+      ENV,
+    );
+    assertCommonHeaders(res);
+    expect(res.status).toBe(204);
+    expect(calls).toHaveLength(1);
+    expect(JSON.parse(calls[0].body)).toEqual({ access_token: "ghu_abc" });
   });
 
   it("t23_revoke_github_404_is_204", async () => {
