@@ -40,11 +40,11 @@ Keep port 3000 free for this mode. `CI=1` also selects one worker, retries, and 
 | Navigation and controls | `navigation-routing.spec.ts`, `keyboard-shortcuts.spec.ts`, `toolbar-parity.spec.ts` |
 | Rendering and mappings | `rendering-features.spec.ts`, `pr-realistic-markdown.spec.ts`, `line-numbers.spec.ts` |
 | Stability | `pr-image-stability.spec.ts`, `pr-mermaid-stability.spec.ts`, `split-view-sync.spec.ts` |
-| Images, embedding, filtering | `image-flows.spec.ts`, `embed-mode-clipboard.spec.ts`, `per-file-comments.spec.ts` |
+| Images, embedding, filtering | `image-flows.spec.ts`, `embed-mode-clipboard.spec.ts`, `embed-init.spec.ts` (F-16 embed `init` trust), `per-file-comments.spec.ts` |
 | Review navigation and comments | `comment-jumps.spec.ts`, `pr-comment-navigation.spec.ts`, `html-comment-jumps.spec.ts`, `large-diff-comments.spec.ts` |
 | HTML and source diffs, links | `html-inline-diff.spec.ts`, `source-diffs.spec.ts`, `branch-links.spec.ts`, `iframe-resize.spec.ts` |
 | Performance and optional AI | `render-reuse.spec.ts`, `feedback-polishing.spec.ts` |
-| Shared setup | `fixtures/helpers.ts`, `fixtures/pr-realistic/` |
+| Shared setup | `fixtures/helpers.ts`, `fixtures/embed-host.ts` (VS Code webview stand-in), `fixtures/pr-realistic/` |
 
 Prefer shared helpers for hydration, visible sidebar selection, and document/PR navigation. Use observable UI conditions and Playwright assertions for waits. Existing helpers/specs still contain fixed `waitForTimeout` delays; replacing those is follow-up maintenance, not a guarantee already met by the suite.
 

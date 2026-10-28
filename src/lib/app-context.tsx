@@ -10,6 +10,7 @@ import { parseHash, buildFileHash, buildPRHash, buildRepoHash, buildBranchHash }
 import * as safeStorage from "./safe-storage";
 import { isHtmlFile } from "./file-types";
 import { isReloadShortcut, postReloadRequest, shouldApplyFileContent, isBlockedByDirtyEditor } from "./embed-reload";
+import { isTrustedInit } from "./embed-init";
 
 interface AppState {
   // Auth
@@ -352,8 +353,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
+      // F-16: apply `init` only in embed mode and only from our own parent
+      // window. Anything else is ignored with no state change.
+      if (!isTrustedInit({
+        data: event.data,
+        source: event.source,
+        parent: window.parent,
+        self: window,
+        search: window.location.search,
+      })) return;
       const data = event.data;
-      if (!data || data.type !== "init") return;
 
       // Cache at module level so Strict Mode remount can replay
       vsCodeInitData = data;
@@ -363,7 +372,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     window.addEventListener("message", handleMessage);
 
     // On mount (or Strict Mode remount), replay cached init data if available
-    if (vsCodeInitData) {
+    if (vsCodeInitData && new URLSearchParams(window.location.search).get("embed") === "true") {
       applyInitData(vsCodeInitData);
     }
 
