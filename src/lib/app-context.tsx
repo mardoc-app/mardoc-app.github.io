@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
 import { RepoFile, PullRequest, PRFile, PRComment, ViewMode } from "@/types";
-import { initOctokit, fetchRepoTree, fetchPullRequests, fetchFileContent, fetchPRFileManifest, fetchPRFile, fetchPRComments, fetchDefaultBranch, fetchBranches, fetchPRMarkdownCounts, fetchRevision, fetchPullRequest, resetGitHubSession } from "./github-api";
+import { fetchRepoTree, fetchPullRequests, fetchFileContent, fetchPRFileManifest, fetchPRFile, fetchPRComments, fetchDefaultBranch, fetchBranches, fetchPRMarkdownCounts, fetchRevision, fetchPullRequest, expireGitHubSession, setOnAuthError, fetchLoginForToken } from "./github-api";
 import { formatApiError } from "./rate-limit";
 import { createStalenessGuard } from "./staleness-guard";
 import { repoFiles as mockFiles, pullRequests as mockPRs, findFile, flattenFiles } from "./mock-data";
@@ -11,11 +11,24 @@ import * as safeStorage from "./safe-storage";
 import { isHtmlFile } from "./file-types";
 import { isReloadShortcut, postReloadRequest, shouldApplyFileContent, isBlockedByDirtyEditor } from "./embed-reload";
 import { isTrustedInit } from "./embed-init";
+import { next as nextSession, initialSessionState, startupCredential, isAttemptStatus, isSignInKey } from "./auth/session";
+import * as credential from "./auth/credential";
+import type { SessionEffect, SessionEvent, SessionKey, SessionState, StartSignIn, TimerName } from "./auth/types";
+import { EXPIRING_WARNING_MS } from "./auth/contract";
 
 interface AppState {
-  // Auth
+  // Auth. The token itself is never in React state (I-10): it lives in
+  // src/lib/auth/credential.ts. `hasCredential` is true while a PAT, embed
+  // or sign-in credential is active (including an expired sign-in);
+  // `isAuthenticated` is the same value under its older name.
   isAuthenticated: boolean;
-  githubToken: string | null;
+  hasCredential: boolean;
+  sessionKey: SessionKey;
+  session: SessionState;
+  dispatchSession: (event: SessionEvent) => void;
+  startSignIn: StartSignIn;
+  // Connects a PAT (saved, as today) or, with null, disconnects whatever
+  // credential is active. Disconnecting a sign-in keeps a saved PAT (F-53).
   setGithubToken: (token: string | null) => void;
   isDemoMode: boolean;
 
@@ -141,8 +154,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return () => document.removeEventListener("keydown", onKeyDown, true);
   }, [isEmbedded]);
 
-  // Auth state — server-safe defaults, hydrated in useEffect
-  const [githubToken, setGithubTokenState] = useState<string | null>(null);
+  // Auth state — server-safe defaults, hydrated in useEffect. The session
+  // record holds no token (I-10); the active token is in credential.ts.
+  // `tokenRevision` bumps whenever the active token string changes, so the
+  // effects that re-ran on a new token string still do, without the token.
+  const [session, setSessionState] = useState<SessionState>(() => initialSessionState());
+  const sessionRef = useRef(session);
+  const [tokenRevision, setTokenRevision] = useState(0);
+  const bumpTokenRevision = useCallback(() => setTokenRevision((n) => n + 1), []);
   const [isDemoMode, setIsDemoMode] = useState(true);
   const [authReady, setAuthReady] = useState(false);
 
@@ -180,7 +199,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [loadingContent, setLoadingContent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const isAuthenticated = !!githubToken;
+  // design.md § App state by session status: `hasCredential` replaces
+  // `!!githubToken`. For a PAT or embed token it is exactly that.
+  const sessionKey = session.sessionKey;
+  const hasCredential = sessionKey !== null;
+  const isAuthenticated = hasCredential;
+  // A reload ended a sign-in session (F-32, F-37): keep the hash route, but
+  // neither navigate it nor load demo data until the user signs in again or
+  // continues without signing in.
+  const awaitingSignIn = session.status === "sign-in-again" ||
+    (isAttemptStatus(session.status) && session.statusBeforeAttempt === "sign-in-again");
 
   // ─── Unsaved-changes nav guard ───────────────────────────────────────────
   // The Editor calls setEditorIsDirty(true) when there are unsaved edits.
@@ -196,18 +224,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // The currently-parked navigation when the user has unsaved edits. The
   // confirmation modal reads this and either runs onConfirm (discard edits +
   // perform the nav) or clears it (cancel).
-  const [pendingNavigation, setPendingNavigation] = useState<
-    | { description: string; onConfirm: () => void }
-    | null
-  >(null);
+  // `onCancel` is set only by the sign-in "discard unsaved changes?" question,
+  // which must report a cancel as well as a confirm.
+  type PendingNavigation = { description: string; onConfirm: () => void; onCancel?: () => void };
+  const [pendingNavigation, setPendingNavigationState] = useState<PendingNavigation | null>(null);
+  const pendingNavigationRef = useRef<PendingNavigation | null>(null);
+  const setPendingNavigation = useCallback((p: PendingNavigation | null) => {
+    pendingNavigationRef.current = p;
+    setPendingNavigationState(p);
+  }, []);
+  const cancelPendingNavigation = useCallback(() => {
+    const p = pendingNavigationRef.current;
+    setPendingNavigation(null);
+    p?.onCancel?.();
+  }, [setPendingNavigation]);
 
   // Guard helper — wrap any navigation action that should respect dirty state.
   const guardNavigation = useCallback(
-    (description: string, action: () => void) => {
+    (description: string, action: () => void, onCancel?: () => void) => {
       if (!editorIsDirtyRef.current) {
         action();
         return;
       }
+      // A question that is replaced counts as answered "cancel".
+      const replaced = pendingNavigationRef.current;
       setPendingNavigation({
         description,
         onConfirm: () => {
@@ -216,9 +256,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           setPendingNavigation(null);
           action();
         },
+        onCancel,
       });
+      replaced?.onCancel?.();
     },
-    []
+    [setPendingNavigation]
   );
 
   // Browser-level guard: native beforeunload prompt when the tab is about to
@@ -283,8 +325,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
   }, [navigationGuard, repoLoadGuard, fileLoadGuard, prLoadGuard, treeLoadGuard, listLoadGuard]);
 
-  // Initialize octokit when token changes, persist to localStorage
-  const setGithubToken = useCallback((token: string | null) => {
+  // The UI reset that connecting or disconnecting a credential does: drop
+  // in-flight reads and every repo, file and PR view (F-36).
+  const resetForCredentialChange = useCallback(() => {
     invalidateNavigation();
     repoLoadGuard.invalidate(); listLoadGuard.invalidate();
     branchListController.current?.abort(); prListController.current?.abort();
@@ -293,31 +336,255 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setCurrentRepoState(null); setSelectedFile(null); setSelectedPR(null);
     setFileContent(""); setAvailableBranches([]); setPRFiles([]); setPRComments([]);
     safeStorage.removeItem("mardoc_user_repos");
-    setGithubTokenState(token);
+  }, [invalidateNavigation, repoLoadGuard, listLoadGuard]);
+
+  // No credential: reset the client and caches (F-60) and show demo data.
+  // Never touches `mardoc_github_token`; the caller decides that.
+  const resetToNoCredential = useCallback(() => {
+    resetForCredentialChange();
+    if (credential.getToken() !== null) bumpTokenRevision();
+    credential.clearCredential();
+    safeStorage.removeItem(REPO_KEY);
+    setIsDemoMode(true);
+    setRepoFiles(mockFiles);
+    setPRList(mockPRs);
+  }, [resetForCredentialChange, bumpTokenRevision]);
+
+  // ─── Session model and effect runner ─────────────────────────────────────
+  // `dispatchSession` runs the pure reducer (src/lib/auth/session.ts) once per
+  // event, synchronously, then runs its effects. Events dispatched by an
+  // effect are queued, so effects always run in order against the latest
+  // state. The reducer lives over a ref, not useReducer, so Strict Mode's
+  // double render never runs an effect twice.
+  const replaceSession = useCallback((s: SessionState) => {
+    sessionRef.current = s;
+    setSessionState(s);
+  }, []);
+  const eventQueue = useRef<SessionEvent[]>([]);
+  const dispatching = useRef(false);
+  const runEffectsRef = useRef<(effects: SessionEffect[], prev: SessionState, state: SessionState, event: SessionEvent) => void>(() => {});
+  const dispatchSession = useCallback((event: SessionEvent) => {
+    eventQueue.current.push(event);
+    if (dispatching.current) return;
+    dispatching.current = true;
+    try {
+      while (eventQueue.current.length) {
+        const e = eventQueue.current.shift()!;
+        const prev = sessionRef.current;
+        const { state, effects } = nextSession(prev, e, Date.now());
+        if (state !== prev) replaceSession(state);
+        runEffectsRef.current(effects, prev, state, e);
+      }
+    } finally {
+      dispatching.current = false;
+    }
+  }, [replaceSession]);
+
+  // Pop-up, health check and revoke belong to the sign-in window adapter
+  // (src/lib/auth/sign-in-window.ts, WP-5). Until it exists these effects do
+  // nothing. `revoke` must read credential.getToken() synchronously: the
+  // `reset-client` effect after it clears the credential.
+  const signInWindowEffect = useRef<(effect: SessionEffect) => void>(() => {});
+  // WP-5 replaces this placeholder with the real start of an attempt.
+  const startSignIn = useCallback<StartSignIn>(() => {}, []);
+
+  // Timers armed by the reducer (`arm-timer`), keyed by name; each fires the
+  // event the reducer expects. A `user-check` deadline is a failed user check.
+  const attemptTimers = useRef(new Map<TimerName, { nonce: string; id: ReturnType<typeof setTimeout> }>());
+  const expiryTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const clearExpiryTimers = useCallback(() => {
+    expiryTimers.current.forEach(clearTimeout);
+    expiryTimers.current = [];
+  }, []);
+
+  // Connect a PAT: today's setGithubToken(token). `persist` is false only
+  // when a saved PAT becomes active again after a sign-in ends (F-53).
+  const connectPat = useCallback((token: string, persist: boolean) => {
+    resetForCredentialChange();
+    if (persist) safeStorage.setItem(TOKEN_KEY, token);
+    if (credential.setCredential({ kind: "pat", token })) bumpTokenRevision();
+    setIsDemoMode(false);
+    clearExpiryTimers();
+    dispatchSession({ type: "connect-pat" });
+  }, [resetForCredentialChange, bumpTokenRevision, clearExpiryTimers, dispatchSession]);
+
+  // Connect a PAT (saved to localStorage, as today) or disconnect (null).
+  const setGithubToken = useCallback((token: string | null) => {
     if (token) {
-      safeStorage.setItem(TOKEN_KEY, token);
-      initOctokit(token);
-      setIsDemoMode(false);
-    } else {
-      resetGitHubSession();
+      connectPat(token, true);
+    } else if (sessionRef.current.sessionKey === null) {
+      // Nothing active: today's reset, unchanged.
+      resetToNoCredential();
       safeStorage.removeItem(TOKEN_KEY);
-      safeStorage.removeItem(REPO_KEY);
+    } else {
+      dispatchSession({ type: "disconnect" });
+    }
+  }, [connectPat, resetToNoCredential, dispatchSession]);
+
+  runEffectsRef.current = (effects, prev, state, event) => {
+    for (const effect of effects) {
+      switch (effect.type) {
+        case "open-popup":
+        case "focus-popup":
+        case "close-popup":
+        case "health-check":
+        case "revoke":
+          signInWindowEffect.current(effect);
+          break;
+        case "arm-timer": {
+          const timers = attemptTimers.current;
+          const old = timers.get(effect.name);
+          if (old) clearTimeout(old.id);
+          const { name, nonce } = effect;
+          const id = setTimeout(() => {
+            timers.delete(name);
+            if (name === "deadline") dispatchSession({ type: "deadline", nonce });
+            else if (name === "close-grace") dispatchSession({ type: "close-grace-passed", nonce });
+            else dispatchSession({ type: "user-failed", nonce });
+          }, Math.max(0, effect.at - Date.now()));
+          timers.set(name, { nonce, id });
+          break;
+        }
+        case "clear-timer": {
+          const timer = attemptTimers.current.get(effect.name);
+          if (timer && timer.nonce === effect.nonce) {
+            clearTimeout(timer.id);
+            attemptTimers.current.delete(effect.name);
+          }
+          break;
+        }
+        case "get-user": {
+          // GET /user with the pending token, which is not applied yet.
+          const { nonce } = effect;
+          const token = credential.peekPendingToken();
+          if (!token) {
+            dispatchSession({ type: "user-failed", nonce });
+            break;
+          }
+          fetchLoginForToken(token).then(
+            (login) => dispatchSession({ type: "user", nonce, login, dirty: editorIsDirtyRef.current }),
+            () => dispatchSession({ type: "user-failed", nonce }),
+          );
+          break;
+        }
+        case "apply-same-login": {
+          // Same login: swap the token only; sessionKey is unchanged, so no
+          // navigation re-runs and the dirty editor keeps its text (F-35).
+          const token = credential.takePendingToken();
+          if (!token) break;
+          if (credential.applySignInCredential(token, effect.login, effect.expiresAt)) bumpTokenRevision();
+          setIsDemoMode(false);
+          break;
+        }
+        case "apply-new-login": {
+          // Another login: the full reset connecting does, without writing
+          // the token anywhere (F-36, I-10, F-53).
+          const token = credential.takePendingToken();
+          if (!token) break;
+          resetForCredentialChange();
+          if (credential.applySignInCredential(token, effect.login, effect.expiresAt)) bumpTokenRevision();
+          setIsDemoMode(false);
+          break;
+        }
+        case "discard-pending-token":
+          credential.discardPendingToken();
+          break;
+        case "confirm-discard": {
+          const { nonce, login } = effect;
+          guardNavigation(
+            `sign in as ${login}, which closes the open document`,
+            () => dispatchSession({ type: "discard-confirmed", nonce }),
+            () => dispatchSession({ type: "discard-cancelled", nonce }),
+          );
+          break;
+        }
+        case "reset-client":
+          if (event.type === "tick" || event.type === "auth-error") {
+            // Expiry or a 401: keep the route and state; every request now
+            // fails as an auth error without leaving the tab (I-15).
+            expireGitHubSession();
+          } else {
+            clearExpiryTimers();
+            resetToNoCredential();
+          }
+          break;
+        case "remove-marker":
+          credential.removeSignInMarker();
+          break;
+        case "set-marker":
+          credential.setSignInMarker();
+          break;
+        case "remove-user-repos":
+          safeStorage.removeItem("mardoc_user_repos");
+          break;
+        case "remove-saved-pat":
+          safeStorage.removeItem(TOKEN_KEY);
+          break;
+        case "schedule-expiry": {
+          clearExpiryTimers();
+          const tick = () => dispatchSession({ type: "tick" });
+          for (const when of [effect.expiresAt - EXPIRING_WARNING_MS, effect.expiresAt]) {
+            expiryTimers.current.push(setTimeout(tick, Math.max(0, when - Date.now())));
+          }
+          break;
+        }
+      }
+    }
+
+    // After a sign-in ends with Disconnect, a saved PAT becomes active again,
+    // as the signed-in view said (F-53, F-55).
+    if (event.type === "disconnect" && isSignInKey(prev.sessionKey) && state.sessionKey === null) {
+      const saved = safeStorage.getItem(TOKEN_KEY);
+      if (saved) connectPat(saved, false);
+    }
+    // "Continue without signing in" ends the reload prompt with demo data (F-38).
+    if (event.type === "continue-without" && prev.status === "sign-in-again" && state.status === "signed-out") {
       setIsDemoMode(true);
       setRepoFiles(mockFiles);
       setPRList(mockPRs);
     }
-  }, [invalidateNavigation, repoLoadGuard, listLoadGuard]);
+  };
 
-  // Hydrate auth state from localStorage after mount (avoids SSR mismatch)
+  // A 401 on a sign-in token, reported once per credential by the client (F-34).
+  useEffect(() => {
+    setOnAuthError(() => dispatchSession({ type: "auth-error" }));
+    return () => setOnAuthError(null);
+  }, [dispatchSession]);
+
+  // A laptop that sleeps past expiry fires timers late: re-check on return.
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === "visible") dispatchSession({ type: "tick" }); };
+    document.addEventListener("visibilitychange", onVisible);
+    const timers = attemptTimers.current;
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      timers.forEach((t) => clearTimeout(t.id));
+      timers.clear();
+      clearExpiryTimers();
+    };
+  }, [dispatchSession, clearExpiryTimers]);
+
+  // Hydrate auth state from localStorage after mount (avoids SSR mismatch).
+  // Decision order: embed token (arrives later through `init`), saved PAT,
+  // sign-in marker, none (design.md § Session status).
   useEffect(() => {
     setAuthReady(true);
     const savedToken = safeStorage.getItem(TOKEN_KEY);
-    if (savedToken) {
-      setGithubTokenState(savedToken);
+    const start = startupCredential({
+      embedMode: new URLSearchParams(window.location.search).get("embed") === "true",
+      savedPat: !!savedToken,
+      marker: credential.hasSignInMarker(),
+    });
+    if (start === "pat" && savedToken) {
+      if (credential.setCredential({ kind: "pat", token: savedToken })) bumpTokenRevision();
       setIsDemoMode(false);
-      initOctokit(savedToken);
+    } else if (start === "sign-in-again") {
+      setIsDemoMode(false);
+      setRepoFiles([]);
+      setPRList([]);
     }
-  }, []);
+    replaceSession(initialSessionState(start));
+  }, [bumpTokenRevision, replaceSession]);
 
   // Embed mode: listen for postMessage from VS Code extension
   const pendingInitRef = useRef<{ owner: string; repo: string; branch: string; token: string; fileName?: string } | null>(null);
@@ -326,9 +593,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setIsEmbedded(true);
 
     if (data.token) {
-      setGithubTokenState(data.token);
+      // A trusted embed init is the `connect-embed` event (CP-7); the token
+      // goes to the credential module, not React state.
+      if (credential.setCredential({ kind: "embed", token: data.token })) bumpTokenRevision();
       setIsDemoMode(false);
-      initOctokit(data.token);
+      dispatchSession({ type: "connect-embed" });
     }
     if (data.owner && data.repo) {
       pendingInitRef.current = data as any;
@@ -349,7 +618,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setCurrentView(isHtmlFile(data.fileName) ? "html-viewer" : "editor");
       setFileContent(data.fileContent);
     }
-  }, []);
+  }, [bumpTokenRevision, dispatchSession]);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -458,7 +727,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Background lists never gate a shared document link.
   const loadPRs = useCallback(async (repo: string, filter: "open" | "closed" | "all") => {
-    if (!githubToken) return;
+    if (!hasCredential) return;
     const isCurrent = listLoadGuard.begin();
     prListController.current?.abort();
     const controller = new AbortController();
@@ -477,7 +746,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       if (isCurrent()) { delete metadataRequests.current.prs; setError(formatApiError(err, "Failed to load pull requests")); }
     } finally { if (isCurrent()) setLoadingPRs(false); }
-  }, [githubToken, listLoadGuard]);
+  }, [hasCredential, listLoadGuard]);
 
   const loadBranches = useCallback((repo: string) => {
     const isCurrent = repoLoadGuard.begin();
@@ -501,12 +770,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const loadSidebarMetadata = useCallback((kind: "branches" | "prs") => {
     const repo = locationRef.current.repo;
-    if (!repo || !githubToken) return;
+    if (!repo || !hasCredential) return;
     if (kind === "branches" && metadataRequests.current.branches !== repo) loadBranches(repo);
     if (kind === "prs" && metadataRequests.current.prs !== JSON.stringify([repo, prStateFilter])) {
       void loadPRs(repo, prStateFilter);
     }
-  }, [githubToken, loadBranches, loadPRs, prStateFilter]);
+  }, [hasCredential, loadBranches, loadPRs, prStateFilter]);
 
   const loadMetadata = useCallback((repo: string) => {
     // Explicit refresh updates only lists the user has already requested.
@@ -551,7 +820,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setSelectedFile(null); setSelectedPR(null); setFileContent(""); setError(null);
     setCurrentView("editor");
     setHash(branch ? buildBranchHash(repo, branch) : buildRepoHash(repo));
-    if (!githubToken) return;
+    if (!hasCredential) return;
     try {
       const ref = branch || await fetchDefaultBranch(repo, navigationController.current.signal);
       if (!isCurrent()) return;
@@ -560,7 +829,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setSelectedBranchState(ref);
       await loadTree(repo, fetchRevision(repo, ref, navigationController.current.signal));
     } catch (err) { if (isCurrent()) setError(formatApiError(err, "Failed to load repository")); }
-  }, [invalidateNavigation, navigationGuard, activateRepo, setHash, githubToken, loadTree]);
+  }, [invalidateNavigation, navigationGuard, activateRepo, setHash, hasCredential, loadTree]);
 
   const setCurrentRepo = useCallback((repo: string): Promise<void> => {
     let result = Promise.resolve();
@@ -575,12 +844,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // The extension owns local-file navigation; repository lists are background context only.
   useEffect(() => {
-    if (!pendingInitRef.current || !githubToken) return;
+    if (!pendingInitRef.current || !hasCredential) return;
     const { owner, repo, branch } = pendingInitRef.current;
     pendingInitRef.current = null;
     activateRepo(`${owner}/${repo}`, branch || "main");
     void loadTree(`${owner}/${repo}`, fetchRevision(`${owner}/${repo}`, branch || "main", navigationController.current.signal));
-  }, [githubToken, activateRepo, loadTree]);
+    // tokenRevision: re-run when the embed token string changes, as before.
+  }, [hasCredential, tokenRevision, activateRepo, loadTree]);
 
   const setSelectedBranch = useCallback((branch: string) => {
     const repo = locationRef.current.repo;
@@ -599,7 +869,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setFileContent(findFile(mockFiles, file.path)?.content || "");
       return;
     }
-    if (!repo || !githubToken) return;
+    if (!repo || !hasCredential) return;
     activateRepo(repo, branch);
     const revision = fetchRevision(repo, branch, navigationController.current.signal);
     void loadTree(repo, revision);
@@ -613,7 +883,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       if (isCurrent()) setError(formatApiError(err, "Failed to load file"));
     } finally { if (isCurrent()) setLoadingContent(false); }
-  }, [invalidateNavigation, fileLoadGuard, isDemoMode, githubToken, activateRepo, loadTree, setHash]);
+  }, [invalidateNavigation, fileLoadGuard, isDemoMode, hasCredential, activateRepo, loadTree, setHash]);
 
   const openFile = useCallback((file: RepoFile): Promise<void> => {
     let result = Promise.resolve();
@@ -690,7 +960,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setSelectedPRFileIdx(fileIdx); setError(null); setPRFiles([]); setPRComments([]);
     if (repo) setHash(buildPRHash(repo, pr.number, fileIdx, anchor));
     if (isDemoMode) { setPRFiles(pr.files); setPRComments(pr.comments); return; }
-    if (!repo || !githubToken) return;
+    if (!repo || !hasCredential) return;
     activateRepo(repo, pr.headBranch);
     setLoadingPRFiles(true);
     void fetchPRComments(repo, pr.number, navigationController.current.signal).then(comments => {
@@ -706,11 +976,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       if (isCurrent()) setError(formatApiError(err, `Failed to load PR #${pr.number}`));
     } finally { if (isCurrent()) setLoadingPRFiles(false); }
-  }, [invalidateNavigation, prLoadGuard, setHash, isDemoMode, githubToken, activateRepo]);
+  }, [invalidateNavigation, prLoadGuard, setHash, isDemoMode, hasCredential, activateRepo]);
 
   const selectedPRFile = prFiles[selectedPRFileIdx];
   useEffect(() => {
-    if (currentView !== "pr-diff" || !selectedPR || !githubToken || !selectedPRFile || selectedPRFile.loadState !== "pending") return;
+    if (currentView !== "pr-diff" || !selectedPR || !hasCredential || !selectedPRFile || selectedPRFile.loadState !== "pending") return;
     let cancelled = false;
     const controller = new AbortController();
     const index = selectedPRFileIdx;
@@ -721,7 +991,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         ? { ...old, loadState: "error", loadError: formatApiError(err, "Failed to load document") } : old));
     });
     return () => { cancelled = true; controller.abort(); };
-  }, [selectedPRFile, selectedPRFileIdx, currentView, selectedPR, githubToken]);
+  }, [selectedPRFile, selectedPRFileIdx, currentView, selectedPR, hasCredential]);
 
   const openPR = useCallback((pr: PullRequest) => {
     setDocumentAnchor("");
@@ -772,11 +1042,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Read the latest callback without replaying navigation on every state update.
   const navigateRef = useRef(navigateToHash);
   navigateRef.current = navigateToHash;
+  // Keyed on sessionKey, not the token: a same-login token swap keeps the
+  // key, so the open document is not re-opened (F-35).
   useEffect(() => {
-    if (!authReady || pendingInitRef.current || vsCodeInitData) return;
+    if (!authReady || pendingInitRef.current || vsCodeInitData || awaitingSignIn) return;
     const hash = window.location.hash;
     if (hash) void navigateRef.current(hash);
-    else if (githubToken) {
+    else if (sessionKey !== null) {
       const saved = safeStorage.getItem(REPO_KEY);
       if (saved) void navigateRef.current(buildRepoHash(saved));
     }
@@ -790,22 +1062,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
-  }, [authReady, githubToken, guardNavigation]);
+  }, [authReady, sessionKey, awaitingSignIn, guardNavigation]);
 
   // Refresh sidebar metadata after a write without changing the open document or URL.
   const refreshRepo = useCallback(async () => {
     const { repo, branch } = locationRef.current;
-    if (repo && githubToken) {
+    if (repo && hasCredential) {
       loadMetadata(repo);
       await loadTree(repo, fetchRevision(repo, branch, navigationController.current.signal));
     }
-  }, [githubToken, loadMetadata, loadTree]);
+  }, [hasCredential, loadMetadata, loadTree]);
 
   return (
     <AppContext.Provider
       value={{
         isAuthenticated,
-        githubToken,
+        hasCredential,
+        sessionKey,
+        session,
+        dispatchSession,
+        startSignIn,
         setGithubToken,
         isDemoMode,
         currentRepo,
@@ -858,7 +1134,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       {pendingNavigation && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50"
-          onClick={() => setPendingNavigation(null)}
+          onClick={cancelPendingNavigation}
         >
           <div
             className="w-full max-w-md bg-[var(--surface)] border border-[var(--border)] rounded-lg shadow-xl p-5"
@@ -873,7 +1149,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             </p>
             <div className="flex items-center justify-end gap-2">
               <button
-                onClick={() => setPendingNavigation(null)}
+                onClick={cancelPendingNavigation}
                 className="text-xs px-3 py-1.5 border border-[var(--border)] text-[var(--text-secondary)] rounded-md hover:bg-[var(--surface-hover)] transition-colors"
               >
                 Keep editing
