@@ -352,6 +352,36 @@ test.describe("WP-9 review fixes", () => {
     await expect(pickerRepo(page, "acme/docs")).toHaveCount(0);
   });
 
+  test("f40_slow_repo_list_from_old_pat_is_dropped_cr9", async ({ page, context }) => {
+    // CR-9: PAT A's /user/repos is slow; the user disconnects and connects PAT B (same
+    // session key "pat"). A's late answer must not replace B's list.
+    const PAT_B = "ghp_second_personal_token_e2e";
+    await setUp(page, context, { pat: true, route: "/" });
+    await page.route("https://api.github.com/user/repos**", async (route) => {
+      const auth = (await route.request().allHeaders())["authorization"] ?? "";
+      const body = (name: string) =>
+        JSON.stringify([{ full_name: name, name: name.split("/")[1], owner: { login: "acme" }, private: true, description: "" }]);
+      if (auth.includes(PAT_B)) {
+        return route.fulfill({ status: 200, contentType: "application/json", body: body("acme/from-b") });
+      }
+      await new Promise((r) => setTimeout(r, 3_000));
+      return route.fulfill({ status: 200, contentType: "application/json", body: body("acme/from-a") }).catch(() => {});
+    });
+    await openSettings(page, "Repository"); // starts A's slow load
+    await openSettings(page, "GitHub Connection");
+    await connection(page).getByRole("button", { name: "Disconnect", exact: true }).click();
+    await waitForSession(page, { sessionKey: null });
+    await connection(page).getByRole("button", { name: "Use a personal access token" }).click();
+    await connection(page).getByPlaceholder("ghp_...").fill(PAT_B);
+    await connection(page).getByRole("button", { name: "Connect", exact: true }).click();
+    await waitForSession(page, { sessionKey: "pat" });
+    await openSettings(page, "Repository");
+    await expect(pickerRepo(page, "acme/from-b")).toBeVisible();
+    await page.waitForTimeout(4_000); // A's answer arrives meanwhile
+    await expect(pickerRepo(page, "acme/from-b")).toBeVisible();
+    await expect(pickerRepo(page, "acme/from-a")).toHaveCount(0);
+  });
+
   test("f34_signed_in_401_shows_expired_view_with_sign_in_again_cr2", async ({ page, context }) => {
     // CR-2: a real 401 on a signed-in read (the App revoked on github.com) ends the
     // session: expired, the banner, Sign in again and the token form (F-34).
