@@ -1,0 +1,18 @@
+# DISPOSABLE SPIKE CONFIG (SP-3). The owner deploys; see
+# docs/spikes/sp-3-callback-opener.md for the runbook.
+# No routes here: the owner adds mardoc.app/api/auth/* in the dashboard.
+# Secrets come only from `wrangler secret put CLIENT_SECRET`.
+name = "mardoc-auth-sp3"
+main = "worker.ts"
+compatibility_date = "2026-10-01"
+workers_dev = false
+preview_urls = false
+
+[observability]
+enabled = false
+
+[vars]
+APP_ORIGIN = "https://mardoc.app"
+# Pass the production App's client ID on the command line:
+#   npx wrangler deploy --var CLIENT_ID:<client id>
+CLIENT_ID = ""
