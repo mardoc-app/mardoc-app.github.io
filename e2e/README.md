@@ -44,7 +44,10 @@ Keep port 3000 free for this mode. `CI=1` also selects one worker, retries, and 
 | Review navigation and comments | `comment-jumps.spec.ts`, `pr-comment-navigation.spec.ts`, `html-comment-jumps.spec.ts`, `large-diff-comments.spec.ts` |
 | HTML and source diffs, links | `html-inline-diff.spec.ts`, `source-diffs.spec.ts`, `branch-links.spec.ts`, `iframe-resize.spec.ts` |
 | Performance and optional AI | `render-reuse.spec.ts`, `feedback-polishing.spec.ts` |
-| Shared setup | `fixtures/helpers.ts`, `fixtures/embed-host.ts` (VS Code webview stand-in), `fixtures/pr-realistic/` |
+| GitHub sign-in (mocked) | `sign-in-flow.spec.ts` (pop-up hand-off, I-11 checks, failure codes), `sign-in-ui.spec.ts` (Settings and banner) |
+| Shared setup | `fixtures/helpers.ts`, `fixtures/embed-host.ts` (VS Code webview stand-in), `fixtures/pr-realistic/`, `fixtures/auth-mocks.ts` (Auth Worker and GitHub sign-in mocks, routed on the browser context so the pop-up is covered) |
+
+Sign-in specs may set `window.__MARDOC_E2E__ = true` in an init script. The app then exposes `window.__mardocAuth` with `startSignIn()`, `getSession()` (the token-free session record) and `disconnect()`. Production users never set the flag. The mocks prove the tab's logic only; the real Worker and GitHub pages are covered by SP-3 and T-32.
 
 Prefer shared helpers for hydration, visible sidebar selection, and document/PR navigation. Use observable UI conditions and Playwright assertions for waits. Existing helpers/specs still contain fixed `waitForTimeout` delays; replacing those is follow-up maintenance, not a guarantee already met by the suite.
 
