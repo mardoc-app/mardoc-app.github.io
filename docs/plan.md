@@ -15,8 +15,8 @@ them. This file carries history: rows are updated, never silently deleted.
 - **Status:** No milestone is active. SP-1 passed and is accepted (2026-10-21),
   so [ADR 0001](adr/0001-web-sign-in-github-app-worker-route.md) is Accepted.
   The L1 design for sign-in (stage 1) is ACCEPTED (GSI-L1, 2026-10-27), with
-  Q-8 and Q-19 to Q-28 answered at their defaults. Next: SP-3 and the slice
-  plan for the build. ⭐ The Cloudflare hosting L0 (D-2) waits for the owner's
+  Q-8 and Q-19 to Q-28 answered at their defaults. M1 (sign-in stage 1) is
+  planned; the WP-1 and WP-2 slice plans wait for the owner's acceptance. ⭐ The Cloudflare hosting L0 (D-2) waits for the owner's
   decision. Open owner questions: Q-1, Q-2, Q-3 and Q-5 in
   [requirements.md](design/mardoc/requirements.md#open-questions), and Q-29 to Q-35.
 - **Last updated:** 2026-10-27
@@ -121,29 +121,44 @@ report says `**Design gate:** PASS` and the owner acceptance is recorded.
 
 | Milestone | Delivers | Demo | Requirements | Owner action |
 |---|---|---|---|---|
+| M1 | Sign in with GitHub, stage 1: a pop-up sign-in with a memory-only token, sign in again after 8 hours or a reload, the PAT kept as a fallback, and the embed `init` checks | `npm run demo -- m1`: every sign-in journey with GitHub mocked, and one run of the real Worker under `wrangler dev` (T-32). Then Part B on mardoc.app with the production App (T-25, T-26) | Stage 1 rows of [github-sign-in requirements](design/github-sign-in/requirements.md): F-10 to F-73, NF-10 to NF-22, C-10 to C-17 (T-10 to T-33) | Register the development App (A-15) and the production App (Q-19); deploy the Auth Worker from a tag, set its secret and route; run SP-3; accept the demo |
 
-No milestone is defined yet. The L1 design for sign-in defines M1 after SP-1.
-Add one row per milestone, in value order (`craft:value-cadence`). Unscheduled
-ideas go in a "Future stages" table under this one.
+The value order is the L1's: stage 1 is the smallest release that removes the
+PAT step for new reviewers (S-12, S-25). Stage 2 (silent refresh) is not a
+milestone yet; it waits for the SEC-01 fix (ADR 0001). The Cloudflare hosting
+move (D-2) is independent of M1 and not part of it.
 
 ## M1 work packages
 
-No WPs yet. When the L1 plan defines them, the release gates in L0 proof 3 become WP gates: stage 1 (no GitHub token in browser storage after sign-in, and no refresh route) and stage 2 (after the SEC-01 fix, no injected script can get a token from `/api/auth/refresh`).
+The stage 1 release gate from L0 proof 3 is a WP-8 gate: after sign-in no
+GitHub token is in `localStorage`, `sessionStorage` or a readable cookie
+(T-10), and the Worker has no refresh route (T-21).
 
 | WP | Scope | Paths | Model | Depends on | Proves | Status |
 |---|---|---|---|---|---|---|
+| WP-1 | Build prerequisites and frozen contracts: the `worker/` project with its own package and tsconfig, the layout check in `npm run ci`, and the shared sign-in contract and auth types ([slice plan](plan/WP-1.md)) | `worker/` (scaffold), `src/lib/auth/contract.ts`, `src/lib/auth/types.ts`, `scripts/check-layout.mjs`, `tsconfig.json`, `vitest.config.ts`, `package.json`, `.github/workflows/test.yml`, `.gitignore` | Sonnet; the lead reviews the dependency list | — | LR-10, LR-11 (T-30); contract tests | PENDING |
+| WP-2 | Embed `init` accepted only in embed mode and only from the parent window ([slice plan](plan/WP-2.md)) | `src/lib/embed-init.ts`, the `init` listener in `src/lib/app-context.tsx`, `e2e/embed-init.spec.ts` | Opus (credential handling) | — | F-16 (T-15); closes RK-3 for stage 1 | PENDING |
+| WP-3 | Auth Worker: health, login, callback, revoke and install-return routes; the callback check order; the callback page | `worker/src/**`, `worker/test/**` | Opus (credential handling) | WP-1 | F-20 to F-29, F-61, I-12, I-13, I-16, I-17, NF-14, NF-15, C-13, C-16 (T-20 to T-23, T-27) | PENDING |
+| WP-4 | App auth state: the session machine, the sign-in credential beside the PAT, session key gating, expiry and 401 handling in the GitHub client | `src/lib/auth/session.ts`, `src/lib/auth/credential.ts`, `src/lib/github-api.ts`, auth parts of `src/lib/app-context.tsx` | Opus (credential handling) | WP-1; WP-2 (same file) | F-30 to F-36, F-50, F-53, F-60, I-14, I-15, NF-12 (T-13 state, T-14, T-19, T-24) | PENDING |
+| WP-5 | Pop-up hand-off: start, nonce, result listener with origin, source and nonce checks, timeouts and failure codes | `src/lib/auth/sign-in-window.ts` | Opus (credential handling) | WP-3, WP-4, SP-3 | F-11, F-12, F-14, F-51, F-52, I-11 (T-12, T-17, T-18 codes) | PENDING |
+| WP-6 | Settings screen and sign-in banner | `src/components/SettingsPanel.tsx`, `src/components/SignInBanner.tsx`, `e2e/sign-in-ui.spec.ts` | Sonnet | WP-4; the `startSignIn` signature frozen in WP-1 | F-10, F-13, F-15, F-17, F-18, F-32, F-33, F-37, F-38, F-41 to F-44, F-54, F-55, F-71, F-72, NF-13, NF-18, NF-22 (T-16, T-18 UI) | PENDING |
+| WP-7 | Docs: README, data-and-security, capabilities, the PAT guide, known issues | `README.md`, `docs/data-and-security.md`, `docs/capabilities.md`, `docs/setup-github-pat.md`, `docs/known-issues.md` | Sonnet | WP-6 (final copy) | F-70 to F-73 (T-28, T-33) | PENDING |
+| WP-8 | Integration and demo: sign-in e2e with mocks, the real Worker under `wrangler dev`, the stage 1 gate, local real sign-in with the development App, `demos/m1.md` and the owner's production runbook | `e2e/sign-in-*.spec.ts`, `scripts/demo.sh`, `demos/m1.md` | Lead: Opus | WP-1 to WP-7 | T-10, T-11, T-31, T-32; runbook for T-25, T-26, T-29 | PENDING |
+| WP-9 | Independent code review and security review, then fixes | per findings | Opus for both reviews (high risk), fresh agents | WP-8 | Review reports in `docs/reviews/` | PENDING |
 
-Add one row per WP. The last two WPs of a milestone are always "Integration
-and demo" (Lead: Opus 5.5+ / Astra) and "Independent review, then fixes"
-(Sonnet / Sol 6.1 by default, fresh agent). Use Opus / Astra for a high-risk
-review.
-Mark WPs that need the owner present with **owner** in the Model cell.
+Owner steps inside M1: register the development App with a localhost
+callback before WP-8 (A-15); register the production App (Q-19) and deploy
+WP-3's Worker from a tag before SP-3; deploy the release after WP-9.
 
 ### Waves
 
-No waves yet.
-
-Add a wave per set of WPs that can run together, with what it waits for.
+| Wave | WPs | Waits for | Checkpoint |
+|---|---|---|---|
+| 1 | WP-1, WP-2 (disjoint paths) | Owner acceptance of both slice plans | Fresh-agent review of WP-1's frozen contract and types before wave 2 |
+| 2 | WP-3, WP-4 (`worker/`; `src/lib/auth/` with `github-api.ts`) | WP-1 merged; WP-4 also waits for WP-2 | The lead checks both against the contract tests |
+| Gate | SP-3 on the live zone | WP-3 merged; the owner deploys it with the production App | SP-3 report inspected; a `BroadcastChannel` fallback needs an ADR (A-10) |
+| 3 | WP-5, WP-6 (separate files); WP-7 after WP-6's copy | SP-3 PASS for WP-5; WP-4 for WP-6 | — |
+| 4 | WP-8, then WP-9 | Waves 1 to 3 | Owner demo and acceptance after WP-9 |
 
 ## Acceptance protocol
 
