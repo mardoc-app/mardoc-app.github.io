@@ -204,12 +204,11 @@ Navigate to [github.com/settings/tokens](https://github.com/settings/tokens) and
 | **Expiration** | 90 days recommended — you can always regenerate |
 | **Scopes** | See below |
 
-### Required Scopes
+### Required Scope
 
-Check these two boxes:
+Check one box:
 
-- \`repo\` — full read/write on any repository you already have access to. Checking this top-level box ticks all six sub-scopes automatically.
-- \`read:org\` — needed if any of the repositories you want to review belong to a GitHub organization. Without it, org repos (and anything behind SAML SSO) won't show up reliably in the picker. Skip only if every repo you review is in your personal account.
+- \`repo\` — read/write on the repositories your account can already reach, which the private-repository review and edit workflow needs. Checking this top-level box ticks all its sub-scopes automatically. It grants broad repository access within your account's permissions.
 
 \`\`\`
 ✅  repo
@@ -218,12 +217,11 @@ Check these two boxes:
   ✅  public_repo
   ✅  repo:invite
   ✅  security_events
-✅  read:org              ← check this if you want to see org repos
 \`\`\`
 
 ### One extra step for SSO-protected orgs
 
-After generating the token, the token list page shows a **Configure SSO** button next to it. Click that and authorize each organization you want to see repos from. Without this step, SSO orgs stay invisible even with both scopes set.
+After generating the token, the token list page shows a **Configure SSO** button next to it. Click that and authorize each organization you want to see repos from. Without this step, repositories of an SSO organization stay invisible.
 
 ## Step 3: Generate and Copy
 
@@ -250,7 +248,7 @@ You should see your repositories appear in the sidebar. You're all set!
 ### Can't see a repository
 
 - Ensure the token has \`repo\` scope
-- For organization repos, you may need \`read:org\` scope and SSO authorization
+- For organization repos, authorize the token through **Configure SSO** if the organization uses SAML SSO, and check whether the organization restricts or must approve tokens
 - Check that you have at least read access to the repository
 
 ### Token expired
@@ -398,7 +396,6 @@ mardoc.app is a thin layer on top of GitHub. Your repository is the source of tr
 ` + "```\n\n" + `| Permission | Why |
 |-----------|-----|
 | \`repo\` | Read files, create branches, open PRs |
-| \`read:org\` | Browse organization repos (required if you have any) |
 
 We never store your code. Every read and write goes directly to the GitHub API. See the [PAT setup guide](docs/creating-a-github-pat.md) to get started.
 
