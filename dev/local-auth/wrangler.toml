@@ -1,0 +1,28 @@
+# DEVELOPMENT ONLY (WP-8): the local sign-in harness. Never deploy this file.
+# No routes, no bindings, no workers.dev address, observability off.
+# Run it with `npm run dev:auth` from the repo root (see README.md here).
+name = "mardoc-auth-local"
+main = "worker.ts"
+compatibility_date = "2026-10-01"
+workers_dev = false
+preview_urls = false
+
+# The built app (`next build` writes out/). /api/auth/* reaches worker.ts
+# first; everything else is a static file, as on GitHub Pages.
+assets = { directory = "../../out", run_worker_first = ["/api/auth/*"] }
+
+[observability]
+enabled = false
+
+[dev]
+port = 8787
+
+[vars]
+# App and Worker share this origin. Change it together with --port:
+#   npm run dev:auth -- --port 8788 --var APP_ORIGIN:http://localhost:8788
+APP_ORIGIN = "http://localhost:8787"
+# The development App's client ID, passed on the command line:
+#   npm run dev:auth -- --var CLIENT_ID:<client id>
+# With STUB_GITHUB=1 a stub client ID is used instead.
+CLIENT_ID = ""
+# The client secret goes in dev/local-auth/.dev.vars (git ignores it).
