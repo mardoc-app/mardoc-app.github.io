@@ -136,9 +136,9 @@ GitHub token is in `localStorage`, `sessionStorage` or a readable cookie
 
 | WP | Scope | Paths | Model | Depends on | Proves | Status |
 |---|---|---|---|---|---|---|
-| WP-1 | Build prerequisites and frozen contracts: the `worker/` project with its own package and tsconfig, the layout check in `npm run ci`, and the shared sign-in contract and auth types ([slice plan](plan/WP-1.md)) | `worker/` (scaffold), `src/lib/auth/contract.ts`, `src/lib/auth/types.ts`, `scripts/check-layout.mjs`, `tsconfig.json`, `vitest.config.ts`, `package.json`, `.github/workflows/test.yml`, `.gitignore` | Sonnet; the lead reviews the dependency list | — | LR-10, LR-11 (T-30); contract tests | ⭐ |
+| WP-1 | Build prerequisites and frozen contracts: the `worker/` project with its own package and tsconfig, the layout check in `npm run ci`, and the shared sign-in contract and auth types ([slice plan](plan/WP-1.md)) | `worker/` (scaffold), `src/lib/auth/contract.ts`, `src/lib/auth/types.ts`, `scripts/check-layout.mjs`, `tsconfig.json`, `vitest.config.ts`, `package.json`, `.github/workflows/test.yml`, `.gitignore` | Sonnet; the lead reviews the dependency list | — | LR-10, LR-11 (T-30); contract tests | DONE: merged 6036a2a; contract checkpoint review running |
 | WP-2 | Embed `init` accepted only in embed mode and only from the parent window ([slice plan](plan/WP-2.md)) | `src/lib/embed-init.ts`, the `init` listener in `src/lib/app-context.tsx`, `e2e/embed-init.spec.ts` | Opus (credential handling) | — | F-16 (T-15); closes RK-3 for stage 1 | ⭐ |
-| WP-3 | Auth Worker: health, login, callback, revoke and install-return routes; the callback check order; the callback page ([slice plan](plan/WP-3.md)) | `worker/src/**`, `worker/test/**` | Opus (credential handling) | WP-1 | F-20 to F-29, F-61, I-12, I-13, I-16, I-17, NF-14, NF-15, C-13, C-16 (T-20 to T-23, T-27) | PENDING |
+| WP-3 | Auth Worker: health, login, callback, revoke and install-return routes; the callback check order; the callback page ([slice plan](plan/WP-3.md)) | `worker/src/**`, `worker/test/**` | Opus (credential handling) | WP-1 | F-20 to F-29, F-61, I-12, I-13, I-16, I-17, NF-14, NF-15, C-13, C-16 (T-20 to T-23, T-27) | ⭐ |
 | WP-4 | App auth state: the session machine, the sign-in credential beside the PAT, session key gating, expiry and 401 handling in the GitHub client ([slice plan](plan/WP-4.md)) | `src/lib/auth/session.ts`, `src/lib/auth/credential.ts`, `src/lib/github-api.ts`, `src/lib/rate-limit.ts`, auth parts of `src/lib/app-context.tsx` and `src/components/SettingsPanel.tsx` | Opus (credential handling) | WP-1; WP-2 (same file) | F-30 to F-36, F-50, F-53, F-60, I-14, I-15, NF-12 (T-13 state, T-14, T-19, T-24) | PENDING |
 | WP-5 | Pop-up hand-off: start, nonce, result listener with origin, source and nonce checks, timeouts and failure codes | `src/lib/auth/sign-in-window.ts` | Opus (credential handling) | WP-3, WP-4, SP-3 | F-11, F-12, F-14, F-51, F-52, I-11 (T-12, T-17, T-18 codes) | PENDING |
 | WP-6 | Settings screen and sign-in banner | `src/components/SettingsPanel.tsx`, `src/components/SignInBanner.tsx`, `e2e/sign-in-ui.spec.ts` | Sonnet | WP-4; the `startSignIn` signature frozen in WP-1 | F-10, F-13, F-15, F-17, F-18, F-32, F-33, F-37, F-38, F-41 to F-44, F-54, F-55, F-71, F-72, NF-13, NF-18, NF-22 (T-16, T-18 UI) | PENDING |
@@ -190,6 +190,12 @@ Add a row per risk that affects the plan; the full register is `docs/risks.md`.
 
 No milestone is accepted yet. Add a row after milestone acceptance and `sdlc:efficiency`. Keep observed
 spend separate from estimates and quota/credit usage. `sdlc:loop` records it.
+
+## Backlog from M1
+
+| ID | Item | Evidence | Status |
+|---|---|---|---|
+| M1-1 | `e2e/image-flows.spec.ts` fails on `main`, a different test each run. Its tests insert `https://example.com/*.png`, which answers 404, and the suite runs serially, so one failure skips the rest. Serving the images through `page.route` fixed the original pair but other tests in the file still failed intermittently | Fails on baseline `829e628` (WP-1 builder, 2026-10-28); three local runs with a routed image, 2026-10-28 | PENDING |
 
 ## Backlog from the GSI review
 
