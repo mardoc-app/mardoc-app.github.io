@@ -11,6 +11,10 @@ import HtmlViewer from "@/components/HtmlViewer";
 import PRDetail from "@/components/PRDetail";
 import PRReview from "@/components/PRReview";
 import SettingsPanel from "@/components/SettingsPanel";
+import SignInBanner, { routeLabel } from "@/components/SignInBanner";
+import { INSTALL_URL } from "@/components/sign-in-text";
+import { isAttemptStatus, isSignInKey } from "@/lib/auth/session";
+import { parseHash } from "@/lib/hash-router";
 import ThemeToggle from "@/components/ThemeToggle";
 import KeyboardCheatsheet from "@/components/KeyboardCheatsheet";
 import CommandPalette from "@/components/CommandPalette";
@@ -53,10 +57,22 @@ export default function Home() {
     isEmbedded,
     requestEmbedReload,
     createNewFile,
+    session,
+    sessionKey,
   } = useApp();
   const { toggleTheme } = useTheme();
 
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsShowPat, setSettingsShowPat] = useState(false);
+  const openSettingsWithToken = () => { setSettingsShowPat(true); setSettingsOpen(true); };
+  // A reload ended a sign-in session: name the document instead of demo data (F-37).
+  const effectiveStatus = isAttemptStatus(session.status) ? session.statusBeforeAttempt : session.status;
+  const awaitingSignIn = !isEmbedded && effectiveStatus === "sign-in-again";
+  const hashRoute = typeof window === "undefined" ? null : parseHash(window.location.hash);
+  const awaitingTarget = awaitingSignIn && typeof window !== "undefined" ? routeLabel(window.location.hash) : null;
+  // A deep link the sign-in token cannot reach: MarDoc may not be installed there (F-42).
+  const noAccessRepo = isSignInKey(sessionKey) && error && /not found/i.test(error)
+    ? (hashRoute?.repoFullName ?? currentRepo) : null;
   const [cheatsheetOpen, setCheatsheetOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -261,6 +277,8 @@ export default function Home() {
         </div>
       </header>
 
+      <SignInBanner onUseToken={openSettingsWithToken} />
+
       {/* Main content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Desktop: sidebar sits inline in the row.
@@ -282,6 +300,23 @@ export default function Home() {
         )}
 
         <main className="flex-1 overflow-hidden bg-[var(--surface)]">
+          {noAccessRepo && (
+            <div role="alert" className="px-4 py-3 border-b border-[var(--border)] bg-[var(--accent-muted)] text-sm text-[var(--text-primary)]" data-testid="no-access-notice">
+              <p>
+                MarDoc may not be installed on <span className="font-mono">{noAccessRepo}</span>, or you may not have access to it.
+              </p>
+              <p className="mt-1">
+                <a href={INSTALL_URL} target="_blank" rel="noopener noreferrer" className="text-[var(--accent)] underline">
+                  Install MarDoc on this repository
+                </a>
+                {" or "}
+                <button type="button" onClick={openSettingsWithToken} className="text-[var(--accent)] underline">
+                  use a personal access token
+                </button>
+                .
+              </p>
+            </div>
+          )}
           {currentView === "editor" && selectedFile ? (
             loadingContent ? (
               <div className="h-full flex items-center justify-center">
@@ -336,6 +371,17 @@ export default function Home() {
             )
           ) : currentView === "pr-review" ? (
             <PRReview />
+          ) : awaitingSignIn ? (
+            <div className="h-full flex items-center justify-center" data-testid="sign-in-again-pane">
+              <div className="text-center max-w-md px-4">
+                <h2 className="text-lg text-[var(--text-primary)] mb-2">
+                  {awaitingTarget ? <>Sign in again to open <span className="font-mono">{awaitingTarget}</span></> : "Sign in again to continue"}
+                </h2>
+                <p className="text-sm text-[var(--text-secondary)]">
+                  Your GitHub sign-in ended when the page reloaded. Use Sign in again above, or continue without signing in to see demo data.
+                </p>
+              </div>
+            </div>
           ) : (
             /* Welcome screen */
             <div className="h-full flex items-center justify-center">
@@ -393,7 +439,7 @@ export default function Home() {
       </div>
 
       {/* Settings modal */}
-      <SettingsPanel isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <SettingsPanel isOpen={settingsOpen} showPat={settingsShowPat} onClose={() => { setSettingsOpen(false); setSettingsShowPat(false); }} />
 
       {/* Keyboard cheatsheet (triggered by `?`) */}
       <KeyboardCheatsheet open={cheatsheetOpen} onClose={() => setCheatsheetOpen(false)} />
