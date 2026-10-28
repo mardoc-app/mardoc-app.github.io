@@ -354,7 +354,7 @@ and no `Access-Control-*` headers.
 
 | Route | Request | Response | Errors |
 |---|---|---|---|
-| `GET /health` | none | `200` JSON containing `"ok": true` (and `"version": "<git sha>"`) | none; absence is the signal |
+| `GET /health` | none | `200` JSON containing `"ok": true` (and `"version": "<git sha>"`) | `503 {"ok": false}` when `CLIENT_ID` or `CLIENT_SECRET` is empty, naming neither; otherwise none, absence is the signal. The tab treats either as `worker_unavailable` (F-51) |
 | `GET /login?n=<nonce>` | `n`: base64url, 22 to 64 chars (`^[A-Za-z0-9_-]{22,64}$`); `Sec-Fetch-Site: same-origin` and `Sec-Fetch-Dest: document` | `302` to `https://github.com/login/oauth/authorize?client_id&redirect_uri=https://mardoc.app/api/auth/callback&state&code_challenge&code_challenge_method=S256`; sets the attempt cookie | `400` plain-text page if `n` fails the pattern (no message can be posted without a nonce); `403` plain-text page if the `Sec-Fetch-*` headers are missing or different, so other sites and fetches can't start attempts. It also expires every `__Secure-mardoc_auth_*` cookie on the request except the newest two, so repeated starts can't pile cookies up |
 | `GET /callback?code&state` or `?error&state` | GitHub's redirect, plus the attempt cookie | `200 text/html` callback page carrying a [sign-in result](#sign-in-result-message); clears the cookie | Result codes below; never a redirect |
 | `GET /callback?installation_id&setup_action` with no `state` | The install page's return, if GitHub sends one (A-11) | `200 text/html` "MarDoc is installed. Go back to the MarDoc tab and press Refresh." No script, no exchange (F-29) | — |
@@ -825,7 +825,7 @@ contains no `ghr_`. `?code=c&state=N.x` with the cookie holding `N.s` gives
 | T-20 | Worker unit (stubbed GitHub) | Each step of the callback decision order; state mismatch → no exchange; S256 challenge; no CORS headers; install return page without exchange | F-20, F-21, F-22, F-29, I-12 |
 | T-21 | Worker unit | Refresh token absent from every response; `/refresh` is 404; result posted only to `APP_ORIGIN`; a hostile `error` or `state` value never appears unescaped in the page | F-23, F-24, F-25, I-13, I-17 |
 | T-22 | Worker unit | `console` never called; every response `no-store`; attempt cookie `Max-Age=600` then `0`; `/login` refuses a cross-site or non-document request and keeps at most three attempt cookies; no storage bindings in `wrangler.toml` | F-26, F-28, NF-14, NF-15, I-16 |
-| T-23 | Worker unit | Health JSON contains `ok: true`; revoke refuses a missing or foreign `Origin`, maps GitHub 404 to 204, and calls GitHub with basic auth | F-27, F-61 |
+| T-23 | Worker unit | Health JSON contains `ok: true`, and is `503 {"ok": false}` without the client ID or secret; revoke reads at most 4 KiB of body, refuses a missing or foreign `Origin`, maps GitHub 404 to 204, and calls GitHub with basic auth | F-27, F-61 |
 | T-24 | Unit | Disconnect drops the token, resets the client and caches, removes the marker | F-60, F-32 |
 | T-32 | Playwright, real Worker under `wrangler dev`, GitHub stubbed | The real callback page posts to the real tab; CSP allows the nonce script; the pop-up closes | F-14, F-23, NF-19 |
 | T-33 | Review | In-app PAT instructions match the guide; data-and-security.md lists `mardoc_auth_method`; known-issues.md describes the sign-in 401 path | F-54, F-73 |
