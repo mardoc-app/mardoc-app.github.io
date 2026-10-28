@@ -799,8 +799,8 @@ contains no `ghr_`. `?code=c&state=N.x` with the cookie holding `N.s` gives
 
 | ID | Rule | Checked by |
 |---|---|---|
-| LR-10 | `src/lib/auth/session.ts` imports nothing from React, `window`, `document`, `localStorage` or `fetch`. | T-30, checked in `ci` by `scripts/check-layout.mjs` |
-| LR-11 | `worker/src/domain/**` makes no `fetch` and reads no `env`; GitHub calls go through `worker/src/adapters/github.ts`. | T-30, checked in `ci` by `scripts/check-layout.mjs` |
+| LR-10 | `src/lib/auth/session.ts`, and every other file in `src/lib/auth/` except the adapters `sign-in-window.ts` and `credential.ts` and the build-time `config.ts`, imports only `./types` and `./contract`, and uses none of `window`, `document`, `localStorage`, `sessionStorage`, `fetch`, `globalThis`, `self` or `process`, including as `globalThis.fetch` or `process.env`. | T-30, checked in `ci` by `scripts/check-layout.mjs` |
+| LR-11 | `worker/src/domain/**` imports only its own siblings and `src/lib/auth/contract.ts`, makes no `fetch` and reads no `env` (nor `globalThis`, `self` or `process`); GitHub calls go through `worker/src/adapters/github.ts`. | T-30, checked in `ci` by `scripts/check-layout.mjs` |
 
 ## Decisions and accepted risks
 
