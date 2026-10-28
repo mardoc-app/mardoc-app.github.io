@@ -41,12 +41,12 @@ else
   tail -30 "$logs/build.log"
 fi
 
-echo "== 2/5 mocked sign-in journeys, stage 1 gate (T-10, T-11, T-31, M1-4), desktop and mobile"
+echo "== 2/5 mocked sign-in journeys, stage 1 gate, framed (T-10, T-11, T-31, T-34, M1-4), desktop and mobile"
 npx playwright test e2e/sign-in-flow.spec.ts e2e/sign-in-ui.spec.ts \
-  e2e/sign-in-stage1-gate.spec.ts e2e/sign-in-journeys.spec.ts > "$logs/mocked.log" 2>&1
+  e2e/sign-in-stage1-gate.spec.ts e2e/sign-in-journeys.spec.ts e2e/sign-in-framed.spec.ts > "$logs/mocked.log" 2>&1
 code=$?
 if [ $code -eq 0 ]; then result=PASS; else result=FAIL; overall="FAIL"; fi
-row 2 "Mocked journeys: \`e2e/sign-in-{flow,ui,stage1-gate,journeys}.spec.ts\`" "$result" "$(summary "$logs/mocked.log")"
+row 2 "Mocked journeys: \`e2e/sign-in-{flow,ui,stage1-gate,journeys,framed}.spec.ts\`" "$result" "$(summary "$logs/mocked.log")"
 grep -E '✘|^ +[0-9]+ (passed|failed|flaky)' "$logs/mocked.log" | sed 's/^/   /'
 
 echo "== 3/5 T-32: the real Worker under wrangler dev, GitHub stubbed, Chromium"
