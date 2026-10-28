@@ -9,7 +9,7 @@ the plan is [WP-3](../docs/plan/WP-3.md).
 
 | Route | Does |
 |---|---|
-| `GET /api/auth/health` | `200 {"ok": true, "version": "<VERSION or dev>"}` |
+| `GET /api/auth/health` | `200 {"ok": true, "version": "<VERSION or dev>"}`; or `503 {"ok":false}` when `CLIENT_ID` or `CLIENT_SECRET` is unset (the tab then shows sign-in as unavailable and offers the token) |
 | `GET /api/auth/login?n=<nonce>` | Starts an attempt: sets the attempt cookie, `302` to GitHub's consent screen |
 | `GET /api/auth/callback` | Checks `state`, exchanges the code, returns the page that posts the result to `APP_ORIGIN` and closes; or the install-return page |
 | `POST /api/auth/revoke` | Revokes a token at GitHub (`Origin` must be `APP_ORIGIN`) |
@@ -98,6 +98,10 @@ SP-3's own runbook, with its disposable Worker, before step 1 here.
    - `curl -i https://mardoc.app/api/auth/health` → `200`, `"ok":true`, the
      tagged SHA as `version`, `cache-control: no-store`, no
      `access-control-*` header.
+   - `503` with `{"ok":false}` means `CLIENT_ID` or `CLIENT_SECRET` is not
+     set on the deployed Worker. Set the secret (step 2) or redeploy with
+     `--var CLIENT_ID:<client id>` (step 3), then probe again. The body
+     names neither variable.
    - `curl -i https://mardoc.app/api/auth/refresh` → `404`.
    - `curl -i https://mardoc.app/` → the Pages site, unchanged (it carries
      an `x-github-request-id` header).

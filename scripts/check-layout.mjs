@@ -1,13 +1,19 @@
 #!/usr/bin/env node
 // Layout checker for the GitHub sign-in design (T-30).
-//   LR-10: src/lib/auth/** except the adapters (sign-in-window.ts,
-//          credential.ts) and build-time config (config.ts, which reads
-//          process.env) imports only ./types and ./contract, and uses none of
-//          window, document, localStorage, sessionStorage, fetch, globalThis,
-//          self, process.
+//   LR-10: src/lib/auth/** except the adapters (src/lib/auth/sign-in-window.ts,
+//          credential.ts, exempt by exact path) and build-time config
+//          (config.ts, which reads process.env) imports only ./types and
+//          ./contract, and uses none of the banned globals below.
 //   LR-11: worker/src/domain/** imports only its siblings (./x) and
-//          ../../../src/lib/auth/contract, and uses none of fetch, env
-//          (also as a member, `x.env`), globalThis, self, process.
+//          ../../../src/lib/auth/contract, and uses none of the banned globals
+//          below nor env (also as a member, `x.env`).
+// Banned globals (both rules): window, document, localStorage, sessionStorage,
+// fetch, navigator, XMLHttpRequest, indexedDB, caches, WebSocket,
+// BroadcastChannel, setTimeout, setInterval, eval, globalThis, self, process;
+// location (as location.x, location[..], location = ..); Date.now, new Date(),
+// Math.random; Function(..) and new Function(..). Domain code takes the clock
+// and randomness from its caller. The no-DOM type check (tsconfig.domain.json)
+// backs this up by compile-time name resolution.
 // Imports are an allow-list: any other module, a re-export, a side-effect
 // import, require() and a computed dynamic import are violations. The global
 // names catch member access too (`globalThis.fetch`, `process.env.X`).
@@ -23,10 +29,30 @@ const root = path.resolve(
 );
 
 const SOURCE = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/;
-const LR10_EXEMPT = new Set(["sign-in-window.ts", "credential.ts", "config.ts"]);
-const GLOBALS = ["globalThis", "self", "process"];
-const LR10_IDENTS = ["window", "document", "localStorage", "sessionStorage", "fetch", ...GLOBALS];
-const LR11_IDENTS = ["fetch", ...GLOBALS];
+// Adapters and build-time config, by exact path from the repository root (CR-8).
+const LR10_EXEMPT = new Set([
+  "src/lib/auth/sign-in-window.ts",
+  "src/lib/auth/credential.ts",
+  "src/lib/auth/config.ts",
+]);
+// Browser, Workers and Node I/O globals plus escape hatches. Domain code gets
+// time, randomness and credentials from its caller.
+const GLOBALS = [
+  "globalThis", "self", "process", "window", "document", "localStorage", "sessionStorage",
+  "fetch", "navigator", "XMLHttpRequest", "indexedDB", "caches", "WebSocket", "BroadcastChannel",
+  "setTimeout", "setInterval", "eval",
+];
+const LR10_IDENTS = GLOBALS;
+const LR11_IDENTS = GLOBALS;
+/** Forms that are not a bare name: [pattern, label]. Patterns see comment- and string-free code. */
+const PATTERNS = [
+  // `location.x`, `location[...]`, `location = ...`; not a local `const location` or a field.
+  [/(?<![.\w$])(?<!(?:const|let|var)\s+)location\s*(?:\.|\[|=(?!=))/, "location"],
+  [/(?<![\w$])Date\s*\.\s*now\b/, "Date.now"],
+  [/\bnew\s+Date\s*\(\s*\)/, "new Date()"],
+  [/(?<![\w$])Math\s*\.\s*random\b/, "Math.random"],
+  [/(?<![.\w$])(?:new\s+)?Function\s*\(/, "Function"],
+];
 /** Names caught even as a member (`deps.env`), not only as a free identifier. */
 const LR11_MEMBERS = ["env"];
 const stripExt = (spec) => spec.replace(/\.(ts|tsx|js|mjs|cjs)$/, "");
@@ -91,8 +117,14 @@ function stripComments(src) {
 }
 
 // Empty the contents of single-line string literals so words inside them are not code.
+// Template literals keep their `${...}` expressions, which are code.
 function blankStrings(line) {
-  return line.replace(/(["'])(?:\\.|(?!\1).)*\1/g, (m) => m[0] + m[0]);
+  return line
+    .replace(/(["'])(?:\\.|(?!\1).)*\1/g, (m) => m[0] + m[0])
+    .replace(/`(?:\\.|[^`\\])*`/g, (m) => {
+      const exprs = [...m.matchAll(/\$\{([^}]*)\}/g)].map((x) => "${" + x[1] + "}");
+      return "`" + exprs.join("") + "`";
+    });
 }
 
 const violations = [];
@@ -129,6 +161,7 @@ function checkFile(file, rule, { idents, members = [], allowImport }) {
     for (const id of idents) {
       if (new RegExp(`(?<![.\\w$])${id}(?![\\w$])`).test(code)) found.push([idx + 1, `uses ${id}`]);
     }
+    for (const [re, label] of PATTERNS) if (re.test(code)) found.push([idx + 1, `uses ${label}`]);
     for (const id of members) {
       if (new RegExp(`(?<![\\w$])${id}(?![\\w$])`).test(code)) found.push([idx + 1, `uses ${id}`]);
     }
@@ -138,7 +171,7 @@ function checkFile(file, rule, { idents, members = [], allowImport }) {
 }
 
 for (const f of walk(path.join(root, "src/lib/auth"))) {
-  if (LR10_EXEMPT.has(path.basename(f))) continue;
+  if (LR10_EXEMPT.has(path.relative(root, f).split(path.sep).join("/"))) continue;
   checkFile(f, "LR-10", { idents: LR10_IDENTS, allowImport: LR10_IMPORTS });
 }
 for (const f of walk(path.join(root, "worker/src/domain"))) {

@@ -138,6 +138,66 @@ describe("layout check", () => {
     expect(ok.code).toBe(0);
   });
 
+  // CR-8: adapters are exempt by exact path, and the banned list covers every I/O global.
+  it("t30_adapter_exemption_is_by_exact_path_cr8", () => {
+    for (const name of ["credential.ts", "sign-in-window.ts", "config.ts"]) {
+      fails(
+        { [`src/lib/auth/sub/${name}`]: 'import "../../github-api";\nfetch("/");\n' },
+        new RegExp(`^LR-10 src/lib/auth/sub/${name.replace(".", "\\.")}:1 imports `, "m"),
+      );
+    }
+    fails({ "worker/src/domain/credential.ts": "fetch('x');\n" }, /^LR-11 .*credential\.ts:1 uses fetch$/m);
+  });
+
+  const BANNED: Array<[string, string]> = [
+    ["navigator.sendBeacon('x');", "navigator"],
+    ["const x = new XMLHttpRequest();", "XMLHttpRequest"],
+    ["indexedDB.open('x');", "indexedDB"],
+    ["location.assign('x');", "location"],
+    ["location = 'x';", "location"],
+    ["setTimeout(() => 1, 5);", "setTimeout"],
+    ["setInterval(() => 1, 5);", "setInterval"],
+    ["const t = Date.now();", "Date.now"],
+    ["const t = new Date();", "new Date()"],
+    ["const r = Math.random();", "Math.random"],
+    ["(0, eval)('fetch');", "eval"],
+    ["const f = new Function('return fetch');", "Function"],
+    ["const f = Function('return fetch');", "Function"],
+    ["caches.open('x');", "caches"],
+    ["const w = new WebSocket('x');", "WebSocket"],
+    ["const b = new BroadcastChannel('x');", "BroadcastChannel"],
+  ];
+
+  it("t30_lr10_bans_every_io_global_cr8", () => {
+    for (const [code, what] of BANNED) {
+      fails({ "src/lib/auth/session.ts": `${code}\n` }, new RegExp(`^LR-10 src/lib/auth/session\\.ts:1 uses ${what.replace(/[().]/g, "\\$&")}$`, "m"));
+    }
+  });
+
+  it("t30_lr11_bans_every_io_global_cr8", () => {
+    for (const [code, what] of BANNED) {
+      fails({ "worker/src/domain/callback.ts": `${code}\n` }, new RegExp(`^LR-11 worker/src/domain/callback\\.ts:1 uses ${what.replace(/[().]/g, "\\$&")}$`, "m"));
+    }
+    fails({ "worker/src/domain/callback.ts": "caches.default.match(r);\n" }, /LR-11 .* uses caches$/m);
+  });
+
+  it("t30_template_text_is_not_code_but_expressions_are_cr8", () => {
+    const ok = run(fixture({ "worker/src/domain/page.ts": "export const s = `var o=window.opener; fetch(x)`;\n" }));
+    expect(ok.out).toBe("layout check: ok\n");
+    fails({ "worker/src/domain/page.ts": "export const s = `a ${fetch(x)} b`;\n" }, /^LR-11 .*page\.ts:1 uses fetch$/m);
+  });
+
+  it("t30_lr10_lr11_allow_names_used_as_declarations_cr8", () => {
+    // A local or field called `location` (login.ts) is not the browser global.
+    const ok = run(
+      fixture({
+        "worker/src/domain/login.ts": "export type R = { location: string };\nexport const f = () => { const location = 'x'; return { location }; };\n",
+        "src/lib/auth/session.ts": "export const g = (e: { time: number }) => e.time + Math.max(1, 2);\n",
+      }),
+    );
+    expect(ok.out).toBe("layout check: ok\n");
+  });
+
   it("t30_layout_check_real_tree_is_clean", () => {
     const r = run(repoRoot);
     expect(r.out).toBe("layout check: ok\n");

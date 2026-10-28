@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "lib": ["ES2022"],
+    "types": [],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "isolatedModules": true
+  },
+  "include": ["scripts/domain-globals.d.ts", "src/lib/auth/session.ts", "src/lib/auth/types.ts", "src/lib/auth/contract.ts", "worker/src/domain/**/*.ts"]
+}
