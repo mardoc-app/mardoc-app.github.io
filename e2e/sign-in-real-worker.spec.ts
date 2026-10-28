@@ -91,6 +91,8 @@ test.beforeAll(async ({ request }) => {
 test("t32_real_worker_callback_posts_to_tab", async ({ page, context }) => {
   // T-32, F-14, F-23, F-61, NF-19, I-10
   const recorder = recordAuthResponses(context);
+  const urls: string[] = [];
+  context.on("request", (r) => urls.push(r.url()));
   const tabCalls = await mockGitHubForTab(context);
   await page.addInitScript(() => {
     (window as unknown as { __MARDOC_E2E__: boolean }).__MARDOC_E2E__ = true;
@@ -145,6 +147,11 @@ test("t32_real_worker_callback_posts_to_tab", async ({ page, context }) => {
     return parts.join("\n");
   });
   expect(traces).not.toContain(token);
+  // NF-11 with the real Worker: no URL the browser requested (login, the stub
+  // consent hop, callback with code and state) and no Location header carries it.
+  expect(urls.some((u) => u.includes("/api/auth/callback?code="))).toBe(true);
+  for (const u of urls) expect(u).not.toContain(token);
+  for (const s of seen) expect(s.headers["location"] ?? "").not.toContain(token);
 
   // F-61: Disconnect revokes through the real /revoke and the stub GitHub.
   const revoked = page.waitForResponse((r) => new URL(r.url()).pathname === "/api/auth/revoke");
