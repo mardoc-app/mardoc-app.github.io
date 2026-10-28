@@ -28,6 +28,24 @@ describe("health and unknown routes (T-21, T-22, T-23)", () => {
     expect(JSON.parse(v.body)).toEqual({ ok: true, version: "abc123" });
   });
 
+  it("f27_health_not_ok_without_client_id_or_secret_cr4 (F-51)", async () => {
+    // CR-4: a deploy missing CLIENT_ID or CLIENT_SECRET reports not ok, so the tab
+    // shows worker_unavailable within 5 s instead of sending the pop-up to GitHub.
+    for (const env of [
+      { ...ENV, CLIENT_ID: "" },
+      { ...ENV, CLIENT_SECRET: "" },
+      { ...ENV, CLIENT_ID: "", CLIENT_SECRET: "" },
+      { APP_ORIGIN: APP } as typeof ENV,
+    ]) {
+      const r = await call("/api/auth/health", {}, env);
+      expect(r.status).toBe(503);
+      expect(r.res.headers.get("content-type")).toBe("application/json");
+      expect(JSON.parse(r.body)).toEqual({ ok: false });
+      expect(r.body).not.toContain(SECRET);
+      expect(r.body).not.toContain("Iv1.testclient");
+    }
+  });
+
   it("t21_no_refresh_route_get_and_post_are_404 (F-25, C-16)", async () => {
     const calls = stubGitHub(ghJson({}));
     for (const method of ["GET", "POST", "PUT", "DELETE"]) {
