@@ -59,7 +59,7 @@ describe("settings: signed-in views (T-16, T-18 UI)", () => {
     openConnect();
     expect(screen.getByText("Signed in with GitHub as octo")).toBeTruthy();
     const link = screen.getByRole("link", { name: "Install MarDoc on more repositories" });
-    expect(link.getAttribute("href")).toBe("https://github.com/apps/mardoc/installations/new");
+    expect(link.getAttribute("href")).toBe("https://github.com/apps/mardoc-app/installations/new");
     expect(link.getAttribute("href")).toBe(INSTALL_URL);
     expect(link.getAttribute("rel")).toBe("noopener noreferrer");
     expect(link.getAttribute("target")).toBe("_blank");

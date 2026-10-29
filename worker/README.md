@@ -70,7 +70,7 @@ SP-3's own runbook, with its disposable Worker, before step 1 here.
 
    After **Create GitHub App**, copy the Client ID (it starts with `Iv`)
    for step 3. Click **Generate a new client secret** and keep the value
-   only for step 2. The App's public page is `https://github.com/apps/mardoc`.
+   only for step 2. The production App is registered as "MarDoc.app" (owner `mardoc-app`, App ID 5520121); its public page is `https://github.com/apps/mardoc-app`.
 1. **Tag the commit.** On the reviewed, merged commit:
    `git tag auth-worker-<yyyy-mm-dd> && git push origin auth-worker-<yyyy-mm-dd>`,
    then `git checkout auth-worker-<yyyy-mm-dd>`. Deploy only from a tag (A-17).

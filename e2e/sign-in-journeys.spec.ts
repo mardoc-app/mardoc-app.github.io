@@ -25,7 +25,7 @@ import {
   waitForSession,
 } from "./fixtures/sign-in-session";
 
-const INSTALL_URL = "https://github.com/apps/mardoc/installations/new";
+const INSTALL_URL = "https://github.com/apps/mardoc-app/installations/new";
 const connection = (page: import("@playwright/test").Page) => page.locator("div.fixed.inset-0");
 
 test.describe("T-31 journeys", () => {
