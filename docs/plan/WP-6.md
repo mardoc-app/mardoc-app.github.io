@@ -40,7 +40,7 @@ T-18's UI part).
 |---|---|---|
 | `src/components/SettingsPanel.tsx` | The GitHub Connection tab as designed. Error text comes from the result-code table. The PAT instructions are rewritten from `docs/setup-github-pat.md`, with no `read:org` unless the guide lists it. The guide is linked. The help text uses the data-and-security.md wording (Q-10). The install link is `https://github.com/apps/${GITHUB_APP_SLUG}/installations/new`, opened with `rel="noopener noreferrer"` | no |
 | `src/components/SignInBanner.tsx` | The banner: three states, Sign in again, and Continue without signing in. It calls `startSignIn()` inside the click handler | yes |
-| `src/lib/auth/config.ts` | `GITHUB_APP_SLUG`, default `"mardoc"` (Q-36), overridable by `NEXT_PUBLIC_GITHUB_APP_SLUG` for the development App | yes |
+| `src/lib/auth/config.ts` | `GITHUB_APP_SLUG`, default `"mardoc-app"` (Q-36), overridable by `NEXT_PUBLIC_GITHUB_APP_SLUG` for the development App | yes |
 | The component that renders the main pane (the builder finds it from `src/app/page.tsx`) | Mounts `SignInBanner` above the main pane, and shows F-37's "Sign in again to open `<path>`" instead of demo data in `sign-in-again`, and F-42's message for a deep-link 404 with a sign-in credential | no |
 | The repository list component | F-44's empty-installations message | no |
 | `e2e/sign-in-ui.spec.ts` | T-16, T-18 UI, keyboard and `aria-live` checks, using `e2e/fixtures/auth-mocks.ts` (WP-5) or its own route mocks if WP-5 hasn't merged | yes |
