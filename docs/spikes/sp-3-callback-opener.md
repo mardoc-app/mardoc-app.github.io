@@ -5,7 +5,7 @@ Environment: Node v26.9.0, wrangler 4.154.0 (from `worker/`, local runtime only)
 Proves: A-10, A-11 (production App settings), A-16, NF-20 in [requirements](../design/github-sign-in/requirements.md); Gate 0 row SP-3 in [plan.md](../plan.md). Blocks: WP-5 merge.
 Claims are marked **verified** (ran it) or **inferred** (reasoned or read, not run).
 
-**Status: built, awaiting owner deploy.** Results and Answer are pending. Agents never deploy, register GitHub Apps or touch Cloudflare; the owner does every step in the runbook.
+**Status: PARTIAL, closed by the owner 2026-10-28.** Chrome and Safari on desktop pass; Firefox, Safari iOS and Chrome Android were not run. Agents never deploy, register GitHub Apps or touch Cloudflare; the owner does every step in the runbook.
 
 ## Question
 
@@ -13,7 +13,7 @@ Does the real callback page, served by the product Worker module through the liv
 
 Also recorded (not part of the yes/no): whether the zone's HTML rewriting alters the callback page; whether a returning user skips the consent screen; whether `GET /user/repos` is already limited to installations for a user token (A-16).
 
-**Answer: pending.**
+**Answer: yes for Chrome and Safari on macOS (2026-10-28); not yet for Firefox, Safari iOS and Chrome Android.** The owner stopped testing there ("enough testing - it is working") and accepts the untested browsers as a risk (RK-5).
 
 ## Pass criteria
 
@@ -146,26 +146,28 @@ No tokens, codes or secrets (the page shows none). In this order:
 
 ## Results
 
-Pending the owner's deploy.
+Owner run, 2026-10-28, production App "MarDoc" (owner `mardoc-app`, Client ID in the owner's credentials folder), spike Worker `mardoc-auth-sp3` deployed with wrangler 4.154.0, route `mardoc.app/api/auth/*` (fail closed).
 
 | Browser | Version / OS | Delivered (origin, source, nonce) | Token arrived, length, expiresIn | Pop-up closed itself | `/user` login | Second sign-in skips consent | Result |
 |---|---|---|---|---|---|---|---|
-| Chrome desktop | | | | | | | pending |
-| Firefox desktop | | | | | | | pending |
-| Safari desktop | | | | | | | pending |
-| Safari iOS | | | | | | | pending |
-| Chrome Android | | | | | | | pending |
+| Chrome desktop | Chrome 156, macOS | yes: `https://mardoc.app`, popup, nonce matched | yes, 40, 28800 | yes | `josephbarnett` | yes: delivered in 1,017 ms after a reload, no consent screen (owner) | PASS |
+| Firefox desktop | | | | | | | not yet (no Firefox on the owner's machine) |
+| Safari desktop | Safari 27.2, macOS | yes: `https://mardoc.app`, popup, nonce matched | yes, 40, 28800 | yes | `josephbarnett` | not run; first run included a full GitHub sign-in inside the pop-up (63,482 ms) | PASS |
+| Safari iOS | | | | | | | not yet |
+| Chrome Android | | | | | | | not yet |
 
 | Recorded item | Result |
 |---|---|
-| Zone rewriting: callback page byte-identical | pending |
-| Zone rewriting: opener page byte-identical, no markers | pending |
-| Returning user skips consent | pending |
-| A-16: `/user/repos` limited to installations | pending |
+| Zone rewriting: callback page byte-identical | PASS: `probe.mjs` against `https://mardoc.app`, 0 failures (CSP unchanged, nonce matches, byte-identical, no rewriting markers, no-store, not served by Pages) |
+| Zone rewriting: opener page byte-identical, no markers | PASS (same probe run); `/` still served by Pages; `/api/auth/refresh` 404 |
+| Returning user skips consent | Yes in Chrome: a second sign-in completed in about 1 s with no consent screen. This sets SR-1 to its higher severity; F-19 (framed sign-in refused) is the mitigation and is merged |
+| A-16: `/user/repos` limited to installations | **No.** With 0 installations, `GET /user/repos` returned 58 public repositories across orgs (no private ones); `GET /user/installations` returned 0. F-40's installation-based list is required, as built |
 
 ## What this means
 
-Pending. If PASS: WP-5 may merge and A-10 stands. If any row FAILS: write an ADR for a `BroadcastChannel` or redirect alternative (A-10, RK-1 grows) before WP-5. If the zone rewrites the callback page: add a Configuration Rule for `/api/auth/*` (Email Obfuscation, Rocket Loader and Automatic HTTPS Rewrites off) and record it in the Worker README. A-16 sets whether `fetchUserRepos` keeps `GET /user/repos`.
+Chrome and Safari on macOS deliver the result through the live zone, so A-10 stands for them and WP-5's hand-off can ship there. Mobile browsers and Firefox are unproven (RK-5): a phone browser that opens the pop-up as a tab could still lose its opener. The zone needs no Configuration Rule. A-16 is false; `fetchUserRepos` keeps the installations path.
+
+Original decision rule: if PASS: WP-5 may merge and A-10 stands. If any row FAILS: write an ADR for a `BroadcastChannel` or redirect alternative (A-10, RK-1 grows) before WP-5. If the zone rewrites the callback page: add a Configuration Rule for `/api/auth/*` (Email Obfuscation, Rocket Loader and Automatic HTTPS Rewrites off) and record it in the Worker README. A-16 sets whether `fetchUserRepos` keeps `GET /user/repos`.
 
 ## Limits
 
