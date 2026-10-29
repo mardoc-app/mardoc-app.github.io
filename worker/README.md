@@ -93,7 +93,10 @@ SP-3's own runbook, with its disposable Worker, before step 1 here.
 6. **Add the usage notification.** Notifications → Add → Workers usage
    (or the closest Workers request alert offered on the Free plan) at 50% of
    the daily 100,000-request limit, that is 50,000 requests a day (NF-17),
-   sent to your email.
+   sent to your email. On the Free plan (checked 2026-10-29) Alerts → Account &
+   billing offers only billing alerts, so there is no request alert: skip this
+   step and rely on the step 9 check. Over the limit, sign-in fails until
+   00:00 UTC and users keep the token option (F-51).
 7. **Probe it (T-25).**
    - `curl -i https://mardoc.app/api/auth/health` → `200`, `"ok":true`, the
      tagged SHA as `version`, `cache-control: no-store`, no

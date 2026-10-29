@@ -216,6 +216,8 @@ Owner's real sign-in at `http://localhost:8787` with the development App "MarDoc
 | AT-2 | A failed repository-list request shows the same "MarDoc isn't installed on any repository you can reach" message as an empty list; the error goes only to the console. A failure should say so and offer Retry (F-44, F-51) | `SettingsPanel.tsx` `loadRepos` catches with `console.error`; owner, Part B, 2026-10-28 | PENDING |
 | AT-3 | Opening an organisation repository (`Cloudzero/...`) where the App is not installed: the owner expected it in the list. The F-42 notice and the install guidance should name the organisation and say an org owner must install or approve the App | Owner, Part B, 2026-10-28 | PENDING |
 
+Production deploy, 2026-10-29: the owner deployed `mardoc-auth` from tag `auth-worker-2026-10-28` (`8d9e1bf`, local tag, pushed with the branch) and routed `mardoc.app/api/auth/*` to it (fail closed); the SP-3 Worker and its route are deleted. T-25 probe: only route `mardoc.app/api/auth/* -> mardoc-auth`; `/health` 200 `{"ok":true,"version":"8d9e1bf…"}` with `no-store`; `/refresh` 404; `/__sp3` 404; `/` still Pages. No Free-plan Workers request alert exists; T-29 checks the request count at milestone close instead.
+
 ## Backlog from the GSI review
 
 Every finding in [2026-10-20-github-sign-in-l0.md](reviews/2026-10-20-github-sign-in-l0.md)
