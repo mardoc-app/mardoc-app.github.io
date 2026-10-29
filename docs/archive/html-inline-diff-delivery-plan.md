@@ -1,5 +1,7 @@
 # Rendered HTML inline diff delivery
 
+> Archived 2026-10-21 during SDLC adoption; historical record, not current.
+
 Status: implemented locally; browser validation pending due to environment restrictions. Baseline: locally cached `origin/main` at `7d2e522` (2026-10-14). A network fetch failed because GitHub DNS was unavailable.
 
 ## Goal
@@ -43,7 +45,7 @@ Worktrees live in `mardoc-app.github.io-worktrees/`. Independent streams commit 
 ## Validation and delivery evidence
 
 - Independent streams were merged into `feat/html-inline-delivery`. The combined branch includes the engine, toolbar/navigation, browser scenarios and viewer/comment integration.
-- Final unit suite: `NODE_OPTIONS=--no-experimental-webstorage npm test -- --run` passed all 73 files: 1,024 passing tests and 5 existing expected failures (1,029 total). The Node 26 host exposes an incompatible experimental storage global by default; the flag allows jsdom's storage implementation to work. The repository recommends Node 22.
+- Final unit suite: `NODE_OPTIONS=--no-experimental-webstorage npm test -- --run` passed all 73 files: 1,024 passing tests and 5 existing expected failures (1,029 total). The Node 26 host exposes an incompatible experimental storage global by default; the flag allows jsdom's storage implementation to work. The repository recommends Node 22. Since `274d452`, `vitest.config.ts` passes `--no-experimental-webstorage` to its workers, so the `NODE_OPTIONS` prefix is no longer needed.
 - TypeScript validation and static export succeeded in the offline build described below.
 - A normal `npm run build` could not fetch the existing Fraunces Google Font because DNS/network access is unavailable. The static build succeeded with `NEXT_FONT_GOOGLE_MOCKED_RESPONSES=/private/tmp/mardoc-font-responses.cjs npm run build`, using actual font files already cached in the main checkout. The temporary response file and font substitution were not committed; no production font configuration was changed.
 - Six new browser scenarios cover desktop and mobile (12 configured cases). Existing HTML comment-jump scenarios explicitly choose clean head preview when checking live-node/script preservation.

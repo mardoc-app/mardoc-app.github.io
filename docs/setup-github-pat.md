@@ -1,5 +1,7 @@
 # Connect GitHub with a personal access token
 
+**Sign in with GitHub is the simpler option.** Use it first: Settings → **GitHub Connection** → **Sign in with GitHub**. It needs no token to create or paste, but it reaches only repositories where the MarDoc GitHub App is installed, and it lasts 8 hours. Use a personal access token when sign-in is unavailable, when the app is not installed on the repository, or when you want a longer-lived token.
+
 MarDoc calls GitHub directly from your browser using a personal access token (PAT). It supports classic and fine-grained tokens; choose one your organization permits and scope it to the work you need. No Auth0 setup or environment variable is required.
 
 The token is saved in browser localStorage and sent to GitHub to authenticate requests. Read [data storage and security](data-and-security.md), including the current HTML isolation gap, before connecting sensitive repositories.
@@ -33,13 +35,13 @@ Fine-grained tokens are scoped to a resource owner and selected repositories. Or
 4. Generate and copy the token. For an organization using SAML SSO, authorize the token through **Configure SSO** as described in [GitHub's SSO guide](https://docs.github.com/en/authentication/authenticating-with-single-sign-on/authorizing-a-personal-access-token-for-use-with-single-sign-on).
 5. Paste it into Settings → **GitHub Connection**, connect, and select a repository.
 
-The current in-app help also suggests `read:org`. That scope concerns organization membership information; it is not a universal prerequisite for listing repositories accessible to the authenticated user. Start troubleshooting missing repositories with account access, token scope, SSO authorization, and organization policy rather than assuming this extra scope fixes every case. [Repository listing permissions](https://docs.github.com/en/rest/repos/repos#list-repositories-for-the-authenticated-user)
+MarDoc does not ask for `read:org`. That scope concerns organization membership information; it is not a universal prerequisite for listing repositories accessible to the authenticated user. Start troubleshooting missing repositories with account access, token scope, SSO authorization, and organization policy rather than assuming this extra scope fixes every case. [Repository listing permissions](https://docs.github.com/en/rest/repos/repos#list-repositories-for-the-authenticated-user)
 
 Some organizations restrict classic PATs or require approval for fine-grained PATs. Follow the organization's policy; [GitHub documents these controls](https://docs.github.com/en/organizations/managing-programmatic-access-to-your-organization/setting-a-personal-access-token-policy-for-your-organization).
 
 ## Disconnect or revoke
 
-**Disconnect** removes the saved token and repository preference from MarDoc. It does not erase drafts/preferences or comprehensively clear in-memory credentials. See [storage lifecycle](data-and-security.md). Deleting the token in GitHub settings revokes its API access.
+**Disconnect** removes the saved token, repository preference and cached repository list from MarDoc, and clears the in-memory GitHub client and its caches. It does not erase drafts or preferences. See [storage lifecycle](data-and-security.md). Deleting the token in GitHub settings revokes its API access.
 
 ## Troubleshooting
 

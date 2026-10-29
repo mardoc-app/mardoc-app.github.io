@@ -1,0 +1,14 @@
+sequenceDiagram
+  participant U as Reviewer
+  participant S as Static site
+  participant A as App shell and state
+  participant T as Token state
+  participant E as Markdown editor
+  U->>S: open mardoc.app
+  S-->>A: static files from out/
+  A->>A: start in demo mode with mock files and PRs
+  A->>T: read mardoc_github_token
+  T-->>A: no saved token
+  U->>A: choose a sample document
+  A->>E: mock document content
+  E-->>U: rendered document

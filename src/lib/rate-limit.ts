@@ -17,6 +17,17 @@
  */
 
 let pausedUntil = 0;
+// The kind of the active credential, recorded by initOctokit, so error text
+// can tell a sign-in token from a PAT (F-34). Never the token itself.
+let credentialKind: "pat" | "embed" | "sign-in" | null = null;
+
+export function setCredentialKind(kind: "pat" | "embed" | "sign-in" | null): void {
+  credentialKind = kind;
+}
+
+export function getCredentialKind(): "pat" | "embed" | "sign-in" | null {
+  return credentialKind;
+}
 let remaining: number | null = null;
 let limit: number | null = null;
 
@@ -148,6 +159,9 @@ export function isAuthError(error: unknown): boolean {
  */
 export function formatApiError(error: unknown, context: string): string {
   if (isAuthError(error)) {
+    if (credentialKind === "sign-in") {
+      return `${context}: your GitHub sign-in has ended. Sign in again.`;
+    }
     return `${context}: your GitHub token is invalid or expired. Open Settings to re-authenticate.`;
   }
   if (isRateLimitError(error)) {

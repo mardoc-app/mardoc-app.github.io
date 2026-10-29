@@ -1,8 +1,8 @@
 # 033 — Inline Comments on HTML Files
 
-**Status: Partial; isolation gap open.** Updated 2026-09-24; explicit comment jumps are in review.
+**Status: Partial; isolation gap open.** Updated 2026-09-24; corrected against `2b94d90` on 2026-10-21.
 
-HTML selection and source-line commenting paths exist. Explicit HTML comment jumps and live range highlighting are covered by [stage 4 of the comment navigation plan](../../comment-navigation-plan.md); passive pins and presentation-specific reveal remain separate work. Actual viewers include allow-same-origin contrary to the original plan. See SEC-01.
+HTML selection and source-line commenting paths exist. Explicit comment jumps with live range highlighting (#127), presentation reveal for numbered slide decks (#129, #130) and visible document markers (#131) have shipped; see [stage 4 of the comment navigation plan](../../comment-navigation-plan.md). Actual viewers include allow-same-origin contrary to the original plan. See SEC-01.
 
 See the [feature index](../README.md) for current status and reference documentation. The original story below is retained as a historical design record; its checkboxes and future-tense instructions are not a current completion report.
 

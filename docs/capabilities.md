@@ -1,6 +1,6 @@
 # Capabilities and workflows
 
-Reviewed against `4abb8f5` on 2026-09-23. See [known issues](known-issues.md) for implementation gaps and [data storage](data-and-security.md) before relying on draft recovery or document isolation.
+Reviewed against `4abb8f5` on 2026-09-23; on 2026-10-21 only a duplicated AI feedback paragraph was replaced with a link (adoption: see [adoption judgement](adoption/judgement.md)). See [known issues](known-issues.md) for implementation gaps and [data storage](data-and-security.md) before relying on draft recovery or document isolation.
 
 ## Document support
 
@@ -64,12 +64,24 @@ HTML presenter-note links and Markdown PR-review links can open changed document
 
 Repository Markdown images use URL rewriting and authenticated loading. HTML asset rewriting is a separate path; do not assume private-repository assets or relative assets in HTML PR views have identical support. The browser cannot read neighboring local files merely because one document was opened with its file picker.
 
+## Signing in
+
+**Sign in with GitHub** is the main way to connect. A small sign-in endpoint that MarDoc runs on Cloudflare exchanges GitHub tokens; it sees the token as it passes through and stores nothing (see [data and security](data-and-security.md)). A personal access token remains an option ([guide](setup-github-pat.md)).
+
+Stage 1 limits:
+
+- A sign-in lasts 8 hours. MarDoc warns before it ends. Sign in again after that, or after a reload; the open page and route stay in place.
+- Access is limited to repositories where the MarDoc GitHub App is installed. Settings links to the install page.
+- An organization may require an owner to approve the install.
+- Sign-in is not offered inside the VS Code extension; the extension supplies its own token.
+- Disconnect revokes the sign-in token at GitHub.
+
 ## Runtime modes
 
 | Mode | Available behavior | Boundary |
 | --- | --- | --- |
 | Demo | Sample documents/PRs, rendering, editing, local review interactions | Writes do not reach GitHub; image uploads are disabled; not every connected workflow is simulated. |
-| Connected browser | Repository browsing, PR review, Markdown commits and uploads | PAT permissions, branch rules, and GitHub availability apply. |
+| Connected browser | Repository browsing, PR review, Markdown commits and uploads | Sign-in access (installed repositories, 8 hours) or PAT permissions, branch rules, and GitHub availability apply. |
 | Local file in browser | File-picker loading; Markdown editing or HTML viewing | No general filesystem access or automatic disk write-back. New/local drafts are not recovered by the repository draft store. |
 | VS Code embed | App-side init/save/image/reload messages and embedded UI | Requires the separately maintained extension; this repository cannot certify its installed behavior. |
 | Mobile | Layout below 768px, navigation drawer, review comment sheet | Split mode is hidden; swipe-file navigation and forced tablet/mobile preference remain unfinished. |
@@ -102,7 +114,7 @@ network errors do not trigger a second comment type automatically. A lost server
 response still cannot prove whether a write happened; check GitHub before manually
 retrying such an error. Pending drafts are not restored after reloading the tab.
 
-AI feedback polishing is optional and off by default. Enable it under Settings → AI feedback to reveal polishing controls. Hosted providers usually require a provider API key; reviewing and commenting never require AI. Disabling the feature cancels active polishing and forgets its in-memory key.
+AI feedback polishing is optional and off by default; its enablement, key handling and data boundary are described in [Optional feedback AI connection](data-and-security.md#optional-feedback-ai-connection).
 
 ### Image review
 

@@ -6,14 +6,14 @@ AI-generated reports, specs, research, and documentation increasingly live in Gi
 
 Product managers, designers, writers, engineers, and other reviewers can work with the same version-controlled documents without making raw diffs their primary reading surface.
 
-MarDoc is a browser-only application, built as a static site and hosted on GitHub Pages. There is no MarDoc authentication server or database. GitHub requests go directly from your browser to GitHub; your PAT is saved in browser localStorage. Documents can also load external assets. See [data storage and security](docs/data-and-security.md) for the exact boundaries and the known HTML isolation gap.
+MarDoc is a browser-only application, built as a static site. GitHub Pages serves the app. No MarDoc server sees your documents: GitHub requests go directly from your browser to GitHub. There is one stateless sign-in endpoint at `mardoc.app/api/auth/*`. MarDoc runs it on Cloudflare, and it exchanges GitHub tokens for **Sign in with GitHub**. It stores nothing and logs nothing, but it does see your GitHub token while it passes the token to your browser. A personal access token (PAT) never goes through it; the browser saves a PAT in localStorage. Documents can also load external assets. See [data storage and security](docs/data-and-security.md) for the exact boundaries and the known HTML isolation gap.
 
 ![MarDoc screenshot](docs/assets/screenshot.png)
 
 ## Start using MarDoc
 
 1. Open [mardoc.app](https://mardoc.app) to explore the built-in demo documents and PRs.
-2. To work with a repository, open Settings → **GitHub Connection** and enter a personal access token using the [setup guide](docs/setup-github-pat.md).
+2. To work with a repository, open Settings → **GitHub Connection** and choose **Sign in with GitHub**. MarDoc works only where its GitHub App is installed, and the sign-in lasts 8 hours. Or enter a personal access token using the [setup guide](docs/setup-github-pat.md).
 3. Open the **Repository** tab, choose a repository, then browse files or open a pull request.
 
 Demo mode supports exploring rendering, editing, and review interactions. It does not write to GitHub, and image uploads are disabled.
@@ -34,7 +34,7 @@ Draft recovery applies to existing repository Markdown files. New/local files an
 Start with the [documentation index](docs/README.md). Key references:
 
 - [Capabilities and workflows](docs/capabilities.md)
-- [GitHub token setup](docs/setup-github-pat.md)
+- [GitHub token setup (the PAT option)](docs/setup-github-pat.md)
 - [Architecture and data flow](docs/architecture.md)
 - [Data storage and security](docs/data-and-security.md)
 - [Development, testing, and static deployment](docs/development.md)
@@ -51,7 +51,7 @@ npm ci
 npm run dev
 ```
 
-Open http://localhost:3000. No environment variables are required for demo mode or PAT authentication. To preview the production static export:
+Open http://localhost:3000. No environment variables are required for demo mode or PAT authentication. Sign in with GitHub needs the Cloudflare sign-in endpoint, which runs only on mardoc.app; locally, use a PAT. To preview the production static export:
 
 ```bash
 npm run build
@@ -64,7 +64,7 @@ See [Sharing and refreshing repository documents](docs/branch-links.md) for link
 
 ## Architecture
 
-Next.js 14 exports a static React application. Browser-side Octokit uses GitHub REST and GraphQL. Showdown, TipTap, and Turndown handle Markdown rendering/editing; HTML reports use an iframe. Tailwind provides styling. The core hosting model requires no application backend.
+Next.js 14 exports a static React application. Browser-side Octokit uses GitHub REST and GraphQL. Showdown, TipTap, and Turndown handle Markdown rendering/editing; HTML reports use an iframe. Tailwind provides styling. The app needs no application backend. The only server-side piece is the stateless sign-in Worker in `worker/` (see its [README](worker/README.md)).
 
 ## License
 

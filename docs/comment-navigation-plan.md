@@ -208,12 +208,12 @@ Validation includes desktop/mobile links, controls, Source/Rendered switching,
 and a temporary local comment on the private deck's slide-7 notes. No remote
 comment was created.
 
-## Clickable HTML comment markers — ready for review
+## Clickable HTML comment markers — shipped (#131)
 
 - [x] Show markers for existing HTML comments without requiring a prior jump.
 - [x] Clicking a marker opens and focuses its comment in the panel.
 - [x] Validate SVG/deck controls, text-node preservation, links and mobile/keyboard access.
-- [ ] Manual acceptance and merge of the marker PR.
+- [x] Merged as #131 (`34f0087`). A manual acceptance record is not in this repository.
 
 ### Passive HTML marker behavior
 
