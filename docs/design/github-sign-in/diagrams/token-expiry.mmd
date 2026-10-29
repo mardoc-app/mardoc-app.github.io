@@ -1,0 +1,17 @@
+sequenceDiagram
+  actor R as Reviewer
+  participant A as App auth state
+  participant C as GitHub client
+  participant W as Auth Worker
+  participant G as GitHub
+  A->>A: expiresAt minus 10 min, status expiring
+  A->>C: expiresAt reached, resetGitHubSession
+  C-->>A: Requests now fail as auth errors
+  R->>A: Click Sign in again
+  A->>W: Pop-up login, callback
+  W->>G: Exchange code
+  G-->>W: New access_token
+  W-->>A: Result posted to opener
+  A->>G: GET /user
+  G-->>A: Same login
+  A->>C: initOctokit(new token), UI state kept

@@ -1,8 +1,8 @@
 # 027 — Concurrent Request Safety
 
-**Status: Partial.** Reviewed against `4abb8f5` on 2026-09-23.
+**Status: Implemented core.** Reviewed against `4abb8f5` on 2026-09-23; corrected against `2b94d90` on 2026-10-21.
 
-Generation guards protect several loads, but PR-list loading and count enrichment remain unguarded. Implementation uses generation checks, not the proposed AbortController cancellation.
+Generation guards protect repository, file, PR and PR-list loads; PR-list loading and count enrichment also use AbortController cancellation. REVIEW-02 is closed in code.
 
 See the [feature index](../README.md) for current status and reference documentation. The original story below is retained as a historical design record; its checkboxes and future-tense instructions are not a current completion report.
 

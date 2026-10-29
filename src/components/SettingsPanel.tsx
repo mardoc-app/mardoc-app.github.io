@@ -1,10 +1,14 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
-import { Settings, X, Github, LogIn, LogOut, RefreshCw, Lock, Globe, Search, FolderOpen } from "lucide-react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { Settings, X, RefreshCw, Lock, Globe, Search, FolderOpen } from "lucide-react";
 import { useApp } from "@/lib/app-context";
 import { fetchUserRepos } from "@/lib/github-api";
 import FeedbackAISettings from "./FeedbackAISettings";
+import GitHubConnectionTab from "./GitHubConnectionTab";
+import { INSTALL_URL } from "./sign-in-text";
+import { isSignInKey } from "@/lib/auth/session";
+import type { SessionKey } from "@/lib/auth/types";
 import * as safeStorage from "@/lib/safe-storage";
 import {
   getImageUploadFolder,
@@ -15,19 +19,23 @@ import {
 interface SettingsPanelProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Open on the GitHub Connection tab with the token form showing (F-42, F-44). */
+  showPat?: boolean;
 }
 
-export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
+export default function SettingsPanel({ isOpen, onClose, showPat }: SettingsPanelProps) {
   const {
     isAuthenticated,
-    githubToken,
-    setGithubToken,
+    sessionKey,
     currentRepo,
     setCurrentRepo,
     isDemoMode,
   } = useApp();
 
-  const [tokenInput, setTokenInput] = useState("");
+  const [patOpen, setPatOpen] = useState(false);
+  useEffect(() => {
+    if (isOpen && showPat) { setActiveTab("connect"); setPatOpen(true); }
+  }, [isOpen, showPat]);
   const [repoInput, setRepoInput] = useState(currentRepo || "");
   const [imageFolderInput, setImageFolderInput] = useState("");
   const [imageFolderSaved, setImageFolderSaved] = useState(false);
@@ -71,43 +79,55 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     setTimeout(() => setImageFolderSaved(false), 1500);
   };
 
+  // The credential the repository list was loaded for. The list lists what
+  // that credential can reach (a PAT: /user/repos; a sign-in: installations,
+  // F-40), so it reloads whenever the session key changes, even while
+  // Settings stays open (CR-1).
+  const listKey = useRef<SessionKey | undefined>(undefined);
+  // Load generation: every reload, credential change and Disconnect bumps it,
+  // and a response applies only if its generation is still current (CR-9). A
+  // key comparison is not enough: two PATs share the key "pat".
+  const loadGen = useRef(0);
+
+  const loadRepos = useCallback(() => {
+    const gen = ++loadGen.current;
+    setLoadingRepos(true);
+    fetchUserRepos()
+      .then((repos) => {
+        // A response for an earlier load or credential is dropped.
+        if (loadGen.current !== gen) return;
+        setUserRepos(repos);
+        safeStorage.setItem("mardoc_user_repos", JSON.stringify(repos));
+      })
+      .catch(console.error)
+      .finally(() => {
+        if (loadGen.current === gen) setLoadingRepos(false);
+      });
+  }, []);
+
   // Load user repos: show cached immediately, refresh in background
   useEffect(() => {
-    if (isAuthenticated && isOpen) {
-      // Show cached repos instantly
-      const cached = safeStorage.getItem("mardoc_user_repos");
-      if (cached) {
-        try {
-          setUserRepos(JSON.parse(cached));
-        } catch { /* ignore corrupt cache */ }
-      }
-
-      // Fetch fresh list in background
-      setLoadingRepos(!cached);
-      fetchUserRepos()
-        .then((repos) => {
-          setUserRepos(repos);
-          safeStorage.setItem("mardoc_user_repos", JSON.stringify(repos));
-        })
-        .catch(console.error)
-        .finally(() => setLoadingRepos(false));
+    if (!isOpen) return;
+    const changed = listKey.current !== undefined && listKey.current !== sessionKey;
+    listKey.current = sessionKey;
+    if (changed) {
+      loadGen.current++;
+      setUserRepos([]);
+      setLoadingRepos(false);
     }
-  }, [isAuthenticated, isOpen]);
-
-  const handleConnect = () => {
-    if (tokenInput.trim()) {
-      setGithubToken(tokenInput.trim());
-      setActiveTab("repo");
+    if (!isAuthenticated) return;
+    // The cache is shown only on opening; after a credential change it may
+    // belong to the previous credential.
+    const cached = changed ? null : safeStorage.getItem("mardoc_user_repos");
+    if (cached) {
+      try {
+        setUserRepos(JSON.parse(cached));
+      } catch { /* ignore corrupt cache */ }
     }
-  };
-
-  const handleDisconnect = () => {
-    setGithubToken(null);
-    setTokenInput("");
-    setUserRepos([]);
-    safeStorage.removeItem("mardoc_user_repos");
-    setActiveTab("connect");
-  };
+    // Fetch fresh list in background
+    loadRepos();
+    if (cached) setLoadingRepos(false);
+  }, [isAuthenticated, isOpen, sessionKey, loadRepos]);
 
   const handleSelectRepo = (repo: string) => {
     setRepoInput(repo);
@@ -170,92 +190,18 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-5">
           {activeTab === "ai" ? <FeedbackAISettings /> : activeTab === "connect" ? (
-            <div className="space-y-4">
-              {isAuthenticated ? (
-                <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                      <Github size={16} className="text-green-600 dark:text-green-400" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-[var(--text-primary)]">Connected to GitHub</p>
-                      <p className="text-xs text-[var(--text-muted)]">Token active</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={handleDisconnect}
-                    className="flex items-center gap-2 text-sm px-3 py-2 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                  >
-                    <LogOut size={14} />
-                    Disconnect
-                  </button>
-                </div>
-              ) : (
-                <div>
-                  <p className="text-sm text-[var(--text-secondary)] mb-3">
-                    Connect with a GitHub Personal Access Token to browse real repositories.
-                    The app also works in demo mode with sample data.
-                  </p>
-
-                  <div className="bg-[var(--surface-secondary)] rounded-lg p-3 mb-4">
-                    <p className="text-xs text-[var(--text-secondary)] mb-2">
-                      <strong>How to create a classic token:</strong>
-                    </p>
-                    <ol className="text-xs text-[var(--text-muted)] space-y-1 list-decimal ml-4">
-                      <li>Go to GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)</li>
-                      <li>Click "Generate new token" → "Generate new token (classic)"</li>
-                      <li>Give it a note (e.g. "MarDoc") and set an expiration</li>
-                      <li>
-                        Check <strong>repo</strong> (reading code, PRs, and review comments)
-                        and <strong>read:org</strong> (if you want to see any organization
-                        repos — skip only if every repo is in your personal account)
-                      </li>
-                      <li>
-                        Click "Generate token", then if any of your orgs use SSO click
-                        <strong> Configure SSO</strong> next to the token and authorize each one
-                      </li>
-                      <li>Copy the <code className="px-1 rounded bg-[var(--surface)]">ghp_…</code> value and paste below</li>
-                    </ol>
-                    <p className="text-[10px] text-[var(--text-muted)] mt-2 italic">
-                      Classic tokens are simpler than fine-grained ones — one scope, one click.
-                      If you already have a fine-grained token with Contents + Pull Requests +
-                      Issues permissions, it will also work.
-                    </p>
-                  </div>
-
-                  <label className="block text-sm font-medium text-[var(--text-primary)] mb-1.5">
-                    Personal Access Token
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="password"
-                      value={tokenInput}
-                      onChange={(e) => setTokenInput(e.target.value)}
-                      placeholder="ghp_..."
-                      className="flex-1 px-3 py-2 text-sm rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] font-mono"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleConnect();
-                      }}
-                    />
-                    <button
-                      onClick={handleConnect}
-                      disabled={!tokenInput.trim()}
-                      className="flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white text-sm rounded-lg hover:bg-[var(--accent-hover)] transition-colors disabled:opacity-40"
-                    >
-                      <LogIn size={14} />
-                      Connect
-                    </button>
-                  </div>
-
-                  <div className="mt-4 pt-4 border-t border-[var(--border)]">
-                    <p className="text-xs text-[var(--text-muted)]">
-                      Your token never leaves your browser. MarDoc runs entirely client-side — there is no server.
-                      Your token is stored in local storage and used to call the GitHub API directly from your machine.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
+            <GitHubConnectionTab
+              patOpen={patOpen}
+              setPatOpen={setPatOpen}
+              onPatConnected={() => setActiveTab("repo")}
+              onDisconnected={() => {
+                loadGen.current++;
+                setUserRepos([]);
+                setLoadingRepos(false);
+                safeStorage.removeItem("mardoc_user_repos");
+                setActiveTab("connect");
+              }}
+            />
           ) : (
             <div className="space-y-4">
               {/* Manual repo input */}
@@ -297,16 +243,7 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                       )}
                     </label>
                     <button
-                      onClick={() => {
-                        setLoadingRepos(true);
-                        fetchUserRepos()
-                          .then((repos) => {
-                            setUserRepos(repos);
-                            safeStorage.setItem("mardoc_user_repos", JSON.stringify(repos));
-                          })
-                          .catch(console.error)
-                          .finally(() => setLoadingRepos(false));
-                      }}
+                      onClick={loadRepos}
                       className="toolbar-btn"
                       title="Refresh"
                     >
@@ -375,9 +312,24 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                       No repos matching &ldquo;{repoFilter}&rdquo;
                     </p>
                   ) : (
+                    isSignInKey(sessionKey) ? (
+                      <div className="text-sm text-[var(--text-secondary)] py-2 space-y-2" data-testid="no-installations">
+                        <p>MarDoc isn&rsquo;t installed on any repository you can reach.</p>
+                        <p>
+                          <a href={INSTALL_URL} target="_blank" rel="noopener noreferrer" className="text-[var(--accent)] underline">
+                            Install MarDoc on a repository
+                          </a>
+                          , or ask a repository owner to install it.
+                        </p>
+                        <button type="button" onClick={() => { setActiveTab("connect"); setPatOpen(true); }} className="text-[var(--accent)] underline">
+                          Use a personal access token
+                        </button>
+                      </div>
+                    ) : (
                     <p className="text-sm text-[var(--text-muted)] py-2">
                       No repositories found. Try entering a repo name manually above.
                     </p>
+                    )
                   )}
                 </div>
               )}

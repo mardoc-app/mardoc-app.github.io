@@ -2,7 +2,7 @@
 
 **Status: App side implemented; extension unverified.** Reviewed against `4abb8f5` on 2026-09-23.
 
-Embed UI and message handlers exist in this repository. Verify extension commands, filesystem operations, and packaging in the separate extension repository.
+Embed UI and message handlers exist in this repository. Verify extension commands, filesystem operations, and packaging in the separate extension repository. The extension's local checkout at `41088d5` requests the GitHub `repo` scope (`getSession('github', ['repo'], {createIfNone: false})`, `src/extension.ts:111`); whether that scope is intended is open as Q-17.
 
 See the [feature index](../README.md) for current status and reference documentation. The original story below is retained as a historical design record; its checkboxes and future-tense instructions are not a current completion report.
 

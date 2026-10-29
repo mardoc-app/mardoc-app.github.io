@@ -19,13 +19,18 @@
  *
  * This spec can't reproduce VS Code's specific interference from
  * Playwright, but it does verify the embed-mode copy path works
- * end-to-end: loading the app with ?embed=true, receiving a file
- * via the init postMessage path, selecting text, pressing Cmd+C,
- * and reading the clipboard back. A regression that breaks the
- * embed-mode keydown handler or the execCommand fallback fails here.
+ * end-to-end: loading the app with ?embed=true inside a host page
+ * that stands in for the webview, receiving a file via the init
+ * postMessage path, selecting text, pressing Cmd+C, and reading the
+ * clipboard back. A regression that breaks the embed-mode keydown
+ * handler or the execCommand fallback fails here.
+ *
+ * The host page posts `init` from MarDoc's parent window, because
+ * F-16 rejects an `init` the page posts to itself.
  */
 import { test, expect } from "@playwright/test";
 import { waitForHydration } from "./fixtures/helpers";
+import { openEmbedHost, sendInitFromHost } from "./fixtures/embed-host";
 
 test.describe("Embed mode: clipboard", () => {
   test("embed mode loads without crashing on ?embed=true", async ({ page }) => {
@@ -51,28 +56,23 @@ test.describe("Embed mode: clipboard", () => {
     test.skip(browserName === "webkit", "webkit clipboard permissions not supported");
     await context.grantPermissions(["clipboard-read"]);
 
-    await page.goto("/?embed=true");
-    await waitForHydration(page);
+    const mardoc = await openEmbedHost(page);
 
     // Simulate the init message the VS Code extension host sends
     // when it opens a file with "Edit with MarDoc". This is the same
-    // postMessage contract documented in feature 017.
+    // postMessage contract documented in feature 017, posted from the
+    // parent window as the webview does.
     const sentinel = `e2e-clip-${Date.now()}`;
     const fileContent = `# Sample\n\nThis is a paragraph containing the sentinel ${sentinel} that the test selects and copies.\n`;
-    await page.evaluate(
-      (payload) => {
-        window.postMessage(payload, "*");
-      },
-      {
-        type: "init",
-        fileName: "sample.md",
-        filePath: "sample.md",
-        fileContent,
-      }
-    );
+    await sendInitFromHost(page, {
+      type: "init",
+      fileName: "sample.md",
+      filePath: "sample.md",
+      fileContent,
+    });
 
     // Wait for the editor to render the file content
-    const pm = page.locator(".ProseMirror");
+    const pm = mardoc.locator(".ProseMirror");
     await expect(pm).toBeVisible({ timeout: 10_000 });
     await expect(pm.locator("text=" + sentinel).first()).toBeVisible({
       timeout: 5_000,
@@ -88,7 +88,9 @@ test.describe("Embed mode: clipboard", () => {
     // Read the clipboard and verify it contains our sentinel. If the
     // embed-mode handler is broken or the execCommand fallback is
     // removed, this assertion fails loudly.
-    const clipText = await page.evaluate(() => navigator.clipboard.readText());
+    const frame = page.frame({ url: /[?&]embed=true/ });
+    expect(frame).not.toBeNull();
+    const clipText = await frame!.evaluate(() => navigator.clipboard.readText());
     expect(clipText).toContain(sentinel);
   });
 });

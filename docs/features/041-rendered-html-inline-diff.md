@@ -17,4 +17,4 @@ The engine compares static HTML structure and text. CSS/script behavior, runtime
 
 ## Validation
 
-See [delivery plan](../html-inline-diff-delivery-plan.md) for actual test/build results, worktree layout, and browser execution limitations. Source: `src/lib/html-diff.ts`, `src/lib/html-diff-navigation.ts`, `src/components/HtmlDiffToolbar.tsx`, and `src/components/DiffViewer.tsx`.
+See [delivery plan](../archive/html-inline-diff-delivery-plan.md) for actual test/build results, worktree layout, and browser execution limitations. Source: `src/lib/html-diff.ts`, `src/lib/html-diff-navigation.ts`, `src/components/HtmlDiffToolbar.tsx`, and `src/components/DiffViewer.tsx`.

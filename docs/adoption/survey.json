@@ -1,0 +1,1464 @@
+{
+  "root": "/Users/josephbarnett/business/code/mardoc-io/mardoc-io.github.io",
+  "today": "2026-10-21",
+  "summary": {
+    "docs": 72,
+    "inventory_files": 91,
+    "stale": 0,
+    "broken_links": 33,
+    "broken_links_unique": 9,
+    "docs_with_broken_links": 4,
+    "unreferenced_images": 9,
+    "unreferenced_drawio": 1,
+    "levels_declared": 3,
+    "levels_guessed": 69,
+    "git": true
+  },
+  "inventory": {
+    "total": 91,
+    "docs": 72,
+    "by_folder": {
+      ".": 4,
+      "docs": 15,
+      "docs/adr": 1,
+      "docs/archive": 2,
+      "docs/assets": 3,
+      "docs/design": 24,
+      "docs/features": 39,
+      "docs/reviews": 2,
+      "e2e": 1
+    },
+    "by_format": {
+      "drawio": 5,
+      "html": 5,
+      "md": 67,
+      "png": 3,
+      "svg": 11
+    },
+    "files": [
+      "AGENTS.md",
+      "CLAUDE.md",
+      "README.md",
+      "REVIEW.md",
+      "docs/README.md",
+      "docs/adr/0001-web-sign-in-github-app-worker-route.md",
+      "docs/architecture.md",
+      "docs/archive/application-audit.md",
+      "docs/archive/html-inline-diff-delivery-plan.md",
+      "docs/assets/dogfood-review-pr60.png",
+      "docs/assets/mardoc-logo.png",
+      "docs/assets/screenshot.png",
+      "docs/branch-links.md",
+      "docs/capabilities.md",
+      "docs/comment-navigation-plan.md",
+      "docs/data-and-security.md",
+      "docs/design/github-connection/architecture.html",
+      "docs/design/github-connection/diagrams/components.drawio",
+      "docs/design/github-connection/diagrams/components.svg",
+      "docs/design/github-connection/diagrams/connect.svg",
+      "docs/design/github-connection/diagrams/domain.drawio",
+      "docs/design/github-connection/diagrams/domain.svg",
+      "docs/design/github-connection/diagrams/embed-init.svg",
+      "docs/design/github-sign-in/diagrams/landscape.drawio",
+      "docs/design/github-sign-in/diagrams/landscape.svg",
+      "docs/design/github-sign-in/strategy.html",
+      "docs/design/mardoc/architecture.html",
+      "docs/design/mardoc/design.md",
+      "docs/design/mardoc/diagrams/architecture.drawio",
+      "docs/design/mardoc/diagrams/architecture.svg",
+      "docs/design/mardoc/diagrams/domain.drawio",
+      "docs/design/mardoc/diagrams/domain.svg",
+      "docs/design/mardoc/diagrams/seq-demo.svg",
+      "docs/design/mardoc/diagrams/seq-embed-init.svg",
+      "docs/design/mardoc/diagrams/seq-open-document.svg",
+      "docs/design/mardoc/diagrams/seq-review-pr.svg",
+      "docs/design/mardoc/intent.md",
+      "docs/design/mardoc/requirements.md",
+      "docs/design/mardoc/ux.html",
+      "docs/design/mobile-prototype.html",
+      "docs/development.md",
+      "docs/features/037-ai-page-translation.md",
+      "docs/features/039-per-file-comment-filtering.md",
+      "docs/features/039-web-folder-open-local-images.md",
+      "docs/features/040-embed-reload-shortcut.md",
+      "docs/features/041-rendered-html-inline-diff.md",
+      "docs/features/README.md",
+      "docs/features/done/001-render-final-markdown.md",
+      "docs/features/done/002-branch-selector.md",
+      "docs/features/done/003-comment-to-pr.md",
+      "docs/features/done/004-edit-to-pr.md",
+      "docs/features/done/005-restore-last-repo-on-return.md",
+      "docs/features/done/006-code-block-syntax-highlighting.md",
+      "docs/features/done/007-url-routing-and-deep-links.md",
+      "docs/features/done/008-wide-format-toggle.md",
+      "docs/features/done/009-document-link-navigation.md",
+      "docs/features/done/010-comment-reply-threading.md",
+      "docs/features/done/010-suggested-changes.md",
+      "docs/features/done/011-sync-comment-resolution-status.md",
+      "docs/features/done/012-open-local-file.md",
+      "docs/features/done/015-create-new-file-in-repo.md",
+      "docs/features/done/016-add-file-to-pr.md",
+      "docs/features/done/017-vscode-extension.md",
+      "docs/features/done/018-html-in-markdown-roundtrip.md",
+      "docs/features/done/019-code-view-toggle.md",
+      "docs/features/done/020-vscode-webview-compat.md",
+      "docs/features/done/021-hash-router-url-decoding.md",
+      "docs/features/done/022-mermaid-rerender-code-view.md",
+      "docs/features/done/023-localstorage-error-handling.md",
+      "docs/features/done/024-github-api-error-handling.md",
+      "docs/features/done/025-link-bubble-robustness.md",
+      "docs/features/done/026-navigation-guard-unsaved-changes.md",
+      "docs/features/done/027-concurrent-request-safety.md",
+      "docs/features/done/028-pr-description-display.md",
+      "docs/features/done/029-remove-console-log-stubs.md",
+      "docs/features/done/030-embed-local-image-rendering.md",
+      "docs/features/done/031-html-document-rendering.md",
+      "docs/features/done/032-mermaid-theme-upgrade.md",
+      "docs/features/done/033-html-inline-comments.md",
+      "docs/features/done/038-cellphone-mode-viewer.md",
+      "docs/known-issues.md",
+      "docs/lessons.md",
+      "docs/performance.md",
+      "docs/plan.md",
+      "docs/review-links.md",
+      "docs/reviews/2026-10-20-as-is-baselines.md",
+      "docs/reviews/2026-10-20-github-sign-in-l0.md",
+      "docs/risks.md",
+      "docs/setup-github-pat.md",
+      "docs/test-html-roundtrip.md",
+      "e2e/README.md"
+    ]
+  },
+  "docs": [
+    {
+      "path": "AGENTS.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-10-20",
+      "content_commit": "980caf1",
+      "code_refs": [
+        "REVIEW.md",
+        "demos",
+        "e2e",
+        "src/__tests__",
+        "src/app",
+        "src/components",
+        "src/lib"
+      ],
+      "code_commits_since": 0,
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "CLAUDE.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-10-20",
+      "content_commit": "980caf1",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "README.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "b53597d",
+      "code_refs": [
+        "LICENSE"
+      ],
+      "code_commits_since": 0,
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "REVIEW.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-10-20",
+      "content_commit": "980caf1",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/README.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-10-14",
+      "content_commit": "f4c383c",
+      "code_refs": [
+        "public/demo.html",
+        "public/mobile-prototype.html",
+        "src/lib/mock-data.ts"
+      ],
+      "code_commits_since": 0,
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/adr/0001-web-sign-in-github-app-worker-route.md",
+      "level": "process",
+      "level_source": "guess",
+      "content_date": "2026-10-20",
+      "content_commit": "2b94d90",
+      "code_refs": [
+        "src/lib/app-context.tsx"
+      ],
+      "code_commits_since": 0,
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/architecture.md",
+      "level": "L1",
+      "level_source": "guess",
+      "content_date": "2026-10-15",
+      "content_commit": "cc6a117",
+      "code_refs": [
+        "out"
+      ],
+      "code_commits_since": 0,
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/archive/application-audit.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": null,
+      "content_commit": null,
+      "code_refs": [
+        ".github/workflows/deploy.yml",
+        "e2e/README.md",
+        "next.config.js",
+        "out",
+        "package.json",
+        "src/app/page.tsx",
+        "src/components/DiffViewer.tsx",
+        "src/components/Editor.tsx",
+        "src/components/HtmlViewer.tsx",
+        "src/components/PRDetail.tsx",
+        "src/lib/app-context.tsx",
+        "src/lib/diff-blocks.ts",
+        "src/lib/github-api.ts",
+        "src/lib/turndown.ts"
+      ],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/archive/html-inline-diff-delivery-plan.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": null,
+      "content_commit": null,
+      "code_refs": [
+        "vitest.config.ts"
+      ],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/branch-links.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "b357b76",
+      "code_refs": [
+        "e2e/branch-links.spec.ts"
+      ],
+      "code_commits_since": 6,
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/capabilities.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-10-19",
+      "content_commit": "2590742",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/comment-navigation-plan.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-28",
+      "content_commit": "34f0087",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/data-and-security.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-10-21",
+      "content_commit": "82b1034",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/design/github-connection/architecture.html",
+      "level": "L1",
+      "level_source": "declared",
+      "content_date": "2026-10-21",
+      "content_commit": "91eb976",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": [
+        {
+          "link": "#connect-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/github-connection/architecture.html#connect-gradient"
+        },
+        {
+          "link": "#connect-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/github-connection/architecture.html#connect-gradient"
+        },
+        {
+          "link": "#connect-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/github-connection/architecture.html#connect-gradient"
+        },
+        {
+          "link": "#connect-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/github-connection/architecture.html#connect-gradient"
+        },
+        {
+          "link": "#connect-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/github-connection/architecture.html#connect-gradient"
+        },
+        {
+          "link": "#embed-init-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/github-connection/architecture.html#embed-init-gradient"
+        },
+        {
+          "link": "#embed-init-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/github-connection/architecture.html#embed-init-gradient"
+        },
+        {
+          "link": "#embed-init-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/github-connection/architecture.html#embed-init-gradient"
+        },
+        {
+          "link": "#embed-init-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/github-connection/architecture.html#embed-init-gradient"
+        },
+        {
+          "link": "#embed-init-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/github-connection/architecture.html#embed-init-gradient"
+        }
+      ]
+    },
+    {
+      "path": "docs/design/github-sign-in/strategy.html",
+      "level": "L0",
+      "level_source": "declared",
+      "content_date": "2026-10-20",
+      "content_commit": "2b94d90",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/design/mardoc/architecture.html",
+      "level": "L1",
+      "level_source": "declared",
+      "content_date": "2026-10-21",
+      "content_commit": "91eb976",
+      "code_refs": [
+        "out"
+      ],
+      "code_commits_since": 0,
+      "stale": false,
+      "broken_links": [
+        {
+          "link": "#seq-demo-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/architecture.html#seq-demo-gradient"
+        },
+        {
+          "link": "#seq-demo-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/architecture.html#seq-demo-gradient"
+        },
+        {
+          "link": "#seq-demo-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/architecture.html#seq-demo-gradient"
+        },
+        {
+          "link": "#seq-demo-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/architecture.html#seq-demo-gradient"
+        },
+        {
+          "link": "#seq-demo-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/architecture.html#seq-demo-gradient"
+        },
+        {
+          "link": "#seq-open-document-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/architecture.html#seq-open-document-gradient"
+        },
+        {
+          "link": "#seq-open-document-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/architecture.html#seq-open-document-gradient"
+        },
+        {
+          "link": "#seq-open-document-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/architecture.html#seq-open-document-gradient"
+        },
+        {
+          "link": "#seq-open-document-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/architecture.html#seq-open-document-gradient"
+        },
+        {
+          "link": "#seq-open-document-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/architecture.html#seq-open-document-gradient"
+        },
+        {
+          "link": "#seq-review-pr-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/architecture.html#seq-review-pr-gradient"
+        },
+        {
+          "link": "#seq-review-pr-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/architecture.html#seq-review-pr-gradient"
+        },
+        {
+          "link": "#seq-review-pr-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/architecture.html#seq-review-pr-gradient"
+        },
+        {
+          "link": "#seq-review-pr-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/architecture.html#seq-review-pr-gradient"
+        },
+        {
+          "link": "#seq-review-pr-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/architecture.html#seq-review-pr-gradient"
+        },
+        {
+          "link": "#seq-embed-init-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/architecture.html#seq-embed-init-gradient"
+        },
+        {
+          "link": "#seq-embed-init-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/architecture.html#seq-embed-init-gradient"
+        },
+        {
+          "link": "#seq-embed-init-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/architecture.html#seq-embed-init-gradient"
+        },
+        {
+          "link": "#seq-embed-init-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/architecture.html#seq-embed-init-gradient"
+        },
+        {
+          "link": "#seq-embed-init-gradient",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/architecture.html#seq-embed-init-gradient"
+        }
+      ]
+    },
+    {
+      "path": "docs/design/mardoc/design.md",
+      "level": "L2",
+      "level_source": "guess",
+      "content_date": "2026-10-20",
+      "content_commit": "980caf1",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/design/mardoc/intent.md",
+      "level": "L1",
+      "level_source": "guess",
+      "content_date": "2026-10-20",
+      "content_commit": "980caf1",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/design/mardoc/requirements.md",
+      "level": "L1",
+      "level_source": "guess",
+      "content_date": "2026-10-20",
+      "content_commit": "78b4df0",
+      "code_refs": [
+        ".github/workflows/test.yml",
+        "vitest.config.ts"
+      ],
+      "code_commits_since": 0,
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/design/mardoc/ux.html",
+      "level": "L1",
+      "level_source": "guess",
+      "content_date": "2026-10-20",
+      "content_commit": "980caf1",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/design/mobile-prototype.html",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-04-16",
+      "content_commit": "2ef6530",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/development.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "5854965",
+      "code_refs": [
+        "README.md",
+        "next.config.js",
+        "out",
+        "public/CNAME",
+        "src/__tests__"
+      ],
+      "code_commits_since": 27,
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/features/037-ai-page-translation.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "5854965",
+      "code_refs": [
+        "README.md"
+      ],
+      "code_commits_since": 1,
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/features/039-per-file-comment-filtering.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "5854965",
+      "code_refs": [
+        "README.md",
+        "src/components/DiffViewer.tsx",
+        "src/lib/comment-merge.ts",
+        "src/lib/github-api.ts",
+        "src/types/index.ts"
+      ],
+      "code_commits_since": 22,
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/features/039-web-folder-open-local-images.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": null,
+      "content_commit": null,
+      "code_refs": [
+        "README.md",
+        "src/components/Sidebar.tsx",
+        "src/lib/app-context.tsx",
+        "src/lib/github-api.ts"
+      ],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/features/040-embed-reload-shortcut.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "5854965",
+      "code_refs": [
+        "README.md",
+        "package.json",
+        "src/__tests__/embed-reload.test.ts",
+        "src/app/page.tsx",
+        "src/components/Editor.tsx",
+        "src/lib/app-context.tsx",
+        "src/lib/embed-reload.ts",
+        "src/lib/keyboard-shortcuts.ts"
+      ],
+      "code_commits_since": 9,
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/features/041-rendered-html-inline-diff.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-10-15",
+      "content_commit": "cc6a117",
+      "code_refs": [
+        "src/components/DiffViewer.tsx",
+        "src/components/HtmlDiffToolbar.tsx",
+        "src/lib/html-diff-navigation.ts",
+        "src/lib/html-diff.ts"
+      ],
+      "code_commits_since": 2,
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/features/README.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-10-15",
+      "content_commit": "cc6a117",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/features/done/001-render-final-markdown.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "5854965",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/features/done/002-branch-selector.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "5854965",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/features/done/003-comment-to-pr.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "5854965",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/features/done/004-edit-to-pr.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "5854965",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/features/done/005-restore-last-repo-on-return.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "5854965",
+      "code_refs": [
+        "src/lib/app-context.tsx"
+      ],
+      "code_commits_since": 6,
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/features/done/006-code-block-syntax-highlighting.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "5854965",
+      "code_refs": [
+        "src/components/Editor.tsx"
+      ],
+      "code_commits_since": 2,
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/features/done/007-url-routing-and-deep-links.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "5854965",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/features/done/008-wide-format-toggle.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "5854965",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/features/done/009-document-link-navigation.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "5854965",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/features/done/010-comment-reply-threading.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "5854965",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/features/done/010-suggested-changes.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "5854965",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/features/done/011-sync-comment-resolution-status.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "5854965",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/features/done/012-open-local-file.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "5854965",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/features/done/015-create-new-file-in-repo.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "5854965",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/features/done/016-add-file-to-pr.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "5854965",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/features/done/017-vscode-extension.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "5854965",
+      "code_refs": [
+        "package.json"
+      ],
+      "code_commits_since": 1,
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/features/done/018-html-in-markdown-roundtrip.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "5854965",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/features/done/019-code-view-toggle.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "5854965",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/features/done/020-vscode-webview-compat.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "5854965",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/features/done/021-hash-router-url-decoding.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "5854965",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/features/done/022-mermaid-rerender-code-view.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "5854965",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/features/done/023-localstorage-error-handling.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "5854965",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/features/done/024-github-api-error-handling.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "5854965",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/features/done/025-link-bubble-robustness.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "5854965",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/features/done/026-navigation-guard-unsaved-changes.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "5854965",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/features/done/027-concurrent-request-safety.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "5854965",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/features/done/028-pr-description-display.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "5854965",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/features/done/029-remove-console-log-stubs.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "5854965",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/features/done/030-embed-local-image-rendering.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "5854965",
+      "code_refs": [
+        "src/lib/embed-image-bridge.ts"
+      ],
+      "code_commits_since": 0,
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/features/done/031-html-document-rendering.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "b678148",
+      "code_refs": [
+        "src/app/page.tsx",
+        "src/components/DiffViewer.tsx",
+        "src/components/HtmlViewer.tsx",
+        "src/lib/app-context.tsx",
+        "src/lib/file-types.ts"
+      ],
+      "code_commits_since": 17,
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/features/done/032-mermaid-theme-upgrade.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "5854965",
+      "code_refs": [
+        "src/app/globals.css",
+        "src/lib/mermaid.ts"
+      ],
+      "code_commits_since": 4,
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/features/done/033-html-inline-comments.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-24",
+      "content_commit": "5e4cf33",
+      "code_refs": [
+        "src/__tests__/html-source-lines.test.ts",
+        "src/__tests__/readme-claims.test.ts"
+      ],
+      "code_commits_since": 0,
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/features/done/038-cellphone-mode-viewer.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "5854965",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/known-issues.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "5854965",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/lessons.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-10-20",
+      "content_commit": "980caf1",
+      "code_refs": [
+        "AGENTS.md"
+      ],
+      "code_commits_since": 0,
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/performance.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-24",
+      "content_commit": "a0cf841",
+      "code_refs": [
+        "e2e/pr-mermaid-stability.spec.ts",
+        "e2e/render-reuse.spec.ts",
+        "src/__tests__/render-reuse.test.ts",
+        "src/lib/iframe-resize.ts"
+      ],
+      "code_commits_since": 0,
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/plan.md",
+      "level": "process",
+      "level_source": "guess",
+      "content_date": "2026-10-21",
+      "content_commit": "53e66cd",
+      "code_refs": [
+        ".github/workflows/test.yml",
+        "e2e",
+        "out",
+        "src/__tests__",
+        "src/lib/app-context.tsx",
+        "src/lib/github-api.ts"
+      ],
+      "code_commits_since": 0,
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/review-links.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-10-15",
+      "content_commit": "cca71b0",
+      "code_refs": [
+        "e2e/branch-links.spec.ts"
+      ],
+      "code_commits_since": 0,
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/reviews/2026-10-20-as-is-baselines.md",
+      "level": "process",
+      "level_source": "guess",
+      "content_date": "2026-10-21",
+      "content_commit": "91eb976",
+      "code_refs": [
+        "README.md",
+        "REVIEW.md",
+        "next.config.js",
+        "out",
+        "public/CNAME",
+        "src"
+      ],
+      "code_commits_since": 0,
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/reviews/2026-10-20-github-sign-in-l0.md",
+      "level": "process",
+      "level_source": "guess",
+      "content_date": "2026-10-20",
+      "content_commit": "93832aa",
+      "code_refs": [
+        ".github/workflows/deploy.yml",
+        "e2e",
+        "src",
+        "src/components/HtmlViewer.tsx",
+        "src/lib/app-context.tsx",
+        "src/lib/github-api.ts",
+        "src/lib/rate-limit.ts"
+      ],
+      "code_commits_since": 0,
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/risks.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-10-20",
+      "content_commit": "78b4df0",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": [
+        {
+          "link": "design/mardoc/design.md#accepted-risks",
+          "kind": "anchor",
+          "resolved": "docs/design/mardoc/design.md#accepted-risks"
+        }
+      ]
+    },
+    {
+      "path": "docs/setup-github-pat.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "5854965",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": []
+    },
+    {
+      "path": "docs/test-html-roundtrip.md",
+      "level": "unknown",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "5854965",
+      "code_refs": [],
+      "code_commits_since": "n/a",
+      "stale": false,
+      "broken_links": [
+        {
+          "link": "demo.mp4",
+          "kind": "missing",
+          "resolved": "docs/demo.mp4"
+        },
+        {
+          "link": "podcast.mp3",
+          "kind": "missing",
+          "resolved": "docs/podcast.mp3"
+        }
+      ]
+    },
+    {
+      "path": "e2e/README.md",
+      "level": "L3",
+      "level_source": "guess",
+      "content_date": "2026-09-23",
+      "content_commit": "5854965",
+      "code_refs": [
+        "e2e/branch-links.spec.ts",
+        "e2e/comment-jumps.spec.ts",
+        "e2e/critical-flows.spec.ts",
+        "e2e/editor-editing.spec.ts",
+        "e2e/embed-mode-clipboard.spec.ts",
+        "e2e/feedback-polishing.spec.ts",
+        "e2e/fixtures/helpers.ts",
+        "e2e/fixtures/pr-realistic",
+        "e2e/html-comment-jumps.spec.ts",
+        "e2e/html-inline-diff.spec.ts",
+        "e2e/iframe-resize.spec.ts",
+        "e2e/image-flows.spec.ts",
+        "e2e/keyboard-shortcuts.spec.ts",
+        "e2e/large-diff-comments.spec.ts",
+        "e2e/line-numbers.spec.ts",
+        "e2e/navigation-routing.spec.ts",
+        "e2e/per-file-comments.spec.ts",
+        "e2e/pr-comment-navigation.spec.ts",
+        "e2e/pr-image-stability.spec.ts",
+        "e2e/pr-mermaid-stability.spec.ts",
+        "e2e/pr-realistic-markdown.spec.ts",
+        "e2e/pr-review-submission.spec.ts",
+        "e2e/render-reuse.spec.ts",
+        "e2e/rendering-features.spec.ts",
+        "e2e/source-diffs.spec.ts",
+        "e2e/split-view-sync.spec.ts",
+        "e2e/toolbar-parity.spec.ts",
+        "out",
+        "src/__tests__"
+      ],
+      "code_commits_since": 29,
+      "stale": false,
+      "broken_links": []
+    }
+  ],
+  "broken_links": [
+    {
+      "doc": "docs/design/github-connection/architecture.html",
+      "link": "#connect-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/github-connection/architecture.html#connect-gradient"
+    },
+    {
+      "doc": "docs/design/github-connection/architecture.html",
+      "link": "#connect-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/github-connection/architecture.html#connect-gradient"
+    },
+    {
+      "doc": "docs/design/github-connection/architecture.html",
+      "link": "#connect-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/github-connection/architecture.html#connect-gradient"
+    },
+    {
+      "doc": "docs/design/github-connection/architecture.html",
+      "link": "#connect-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/github-connection/architecture.html#connect-gradient"
+    },
+    {
+      "doc": "docs/design/github-connection/architecture.html",
+      "link": "#connect-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/github-connection/architecture.html#connect-gradient"
+    },
+    {
+      "doc": "docs/design/github-connection/architecture.html",
+      "link": "#embed-init-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/github-connection/architecture.html#embed-init-gradient"
+    },
+    {
+      "doc": "docs/design/github-connection/architecture.html",
+      "link": "#embed-init-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/github-connection/architecture.html#embed-init-gradient"
+    },
+    {
+      "doc": "docs/design/github-connection/architecture.html",
+      "link": "#embed-init-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/github-connection/architecture.html#embed-init-gradient"
+    },
+    {
+      "doc": "docs/design/github-connection/architecture.html",
+      "link": "#embed-init-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/github-connection/architecture.html#embed-init-gradient"
+    },
+    {
+      "doc": "docs/design/github-connection/architecture.html",
+      "link": "#embed-init-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/github-connection/architecture.html#embed-init-gradient"
+    },
+    {
+      "doc": "docs/design/mardoc/architecture.html",
+      "link": "#seq-demo-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/architecture.html#seq-demo-gradient"
+    },
+    {
+      "doc": "docs/design/mardoc/architecture.html",
+      "link": "#seq-demo-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/architecture.html#seq-demo-gradient"
+    },
+    {
+      "doc": "docs/design/mardoc/architecture.html",
+      "link": "#seq-demo-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/architecture.html#seq-demo-gradient"
+    },
+    {
+      "doc": "docs/design/mardoc/architecture.html",
+      "link": "#seq-demo-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/architecture.html#seq-demo-gradient"
+    },
+    {
+      "doc": "docs/design/mardoc/architecture.html",
+      "link": "#seq-demo-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/architecture.html#seq-demo-gradient"
+    },
+    {
+      "doc": "docs/design/mardoc/architecture.html",
+      "link": "#seq-open-document-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/architecture.html#seq-open-document-gradient"
+    },
+    {
+      "doc": "docs/design/mardoc/architecture.html",
+      "link": "#seq-open-document-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/architecture.html#seq-open-document-gradient"
+    },
+    {
+      "doc": "docs/design/mardoc/architecture.html",
+      "link": "#seq-open-document-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/architecture.html#seq-open-document-gradient"
+    },
+    {
+      "doc": "docs/design/mardoc/architecture.html",
+      "link": "#seq-open-document-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/architecture.html#seq-open-document-gradient"
+    },
+    {
+      "doc": "docs/design/mardoc/architecture.html",
+      "link": "#seq-open-document-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/architecture.html#seq-open-document-gradient"
+    },
+    {
+      "doc": "docs/design/mardoc/architecture.html",
+      "link": "#seq-review-pr-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/architecture.html#seq-review-pr-gradient"
+    },
+    {
+      "doc": "docs/design/mardoc/architecture.html",
+      "link": "#seq-review-pr-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/architecture.html#seq-review-pr-gradient"
+    },
+    {
+      "doc": "docs/design/mardoc/architecture.html",
+      "link": "#seq-review-pr-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/architecture.html#seq-review-pr-gradient"
+    },
+    {
+      "doc": "docs/design/mardoc/architecture.html",
+      "link": "#seq-review-pr-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/architecture.html#seq-review-pr-gradient"
+    },
+    {
+      "doc": "docs/design/mardoc/architecture.html",
+      "link": "#seq-review-pr-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/architecture.html#seq-review-pr-gradient"
+    },
+    {
+      "doc": "docs/design/mardoc/architecture.html",
+      "link": "#seq-embed-init-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/architecture.html#seq-embed-init-gradient"
+    },
+    {
+      "doc": "docs/design/mardoc/architecture.html",
+      "link": "#seq-embed-init-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/architecture.html#seq-embed-init-gradient"
+    },
+    {
+      "doc": "docs/design/mardoc/architecture.html",
+      "link": "#seq-embed-init-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/architecture.html#seq-embed-init-gradient"
+    },
+    {
+      "doc": "docs/design/mardoc/architecture.html",
+      "link": "#seq-embed-init-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/architecture.html#seq-embed-init-gradient"
+    },
+    {
+      "doc": "docs/design/mardoc/architecture.html",
+      "link": "#seq-embed-init-gradient",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/architecture.html#seq-embed-init-gradient"
+    },
+    {
+      "doc": "docs/risks.md",
+      "link": "design/mardoc/design.md#accepted-risks",
+      "kind": "anchor",
+      "resolved": "docs/design/mardoc/design.md#accepted-risks"
+    },
+    {
+      "doc": "docs/test-html-roundtrip.md",
+      "link": "demo.mp4",
+      "kind": "missing",
+      "resolved": "docs/demo.mp4"
+    },
+    {
+      "doc": "docs/test-html-roundtrip.md",
+      "link": "podcast.mp3",
+      "kind": "missing",
+      "resolved": "docs/podcast.mp3"
+    }
+  ],
+  "unreferenced": [
+    "docs/assets/dogfood-review-pr60.png",
+    "docs/assets/mardoc-logo.png",
+    "docs/design/github-connection/diagrams/connect.svg",
+    "docs/design/github-connection/diagrams/embed-init.svg",
+    "docs/design/github-sign-in/diagrams/landscape.drawio",
+    "docs/design/github-sign-in/diagrams/landscape.svg",
+    "docs/design/mardoc/diagrams/seq-demo.svg",
+    "docs/design/mardoc/diagrams/seq-embed-init.svg",
+    "docs/design/mardoc/diagrams/seq-open-document.svg",
+    "docs/design/mardoc/diagrams/seq-review-pr.svg"
+  ],
+  "index": []
+}

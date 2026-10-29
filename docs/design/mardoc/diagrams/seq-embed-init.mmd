@@ -1,0 +1,13 @@
+sequenceDiagram
+  participant V as VS Code extension
+  participant B as Embed init listener
+  participant A as App shell and state
+  participant G as GitHub client
+  participant E as Markdown editor
+  V->>A: load appBase/?embed=true in a webview frame (default mardoc.app)
+  A->>V: postMessage ready to the parent (target *)
+  V->>B: init from the webview wrapper, token only if a GitHub session exists
+  B->>A: applyInitData
+  A->>G: initOctokit(token), token kept in memory only
+  A->>E: local file content
+  E-->>V: file:save with Markdown on save

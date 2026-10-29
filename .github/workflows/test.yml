@@ -31,6 +31,25 @@ jobs:
       - name: Verify static export builds
         run: npx next build
 
+  worker:
+    name: Layout check + Worker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Layout check (LR-10, LR-11)
+        run: node scripts/check-layout.mjs
+
+      - run: npm --prefix worker ci
+
+      - run: npm --prefix worker run typecheck
+
+      - run: npm --prefix worker test
+
   e2e:
     name: E2E (Playwright)
     runs-on: ubuntu-latest

@@ -1,0 +1,14 @@
+# Secrets come only from `wrangler secret put`; never put them here.
+# Routes are added by the owner in the Cloudflare dashboard.
+name = "mardoc-auth"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+workers_dev = false
+preview_urls = false
+
+[observability]
+enabled = false
+
+[vars]
+APP_ORIGIN = "https://mardoc.app"
+CLIENT_ID = ""
