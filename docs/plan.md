@@ -12,14 +12,7 @@ in requirements.md, T-n in design.md, SP-n in `spikes/`, R-n in `reviews/`,
 ADRs in `adr/`. Backlog rows keep the ID of the finding or issue that raised
 them. This file carries history: rows are updated, never silently deleted.
 
-- **Status:** No milestone is active. SP-1 passed and is accepted (2026-10-21),
-  so [ADR 0001](adr/0001-web-sign-in-github-app-worker-route.md) is Accepted.
-  The L1 design for sign-in (stage 1) is ACCEPTED (GSI-L1, 2026-10-27), with
-  Q-8 and Q-19 to Q-28 answered at their defaults. M1 (sign-in stage 1) is
-  active: ⭐ WP-1 and WP-2 (slice plans accepted by the owner 2026-10-27). ⭐ The Cloudflare hosting L0 (D-2) waits for the owner's
-  decision. Open owner questions: Q-1, Q-2, Q-3 and Q-5 in
-  [requirements.md](design/mardoc/requirements.md#open-questions), and Q-29 to Q-35.
-- **Last updated:** 2026-10-27
+- **Status:** **M1 (sign-in stage 1) is DONE and ACCEPTED by the owner (2026-10-29).** It shipped in PR #148 (`203b366`) and is live on mardoc.app; issue #146 is closed. The Auth Worker `mardoc-auth` was deployed from tag `auth-worker-2026-10-28` (T-25 pass), and the owner's production sign-in reached a private org repository (T-26 pass). Follow-ups: the VS Code check (WP-2 increment 3), AT-1 to AT-3, RK-5 (Firefox and mobile), DEBT-2 to DEBT-5, M1-1 to M1-3, and issue #149 (header share buttons). ⭐ The Cloudflare hosting L0 (D-2) waits for the owner's decision. No milestone is active.
 
 ## How work is done
 
@@ -121,7 +114,7 @@ report says `**Design gate:** PASS` and the owner acceptance is recorded.
 
 | Milestone | Delivers | Demo | Requirements | Owner action |
 |---|---|---|---|---|
-| M1 | Sign in with GitHub, stage 1: a pop-up sign-in with a memory-only token, sign in again after 8 hours or a reload, the PAT kept as a fallback, and the embed `init` checks | `npm run demo -- m1`: every sign-in journey with GitHub mocked, and one run of the real Worker under `wrangler dev` (T-32). Then Part B on mardoc.app with the production App (T-25, T-26) | Stage 1 rows of [github-sign-in requirements](design/github-sign-in/requirements.md): F-10 to F-73, NF-10 to NF-22, C-10 to C-17 (T-10 to T-33) | Register the development App (A-15) and the production App (Q-19); deploy the Auth Worker from a tag, set its secret and route; run SP-3; accept the demo |
+| M1 | Sign in with GitHub, stage 1: a pop-up sign-in with a memory-only token, sign in again after 8 hours or a reload, the PAT kept as a fallback, and the embed `init` checks | `npm run demo -- m1`: every sign-in journey with GitHub mocked, and one run of the real Worker under `wrangler dev` (T-32). Then Part B on mardoc.app with the production App (T-25, T-26) | Stage 1 rows of [github-sign-in requirements](design/github-sign-in/requirements.md): F-10 to F-73, NF-10 to NF-22, C-10 to C-17 (T-10 to T-33) | Register the development App (A-15) and the production App (Q-19); deploy the Auth Worker from a tag, set its secret and route; run SP-3; accept the demo. **ACCEPTED 2026-10-29** (owner: "I accept M1") |
 
 The value order is the L1's: stage 1 is the smallest release that removes the
 PAT step for new reviewers (S-12, S-25). Stage 2 (silent refresh) is not a
@@ -217,6 +210,8 @@ Owner's real sign-in at `http://localhost:8787` with the development App "MarDoc
 | AT-3 | Opening an organisation repository (`Cloudzero/...`) where the App is not installed: the owner expected it in the list. The F-42 notice and the install guidance should name the organisation and say an org owner must install or approve the App | Owner, Part B, 2026-10-28 | PENDING |
 
 Production deploy, 2026-10-29: the owner deployed `mardoc-auth` from tag `auth-worker-2026-10-28` (`8d9e1bf`, local tag, pushed with the branch) and routed `mardoc.app/api/auth/*` to it (fail closed); the SP-3 Worker and its route are deleted. T-25 probe: only route `mardoc.app/api/auth/* -> mardoc-auth`; `/health` 200 `{"ok":true,"version":"8d9e1bf…"}` with `no-store`; `/refresh` 404; `/__sp3` 404; `/` still Pages. No Free-plan Workers request alert exists; T-29 checks the request count at milestone close instead.
+
+Production sign-in, 2026-10-29 (T-26): the owner signed in at `https://mardoc.app` through MarDoc.app and opened a private repository in an organisation where the App is installed. The Repository list showed only installed repositories (182). Issue #149 records a header layout problem seen during this run.
 
 ## Backlog from the GSI review
 
