@@ -48,23 +48,24 @@ svg .is-active text{font-weight:700}svg [data-edge].is-active text{fill:var(--se
 <main>
 
 <section id="why"><h2><span class="num">01 · Why</span>The webview is a second front end, and its door must have a lock</h2>
-<p class="takeaway">The VS Code extension hands MarDoc a GitHub token and a file through a message. A rendered HTML document in the same page can send the same message, so the app must tell them apart. <a class="source" href="../risks.md">RK-3</a> <a class="source" href="github-sign-in/requirements.md">F-16</a></p>
+<p class="takeaway">The VS Code extension hands MarDoc a GitHub token and a file through a message. The app accepts it only from its parent window. <a class="source" href="../risks.md">RK-3</a> <a class="source" href="github-sign-in/requirements.md">F-16</a></p>
 <p>The app cannot open files in the webview, so it asks the host for file bytes, images and saves. The message channel is the whole interface, and about a dozen files touch it. <a class="source" href="../features/done/017-vscode-extension.md">story 017</a> <a class="source" href="../features/done/030-embed-local-image-rendering.md">story 030</a> <a class="source" href="../features/040-embed-reload-shortcut.md">story 040</a></p>
 </section>
 
 <section id="contract"><h2><span class="num">02 · Host contract</span>Nine message types cross the boundary</h2>
 <p class="takeaway">This repo's side of the contract; the extension's side is in <code>mardoc-vscode</code>.</p>
-<table><thead><tr><th>Direction</th><th>Type and payload</th><th>Checked on receipt</th><th>Source</th></tr></thead><tbody>
-<tr><td>Host → app</td><td><code>init</code>: <code>token?</code>, <code>owner</code>, <code>repo</code>, <code>branch</code>, <code>fileName</code>, <code>filePath</code>, <code>fileContent</code>, <code>theme?</code></td><td>Embed mode, source is parent (F-16). The <code>theme</code> field is applied by a second listener.</td><td><a href="../../src/lib/embed-init.ts">embed-init.ts:35</a>, <a href="../../src/lib/theme-context.tsx">theme-context.tsx:42</a></td></tr>
-<tr><td>Host → app</td><td><code>theme:change</code>: <code>theme</code> (<code>light</code> or <code>dark</code>)</td><td>See RK-3.</td><td><a href="../../src/lib/theme-context.tsx">theme-context.tsx:36-46</a></td></tr>
-<tr><td>Host → app</td><td><code>file:content</code>: <code>filePath|fileName</code>, <code>fileContent</code>, <code>reason?</code> (<code>watch</code> or <code>request</code>)</td><td>See RK-3.</td><td><a href="../../src/lib/embed-reload.ts">embed-reload.ts:80</a></td></tr>
-<tr><td>Host → app</td><td><code>file:image-data</code> (<code>requestId</code>, <code>data</code>, <code>mimeType</code>) or <code>file:image-error</code> (<code>requestId</code>, <code>error</code>)</td><td>See RK-3.</td><td><a href="../../src/lib/embed-image-bridge.ts">bridge:35</a></td></tr>
-<tr><td>App → host</td><td><code>ready</code></td><td>n/a</td><td><a href="../../src/lib/app-context.tsx">app-context.tsx:698</a></td></tr>
-<tr><td>App → host</td><td><code>file:reload</code></td><td>n/a</td><td><a href="../../src/lib/embed-reload.ts">embed-reload.ts:42</a></td></tr>
-<tr><td>App → host</td><td><code>file:read-image</code>: <code>requestId</code>, <code>path</code></td><td>n/a</td><td><a href="../../src/lib/embed-image-bridge.ts">bridge:88</a></td></tr>
-<tr><td>App → host</td><td><code>file:save</code>: <code>filePath</code>, <code>content</code></td><td>n/a</td><td><a href="../../src/components/Editor.tsx">Editor.tsx:1293</a></td></tr>
-<tr><td>App → host</td><td><code>open-external</code>: <code>url</code></td><td>n/a</td><td><a href="../../src/lib/open-external.ts">open-external.ts:8</a></td></tr>
+<table><thead><tr><th>Direction</th><th>Type and payload</th><th>Source</th></tr></thead><tbody>
+<tr><td>Host → app</td><td><code>init</code>: <code>token?</code>, <code>owner</code>, <code>repo</code>, <code>branch</code>, <code>fileName</code>, <code>filePath</code>, <code>fileContent</code>, <code>theme?</code></td><td><a href="../../src/lib/embed-init.ts">embed-init.ts:35</a>, <a href="../../src/lib/theme-context.tsx">theme-context.tsx:42</a></td></tr>
+<tr><td>Host → app</td><td><code>theme:change</code>: <code>theme</code> (<code>light</code> or <code>dark</code>)</td><td><a href="../../src/lib/theme-context.tsx">theme-context.tsx:36-46</a></td></tr>
+<tr><td>Host → app</td><td><code>file:content</code>: <code>filePath|fileName</code>, <code>fileContent</code>, <code>reason?</code> (<code>watch</code> or <code>request</code>)</td><td><a href="../../src/lib/embed-reload.ts">embed-reload.ts:80</a></td></tr>
+<tr><td>Host → app</td><td><code>file:image-data</code> (<code>requestId</code>, <code>data</code>, <code>mimeType</code>) or <code>file:image-error</code> (<code>requestId</code>, <code>error</code>)</td><td><a href="../../src/lib/embed-image-bridge.ts">bridge:35</a></td></tr>
+<tr><td>App → host</td><td><code>ready</code></td><td><a href="../../src/lib/app-context.tsx">app-context.tsx:698</a></td></tr>
+<tr><td>App → host</td><td><code>file:reload</code></td><td><a href="../../src/lib/embed-reload.ts">embed-reload.ts:42</a></td></tr>
+<tr><td>App → host</td><td><code>file:read-image</code>: <code>requestId</code>, <code>path</code></td><td><a href="../../src/lib/embed-image-bridge.ts">bridge:88</a></td></tr>
+<tr><td>App → host</td><td><code>file:save</code>: <code>filePath</code>, <code>content</code></td><td><a href="../../src/components/Editor.tsx">Editor.tsx:1293</a></td></tr>
+<tr><td>App → host</td><td><code>open-external</code>: <code>url</code></td><td><a href="../../src/lib/open-external.ts">open-external.ts:8</a></td></tr>
 </tbody></table>
+<p><code>init</code> is applied only in embed mode and only from the parent window (F-16, <code>isTrustedInit</code>).</p>
 </section>
 
 <section id="parts"><h2><span class="num">03 · Diagram</span>Which parts talk to the host</h2>
