@@ -16,6 +16,8 @@ Two legacy stories use 010. Refer to their full slugs (`010-comment-reply-thread
 
 ## Inventory
 
+The L2 design pages summarise these stories: [links and routing](../design/L2-links-routing.html) 007, 009, 021; [repository browsing](../design/L2-repo-browsing.html) 002, 005; [PR review](../design/L2-pr-review.html) 001, 003, 010 (both), 011, 016, 028, 039; [editing](../design/L2-editing.html) 004, 015, 018, 019, 026; [rendering](../design/L2-rendering.html) 006, 022, 031, 032, 041; [HTML comments](../design/L2-html-comments.html) 033; [embed in VS Code](../design/L2-embed-vscode.html) 017, 020, 030, 040; [resilience](../design/L2-resilience.html) 023, 024, 025, 027, 029; [phone, local files and AI](../design/L2-mobile-local-ai.html) 008, 012, 037, 038, 042.
+
 | Story | Current status | Evidence / boundary |
 | --- | --- | --- |
 | [001-render-final-markdown](done/001-render-final-markdown.md) | Implemented core | Preview mode provides a head-content reading surface in DiffViewer; the original proposed mode names below are historical. |

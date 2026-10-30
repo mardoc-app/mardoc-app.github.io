@@ -8,6 +8,7 @@ Current reference documentation was checked against application source at `4abb8
 | Follow repository links during review | [Review links and reference previews](review-links.md) |
 | Connect a GitHub repository | [PAT setup](setup-github-pat.md) |
 | Understand components and request flows | [Architecture](architecture.md) |
+| Read one subsystem in depth (L2 pages under the [L1 system page](design/mardoc/architecture.html)) | [Links and routing](design/L2-links-routing.html), [repository browsing](design/L2-repo-browsing.html), [PR review](design/L2-pr-review.html), [editing](design/L2-editing.html), [rendering](design/L2-rendering.html), [HTML comments](design/L2-html-comments.html), [embed in VS Code](design/L2-embed-vscode.html), [resilience](design/L2-resilience.html), [phone, local files and AI](design/L2-mobile-local-ai.html) |
 | Follow branch, file and PR deep links, and how PR loading is cached | [Sharing and refreshing repository documents](branch-links.md) |
 | Measure or improve load and render performance | [Performance](performance.md) |
 | Understand credentials, drafts, and document isolation | [Data storage and security](data-and-security.md) |
