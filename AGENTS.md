@@ -4,7 +4,7 @@ MarDoc: a browser-only, statically exported Next.js app (GitHub Pages, mardoc.ap
 
 ## Project map
 
-- `docs/design/mardoc/`: intent, requirements (F/NF/C IDs), design (T-n, traceability), UX and DevX where relevant
+- `docs/design/requirements.md`: system requirements (F/NF IDs); `docs/design/github-sign-in/`: sign-in intent, requirements and design
 - Architecture: start at the as-is system baseline `docs/design/architecture.html` (L1)
 - `docs/README.md` is the doc index; process rules live here in AGENTS.md (Q-13)
 - `docs/plan.md`: status, milestones, work packages, backlogs; § How work is done
@@ -40,7 +40,7 @@ named after the requirement IDs they prove (for example,
 ## Architecture
 
 Follow the architecture described in
-`docs/design/design.md`. Keep domain rules independent of technology
+`docs/design/architecture.html` and the `l2-*.html` pages. Keep domain rules independent of technology
 where that separation benefits the system. Add layer or dependency rules only
 when the design calls for them, and enforce those rules in CI. Do not assume a
 specific architecture pattern by default.

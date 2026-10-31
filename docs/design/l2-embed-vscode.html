@@ -42,13 +42,13 @@ svg .is-active text{font-weight:700}svg [data-edge].is-active text{fill:var(--se
 <header>
 <p class="eyebrow">L2 · Subsystem · As built at <code>c62d712</code> · Part of <a href="architecture.html">MarDoc architecture (L1)</a></p>
 <h1>MarDoc runs in a VS Code webview and takes its file and token from the parent</h1>
-<p class="takeaway"><strong>Implements:</strong> the L1 <a href="architecture.html#piece-embed-bridge">Embed init listener</a> card and <a href="github-sign-in-requirements.md">F-16</a>, with F-19 next to it. With <code>?embed=true</code>, MarDoc takes a token and a file from <code>init</code> only when the message comes from its own parent window. Reload, images, save and links travel as small messages over the same channel.</p>
+<p class="takeaway"><strong>Implements:</strong> the L1 <a href="architecture.html#piece-embed-bridge">Embed init listener</a> card and <a href="github-sign-in/requirements.md">F-16</a>, with F-19 next to it. With <code>?embed=true</code>, MarDoc takes a token and a file from <code>init</code> only when the message comes from its own parent window. Reload, images, save and links travel as small messages over the same channel.</p>
 <p class="meta">Describes this repository's side only; the extension lives in <code>mardoc-app/mardoc-vscode</code>. No new issue. Reading time: 4 minutes · Prerequisites: <a href="l1-github-sign-in.html">sign-in L1</a> (credential and session, F-16, F-19)</p>
 </header>
 <main>
 
 <section id="why"><h2><span class="num">01 · Why</span>The webview is a second front end, and its door must have a lock</h2>
-<p class="takeaway">The VS Code extension hands MarDoc a GitHub token and a file through a message. The app accepts it only from its parent window. <a class="source" href="github-sign-in-requirements.md">F-16</a></p>
+<p class="takeaway">The VS Code extension hands MarDoc a GitHub token and a file through a message. The app accepts it only from its parent window. <a class="source" href="github-sign-in/requirements.md">F-16</a></p>
 <p>The app cannot open files in the webview, so it asks the host for file bytes, images and saves. The message channel is the whole interface, and about a dozen files touch it. story 017 story 030 story 040</p>
 </section>
 
@@ -150,7 +150,7 @@ svg .is-active text{font-weight:700}svg [data-edge].is-active text{fill:var(--se
 </section>
 
 <section id="clean"><h2><span class="num">08 · Clean design</span>Pure rules, thin adapters, one port to propose</h2>
-<p class="takeaway">The rules are already pure and tested. The wiring is scattered, and one small layout rule would collect it. <a class="source" href="github-sign-in-design.md">LR-10 and LR-11</a></p>
+<p class="takeaway">The rules are already pure and tested. The wiring is scattered, and one small layout rule would collect it. <a class="source" href="github-sign-in/design.md">LR-10 and LR-11</a></p>
 <p><strong>Pure:</strong> <code>isTrustedInit</code>, <code>isReloadShortcut</code>, <code>shouldApplyFileContent</code>, <code>isBlockedByDirtyEditor</code>, and the embed-only shortcut filter. <strong>Adapters:</strong> the two <code>message</code> listeners in <code>app-context.tsx</code>, the image bridge, <code>postReloadRequest</code> (in a mostly pure file), <code>openExternal</code>, and the save post in Editor. <a class="source" href="../../src/lib/embed-reload.ts">embed-reload.ts:27</a> <a class="source" href="../../src/lib/keyboard-shortcuts.ts">keyboard-shortcuts.ts:58</a></p>
 <p class="action"><strong>Proposed: one host port.</strong> The shared messaging design (<a href="l2-rendering.html#clean">rendering §08</a>) puts every host listener and post, including the image bridge, in <code>src/lib/embed/host-port.ts</code>. Its rules live in the pure <code>messaging/protocol.ts</code>. LR-15 enforces the layout by exact path; the injected frame scripts stay exempt because they run inside the frame.</p>
 </section>
@@ -172,7 +172,7 @@ svg .is-active text{font-weight:700}svg [data-edge].is-active text{fill:var(--se
 </tbody></table>
 </section>
 
-<section id="depth"><h2>Go deeper</h2><ul><li><a href="architecture.html">Parent: MarDoc architecture (L1)</a>; <a href="l1-github-sign-in.html">GitHub sign-in (L1)</a> and <a href="github-sign-in-requirements.md">F-16, F-19</a></li><li><a href="l2-rendering.html">Sibling: L2 rendering</a> (the messaging design)</li><li>WP-2 slice plan · <a href="../plan.md#known-issues">DATA-01</a></li><li>Old stories (historical): 017, 020, 030, 040</li></ul></section>
+<section id="depth"><h2>Go deeper</h2><ul><li><a href="architecture.html">Parent: MarDoc architecture (L1)</a>; <a href="l1-github-sign-in.html">GitHub sign-in (L1)</a> and <a href="github-sign-in/requirements.md">F-16, F-19</a></li><li><a href="l2-rendering.html">Sibling: L2 rendering</a> (the messaging design)</li><li>WP-2 slice plan · <a href="../plan.md#known-issues">DATA-01</a></li><li>Old stories (historical): 017, 020, 030, 040</li></ul></section>
 </main>
 <script>
 (()=>{'use strict';const all=s=>Array.from(document.querySelectorAll(s)),pieces=all('[data-piece]'),tabs=all('main nav [data-component]'),calm=matchMedia('(prefers-reduced-motion: reduce)');let stop=()=>{};
