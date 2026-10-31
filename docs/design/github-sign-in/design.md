@@ -1,6 +1,6 @@
 # GitHub sign-in: design
 
-Level: L2 (technical record for the L1 [architecture page](l1-github-sign-in.html))
+Level: L2 (technical record for the L1 [architecture page](../l1-github-sign-in.html))
 
 > Stage 1 of GitHub sign-in adds a **Sign in with GitHub** button that opens
 > a small pop-up. The pop-up goes through a stateless Cloudflare Worker on
@@ -10,11 +10,11 @@ Level: L2 (technical record for the L1 [architecture page](l1-github-sign-in.htm
 > stays where they were. When the token expires or the tab reloads, the user
 > signs in again. A personal access token still works beside it.
 >
-> Start with [how the system works](l1-github-sign-in.html). This record follows
+> Start with [how the system works](../l1-github-sign-in.html). This record follows
 > the same order: why it matters, the problem domain, the parts, then
 > sequences and special concerns, and their proof. It answers
-> [requirements.md](github-sign-in-requirements.md) and builds on the as-is
-> baseline of the [GitHub connection](l1-github-connection.html)
+> [requirements.md](requirements.md) and builds on the as-is
+> baseline of the [GitHub connection](../l1-github-connection.html)
 > (R-2).
 
 ## Value and scope
@@ -29,7 +29,7 @@ where MarDoc is installed, and it expires after 8 hours (S-13,
 `localStorage.mardoc_github_token` (`app-context.tsx:91, 286-318`) and is
 broad and long-lived. Issue #146 states the
 need; there is no measurement of how many users stop at the PAT step
-([L0 § Why](l0-github-sign-in.html#why)).
+([L0 § Why](../l0-github-sign-in.html#why)).
 
 **Success signals:** a user with MarDoc installed is signed in with at most
 2 clicks (F-11); the stage 1 gate finds no token in storage (F-30); every
@@ -40,7 +40,7 @@ existing PAT spec passes unchanged (F-50).
 expiry, the install link and messages, the PAT fallback and the
 documentation changes (F-70 to F-72).
 
-**Out of scope:** stage 2 silent refresh ([requirements § Stage 2 note](github-sign-in-requirements.md#stage-2-note));
+**Out of scope:** stage 2 silent refresh ([requirements § Stage 2 note](requirements.md#stage-2-note));
 VS Code extension sign-in; moving hosting.
 
 ## Problem domain
@@ -57,9 +57,9 @@ server that presents the App's **client secret**. Its token endpoint sends
 no CORS headers ([community #15752](https://github.com/orgs/community/discussions/15752)),
 so MarDoc's static page cannot complete the exchange itself.
 
-![Who and what is involved in signing in?](../assets/diagrams/github-sign-in-domain.svg)
+![Who and what is involved in signing in?](../../assets/diagrams/github-sign-in-domain.svg)
 
-Editable source: [domain.drawio](../assets/diagrams/github-sign-in-domain.drawio).
+Editable source: [domain.drawio](../../assets/diagrams/github-sign-in-domain.drawio).
 
 What makes this hard: the token must cross from a server-side step into one
 browser tab without touching storage or a URL. That tab must be sure the
@@ -119,7 +119,7 @@ Trade-offs: a pop-up keeps the page alive but can be blocked, so Settings
 opens it only from a click, and explains a blocked pop-up. Memory-only
 tokens mean a reload costs one more click, the price of S-25 until stage 2.
 The direction and its alternatives are in
-[ADR 0001](../adr/0001-web-sign-in-github-app-worker-route.md).
+[ADR 0001](../../adr/0001-web-sign-in-github-app-worker-route.md).
 
 **Deployment assumption (C-10, C-12, ADR 0001):** the app runs in the
 reviewer's browser, served by GitHub Pages. The Auth Worker runs on
@@ -146,9 +146,9 @@ is empty), so the R-2 baseline describes it.
 
 ## Components
 
-![Which parts take part in sign-in, and where do they run?](../assets/diagrams/github-sign-in-components.svg)
+![Which parts take part in sign-in, and where do they run?](../../assets/diagrams/github-sign-in-components.svg)
 
-Editable source: [components.drawio](../assets/diagrams/github-sign-in-components.drawio). Dashed
+Editable source: [components.drawio](../../assets/diagrams/github-sign-in-components.drawio). Dashed
 boxes are proposed; the others exist at the snapshot.
 
 | Component | Responsibility | Owns | Interfaces / collaborators | Requirements |
@@ -261,7 +261,7 @@ again.
 
 ### GitHub client (recap)
 
-Owned by the [GitHub connection baseline](l1-github-connection.html#parts).
+Owned by the [GitHub connection baseline](../l1-github-connection.html#parts).
 Stage 1 changes three things:
 - **Expiry check.** `initOctokit(token, {kind, expiresAt})` records the credential kind and expiry in module variables. The existing `hook.wrap("request")` (`github-api.ts:58-78`) first checks the expiry: when the credential is a sign-in token and `now ≥ expiresAt`, it throws an error with `status: 401` without sending, so `isAuthError` treats it as a 401 (I-15).
 - **401 to `expired`.** The same hook calls a registered `onAuthError()` once per credential when a sign-in token gets a 401; auth state turns that into the `auth-error` event (F-34).
@@ -775,7 +775,7 @@ contains no `ghr_`. `?code=c&state=N.x` with the cookie holding `N.s` gives
 
 ## Decisions and accepted risks
 
-- **[ADR 0001](../adr/0001-web-sign-in-github-app-worker-route.md):** GitHub App plus Worker route; stage 1 without refresh.
+- **[ADR 0001](../../adr/0001-web-sign-in-github-app-worker-route.md):** GitHub App plus Worker route; stage 1 without refresh.
 - **Q-8 (pop-up hand-off):** recorded as an ADR when the owner accepts this design and SP-3 reports. A `BroadcastChannel` fallback needs its own ADR (A-10).
 
 ## Verification
@@ -882,6 +882,6 @@ contains no `ghr_`. `?code=c&state=N.x` with the cookie holding `N.s` gives
 
 ## Open questions
 
-The owner-facing questions are in [requirements.md § Open questions](github-sign-in-requirements.md#open-questions)
+The owner-facing questions are in [requirements.md § Open questions](requirements.md#open-questions)
 (Q-8, Q-19 to Q-28). This record adds none. SP-3 settles A-10 before the
 hand-off is built.

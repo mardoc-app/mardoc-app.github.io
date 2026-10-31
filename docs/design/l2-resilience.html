@@ -138,7 +138,7 @@ svg .is-active text{font-weight:700}svg [data-edge].is-active text{fill:var(--se
 <tr><td>Hook in <code>github-api.ts</code></td><td>Adapter: GitHub</td><td>Owns retry, abort and the 401 report. The domain never imports Octokit.</td></tr>
 <tr><td><code>app-context.tsx</code> refs</td><td>Adapter: React</td><td>Holds the guard instances and controllers.</td></tr>
 </tbody></table>
-<div class="pattern"><p><strong>Proposed (not yet in <a href="design.md">design.md</a>).</strong> Two layout rules that CI checks:</p>
+<div class="pattern"><p><strong>Proposed (not yet in design.md).</strong> Two layout rules that CI checks:</p>
 <ul><li><strong>LR-19.</strong> Only <code>safe-storage.ts</code> touches <code>localStorage</code>.</li>
 <li><strong>LR-22.</strong> Product code in <code>src/</code> has no <code>console.log</code>.</li></ul>
 <p>Two conventions that review checks: every async load that sets UI state begins a load generation and takes an abort signal; a failed load sets an error state, never an empty result (AT-2), and its text comes from <code>formatApiError</code>.</p></div>
