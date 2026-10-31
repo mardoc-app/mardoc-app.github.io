@@ -213,6 +213,13 @@ Production deploy, 2026-10-29: the owner deployed `mardoc-auth` from tag `auth-w
 
 Production sign-in, 2026-10-29 (T-26): the owner signed in at `https://mardoc.app` through MarDoc.app and opened a private repository in an organisation where the App is installed. The Repository list showed only installed repositories (182). Issue #149 records a header layout problem seen during this run.
 
+## Backlog from the L2 review (2026-10-29)
+
+| ID | Item | Evidence | Status |
+|---|---|---|---|
+| SEC-02 | Rendered-content hardening, part 1 (details private) | L2 review; RK-6 | PENDING |
+| SEC-03 | Rendered-content hardening, part 2 (details private) | L2 review; RK-6 | PENDING |
+
 ## Backlog from the GSI review
 
 Every finding in [2026-10-20-github-sign-in-l0.md](reviews/2026-10-20-github-sign-in-l0.md)
