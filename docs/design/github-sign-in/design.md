@@ -61,9 +61,9 @@ The tab that will hold the token also renders repository HTML (SEC-01:
 rendered-content isolation; details are kept privately), so stage 1 keeps the
 token short-lived and limited to installed repositories.
 
-![Who and what is involved in signing in?](diagrams/domain.svg)
+![Who and what is involved in signing in?](../../assets/diagrams/github-sign-in-domain.svg)
 
-Editable source: [domain.drawio](diagrams/domain.drawio).
+Editable source: [domain.drawio](../../assets/diagrams/github-sign-in-domain.drawio).
 
 What makes this hard: the token must cross from a server-side step into one
 browser tab without touching storage or a URL. That tab must be sure the
@@ -150,9 +150,9 @@ is empty), so the R-2 baseline describes it.
 
 ## Components
 
-![Which parts take part in sign-in, and where do they run?](diagrams/components.svg)
+![Which parts take part in sign-in, and where do they run?](../../assets/diagrams/github-sign-in-components.svg)
 
-Editable source: [components.drawio](diagrams/components.drawio). Dashed
+Editable source: [components.drawio](../../assets/diagrams/github-sign-in-components.drawio). Dashed
 boxes are proposed; the others exist at the snapshot.
 
 | Component | Responsibility | Owns | Interfaces / collaborators | Requirements |
@@ -647,7 +647,7 @@ attempt continues. Rendered-content isolation is SEC-01 (RK-1).
 Events and effects carry no token: the sign-in window adapter keeps the new
 token in the credential module's pending slot, and attempt-scoped events
 carry the attempt nonce so late events are ignored
-([checkpoint review](../../reviews/2026-10-28-m1-wave1-contract-checkpoint.md)).
+(checkpoint review).
 
 **Purpose and contract:** a pure function `next(state, event, now)` that
 returns the new state and the effects to run. It holds no timers and makes

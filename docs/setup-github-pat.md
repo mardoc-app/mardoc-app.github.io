@@ -51,7 +51,7 @@ Some organizations restrict classic PATs or require approval for fine-grained PA
 | Repository missing / 403 / 404 | Access on github.com, selected resource owner/repos, organization approval/policy, and classic-token SSO authorization. |
 | Can read but cannot save or upload | Contents write, your repository role, and branch rules. |
 | Cannot submit a review or reply | Pull requests write and GitHub's review restrictions for your account/PR. |
-| Some comments/files absent on a large PR | Current app pagination limits; see [known issues](known-issues.md). |
+| Some comments/files absent on a large PR | Current app pagination limits; see [known issues](plan.md#known-issues). |
 | Rate-limit message | Allow the reset interval to pass; repeated retries are not a permission fix. |
 
 Do not include a token in bug reports, screenshots, committed files, or public build variables. Report the operation, error/status code, and token type/permission names instead.

@@ -5,17 +5,19 @@ MarDoc: a browser-only, statically exported Next.js app (GitHub Pages, mardoc.ap
 ## Project map
 
 - `docs/design/mardoc/`: intent, requirements (F/NF/C IDs), design (T-n, traceability), UX and DevX where relevant
-- Architecture: start at the as-is system baseline `docs/design/mardoc/architecture.html` (L1); `docs/architecture.md` stays the technical record until a designed L1 supersedes it (Q-12)
-- `docs/README.md` is the doc index; process rules live here in AGENTS.md (Q-13); `docs/adoption/map.md` records which docs are adopted
+- Architecture: start at the as-is system baseline `docs/design/architecture.html` (L1)
+- `docs/README.md` is the doc index; process rules live here in AGENTS.md (Q-13)
 - `docs/plan.md`: status, milestones, work packages, backlogs; § How work is done
-- `docs/adr/`, `docs/spikes/`, `docs/reviews/`, `docs/risks.md`, `docs/lessons.md`
+- `docs/adr/`, `docs/spikes/`, `docs/risks.md`, `docs/lessons.md`
+- `docs/design/`: `architecture.html` (L1), `l2-*.html` (subsystems); diagrams in `docs/assets/diagrams/`, images in `docs/assets/images/`
 - `demos/`: owner guides (`mN.md`) and demo evidence
 - `REVIEW.md`: the review rubric
 - `src/lib/`: domain helpers and GitHub adapters (`github-api.ts`, `rate-limit.ts`, `app-context.tsx`)
 - `src/components/`: React UI; `src/app/`: Next.js entry
 - `worker/`: the Auth Worker (`mardoc.app/api/auth/*`); `dev/local-auth/`: local harness serving the app and the Worker on one origin (`npm run dev:auth`)
 - `src/__tests__/`: Vitest unit and component tests; `e2e/`: Playwright (desktop and mobile)
-- `docs/` reference docs (index: `docs/README.md`); `docs/features/`: feature stories
+- `docs/` reference docs (index: `docs/README.md`)
+- Slice plans and review reports are working files: keep them on the branch while the work is open and delete them before merge. Durable results go to `docs/plan.md`, ADRs, `docs/risks.md` or the design pages
 
 Work follows the SDLC skills and `docs/plan.md` § How work is done. Tests are
 named after the requirement IDs they prove (for example,

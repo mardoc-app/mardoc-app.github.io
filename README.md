@@ -8,7 +8,7 @@ Product managers, designers, writers, engineers, and other reviewers can work wi
 
 MarDoc is a browser-only application, built as a static site. GitHub Pages serves the app. No MarDoc server sees your documents: GitHub requests go directly from your browser to GitHub. There is one stateless sign-in endpoint at `mardoc.app/api/auth/*`. MarDoc runs it on Cloudflare, and it exchanges GitHub tokens for **Sign in with GitHub**. It stores nothing and logs nothing, but it does see your GitHub token while it passes the token to your browser. A personal access token (PAT) never goes through it; the browser saves a PAT in localStorage. Documents can also load external assets. See [data storage and security](docs/data-and-security.md) for the exact boundaries and how to report security issues privately.
 
-![MarDoc screenshot](docs/assets/screenshot.png)
+![MarDoc screenshot](docs/assets/images/screenshot.png)
 
 ## Start using MarDoc
 
@@ -23,22 +23,21 @@ Demo mode supports exploring rendering, editing, and review interactions. It doe
 - **Read Markdown as a document.** Render headings, tables, images, code blocks, Mermaid diagrams, footnotes, and GitHub alerts. Review Markdown PR changes in Inline Diff, Split, Suggest, or Preview mode.
 - **Review HTML reports.** View rendered HTML or source, compare base/head versions in a PR, and select passages to comment. HTML does not yet have the Markdown editor's WYSIWYG, word-diff, or suggestion parity.
 - **Discuss a pull request.** Queue inline comments, finish a review, approve or request changes, reply to threads, and resolve conversations. The usual submission batches comments into one review; invalid line mappings can require separate fallback comments.
-- **Edit Markdown and propose changes.** Use the rich editor or code view, create a new document, or add a file to an existing PR. The edit-to-PR action for existing files has a [known save-path issue](docs/known-issues.md#edit-02-existing-file-edit-to-pr-save-path). Accepting an individual suggestion commits to the PR branch.
+- **Edit Markdown and propose changes.** Use the rich editor or code view, create a new document, or add a file to an existing PR. The edit-to-PR action for existing files has a [known save-path issue](docs/plan.md#edit-02-existing-file-edit-to-pr-save-path). Accepting an individual suggestion commits to the PR branch.
 - **Work with images.** Paste or drop supported images and configure their repository folder. For an existing document, upload commits immediately to the selected branch. Images in a new-file draft are deferred until save.
 - **Navigate long documents.** Use the outline, find/replace, wide layout, dark mode, keyboard cheatsheet (`?`), and command palette (`Cmd/Ctrl+Shift+P`). Mobile layouts provide a navigation drawer and review comment sheet.
 
-Draft recovery applies to existing repository Markdown files. New/local files and pending review comments do not have the same persistence. Markdown conversion also has known fidelity limits, including HTML comments and complex tables. Read the [capability matrix and workflows](docs/capabilities.md) before relying on these behaviors for a particular document.
+Draft recovery applies to existing repository Markdown files. New/local files and pending review comments do not have the same persistence. Markdown conversion also has known fidelity limits, including HTML comments and complex tables. Read the capability matrix and workflows before relying on these behaviors for a particular document.
 
 ## Documentation
 
 Start with the [documentation index](docs/README.md). Key references:
 
-- [Capabilities and workflows](docs/capabilities.md)
 - [GitHub token setup (the PAT option)](docs/setup-github-pat.md)
-- [Architecture and data flow](docs/architecture.md)
+- [Architecture (L1 system page)](docs/design/architecture.html)
 - [Data storage and security](docs/data-and-security.md)
 - [Development, testing, and static deployment](docs/development.md)
-- [Feature status](docs/features/README.md) and [known issues](docs/known-issues.md)
+- [Known issues](docs/plan.md#known-issues)
 
 ## Run locally
 
@@ -60,7 +59,7 @@ npx --yes serve out -l 3000 --no-clipboard
 
 The current `npm start` script uses `next start`, which is incompatible with this project's static export. Use the static server command above. See the [development guide](docs/development.md) for tests and deployment details.
 
-See [Sharing and refreshing repository documents](docs/branch-links.md) for link formats, cache behavior, and a review checklist.
+See Sharing and refreshing repository documents for link formats, cache behavior, and a review checklist.
 
 ## Architecture
 
@@ -79,6 +78,6 @@ See [elastic.co/licensing/elastic-license](https://www.elastic.co/licensing/elas
 
 ## Contributing
 
-Use the [development guide](docs/development.md) and [feature documentation conventions](docs/features/README.md). New behavior needs appropriate unit or component coverage; use browser tests for integration behavior. Before proposing application changes, run the relevant tests, the complete unit suite, and the static build. Update the current reference docs and feature status in the same change.
+Use the [development guide](docs/development.md). New behavior needs appropriate unit or component coverage; use browser tests for integration behavior. Before proposing application changes, run the relevant tests, the complete unit suite, and the static build. Update the current reference docs and feature status in the same change.
 
 Bug reports and feature requests: [open an issue](https://github.com/mardoc-app/mardoc-app.github.io/issues).

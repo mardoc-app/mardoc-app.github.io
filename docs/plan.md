@@ -93,12 +93,12 @@ time-boxed and ends in a yes or no, plus an ADR where a decision follows.
 
 | ID | Item | Proves | Blocks | Model | Owner review | Status |
 |---|---|---|---|---|---|---|
-| GSI | L0 strategy review, GitHub web sign-in ([report](reviews/2026-10-20-github-sign-in-l0.md)) | L0 `github-sign-in` is safe for an owner decision | D-1 | Sonnet (fresh agent) | ACCEPTED 2026-10-20 (direction plus spike only) | DONE: 13 findings fixed or closed, re-reviewed |
-| R-1 | Baseline: system as-is at `2b94d90` ([page](design/mardoc/architecture.html), [review](reviews/2026-10-20-as-is-baselines.md)) | Type `baseline`: accurate description of the code at the SHA, not an endorsed design | L2 pages and the designed system L1 | Sonnet (fresh agent) fact-check | ACCEPTED 2026-10-21 (accurate as-is, not an endorsed design) | DONE: re-review 2026-10-21 accepted it as a baseline; the residues were closed by the lead afterwards |
-| R-2 | Baseline: GitHub connection and credentials as-is at `2b94d90` ([page](design/github-connection/architecture.html), [review](reviews/2026-10-20-as-is-baselines.md)) | Type `baseline`: accurate description of the code at the SHA, not an endorsed design | L1 `github-sign-in` (parent for its L2 pages) | Sonnet (fresh agent) fact-check | ACCEPTED 2026-10-21 (accurate as-is, not an endorsed design) | DONE: re-review 2026-10-21 accepted it as a baseline; the residues were closed by the lead afterwards |
+| GSI | L0 strategy review, GitHub web sign-in (report) | L0 `github-sign-in` is safe for an owner decision | D-1 | Sonnet (fresh agent) | ACCEPTED 2026-10-20 (direction plus spike only) | DONE: 13 findings fixed or closed, re-reviewed |
+| R-1 | Baseline: system as-is at `2b94d90` ([page](design/architecture.html), review) | Type `baseline`: accurate description of the code at the SHA, not an endorsed design | L2 pages and the designed system L1 | Sonnet (fresh agent) fact-check | ACCEPTED 2026-10-21 (accurate as-is, not an endorsed design) | DONE: re-review 2026-10-21 accepted it as a baseline; the residues were closed by the lead afterwards |
+| R-2 | Baseline: GitHub connection and credentials as-is at `2b94d90` ([page](design/github-connection/architecture.html), review) | Type `baseline`: accurate description of the code at the SHA, not an endorsed design | L1 `github-sign-in` (parent for its L2 pages) | Sonnet (fresh agent) fact-check | ACCEPTED 2026-10-21 (accurate as-is, not an endorsed design) | DONE: re-review 2026-10-21 accepted it as a baseline; the residues were closed by the lead afterwards |
 | SP-1 | Reversing proof for L0 proofs 1 and 2: does a sign-in round trip through `mardoc.app/api/auth/callback` work on the live zone with Pages serving every other path, and does a user token reach only repos where the test app is installed (including a non-owner org install)? Time-boxed to 2 days. Report: [sp-1-github-sign-in.md](spikes/sp-1-github-sign-in.md) | ADR 0001; L0 proofs 1 and 2 | L1 `github-sign-in` | Sonnet + **owner** (owner registers the test GitHub App and sets up the Cloudflare route) | ACCEPTED 2026-10-21 (owner reports PASS) | DONE: the owner ran the runbook on the live zone and reports PASS. ⭐ Owner: paste the probe output and callback JSON into the report's Results |
 | SP-2 | Can two GitHub App client secrets be live at once, so the secret can be rotated without downtime? Same Worker, runbook step 7. Report: [sp-2-client-secret-rotation.md](spikes/sp-2-client-secret-rotation.md) | L0 operating commitment (secret rotation) | Nothing; informs the rotation procedure | Sonnet + **owner** (owner generates secret B) | — | ⭐ Built with SP-1; waiting for the owner to deploy |
-| GSI-L1 | L1 design review, GitHub sign-in stage 1: [intent](design/github-sign-in/intent.md), [requirements](design/github-sign-in/requirements.md), [architecture](design/github-sign-in/architecture.html), [design.md](design/github-sign-in/design.md) | The Gate 0 package is accurate, buildable and safe for owner acceptance | M1 (sign-in) work packages | Opus (fresh reviewer + security reviewer) | — | DONE: reviewed and re-reviewed ([design](reviews/2026-10-21-github-sign-in-l1.md), [security](reviews/2026-10-21-github-sign-in-l1-security.md)); 0 High; every finding fixed, including the re-reviews' new ones. ACCEPTED 2026-10-27 by the owner, with intent.md and Q-8, Q-19 to Q-28 at their defaults |
+| GSI-L1 | L1 design review, GitHub sign-in stage 1: [intent](design/github-sign-in/intent.md), [requirements](design/github-sign-in/requirements.md), [architecture](design/github-sign-in/architecture.html), [design.md](design/github-sign-in/design.md) | The Gate 0 package is accurate, buildable and safe for owner acceptance | M1 (sign-in) work packages | Opus (fresh reviewer + security reviewer) | — | DONE: reviewed and re-reviewed (design, security); 0 High; every finding fixed, including the re-reviews' new ones. ACCEPTED 2026-10-27 by the owner, with intent.md and Q-8, Q-19 to Q-28 at their defaults |
 | SP-3 | Shaping proof for Q-8: does the real callback page, served by the product Worker module through the live zone, post the result to the tab that opened the pop-up, in current Chrome, Firefox and Safari on desktop, Safari on iOS and Chrome on Android? Run with a signed-in GitHub account and the production App settings (A-11), and record the zone's HTML-rewriting settings. Also records whether a returning user skips the consent screen, and whether `GET /user/repos` is already limited to installations for a user token (A-16). Time-boxed to 1 day; runs before the hand-off work package | A-10, A-16, NF-20 | The sign-in hand-off WP | Sonnet + **owner** (owner deploys the spike Worker) | — | PARTIAL (owner closed testing 2026-10-28): Chrome and Safari on macOS PASS through the live zone; zone probe 0 failures; A-16 false (installations list required, as built); returning users skip consent. Firefox, Safari iOS, Chrome Android not run: risk RK-5 accepted by the owner ([report](spikes/sp-3-callback-opener.md)) |
 | SP-4 | Reversing proof 1 for D-2: does a staging Site Worker on a route at `next.mardoc.app` serve the same site as GitHub Pages (files, URL behaviour table, e2e), with `/api/auth/*` reaching the test-App Auth Worker and a Site Worker request count of 0 after 500 unknown-path requests? Half a day | D-2 proof 1 | D-2 GO | Sonnet + **owner** (DNS record, Workers, routes) | — | PENDING: waits for the owner to approve running it |
 | SP-5 | Reversing proof 2 for D-2: does a dashboard-only route move `mardoc.app/demo*`, then `mardoc.app/*`, to the Site Worker and back, with the deleted route surviving a later `wrangler deploy`? Half a day; after SP-4 | D-2 proof 2 | D-2 GO | Sonnet + **owner** (routes, a redeploy) | — | PENDING: after SP-4 |
@@ -129,15 +129,15 @@ GitHub token is in `localStorage`, `sessionStorage` or a readable cookie
 
 | WP | Scope | Paths | Model | Depends on | Proves | Status |
 |---|---|---|---|---|---|---|
-| WP-1 | Build prerequisites and frozen contracts: the `worker/` project with its own package and tsconfig, the layout check in `npm run ci`, and the shared sign-in contract and auth types ([slice plan](plan/WP-1.md)) | `worker/` (scaffold), `src/lib/auth/contract.ts`, `src/lib/auth/types.ts`, `scripts/check-layout.mjs`, `tsconfig.json`, `vitest.config.ts`, `package.json`, `.github/workflows/test.yml`, `.gitignore` | Sonnet; the lead reviews the dependency list | — | LR-10, LR-11 (T-30); contract tests | DONE: merged 6036a2a; contracts frozen at the wave 1 checkpoint (57bf8fa) |
-| WP-2 | Embed `init` accepted only in embed mode and only from the parent window ([slice plan](plan/WP-2.md)) | `src/lib/embed-init.ts`, the `init` listener in `src/lib/app-context.tsx`, `e2e/embed-init.spec.ts` | Opus (credential handling) | — | F-16 (T-15); closes RK-3 for stage 1 | PARTIAL: merged; increments 1–2 PASS; the owner\'s VS Code check (increment 3) is open |
-| WP-3 | Auth Worker: health, login, callback, revoke and install-return routes; the callback check order; the callback page ([slice plan](plan/WP-3.md)) | `worker/src/**`, `worker/test/**` | Opus (credential handling) | WP-1 | F-20 to F-29, F-61, I-12, I-13, I-16, I-17, NF-14, NF-15, C-13, C-16 (T-20 to T-23, T-27) | DONE: merged; 80 Worker tests; ran under local workerd. Interpretations Q-1..Q-5 in the builder report accepted at their defaults (callback URL from `APP_ORIGIN`) |
-| WP-4 | App auth state: the session machine, the sign-in credential beside the PAT, session key gating, expiry and 401 handling in the GitHub client ([slice plan](plan/WP-4.md)) | `src/lib/auth/session.ts`, `src/lib/auth/credential.ts`, `src/lib/github-api.ts`, `src/lib/rate-limit.ts`, auth parts of `src/lib/app-context.tsx` and `src/components/SettingsPanel.tsx` | Opus (credential handling) | WP-1; WP-2 (same file) | F-30 to F-36, F-50, F-53, F-60, I-14, I-15, NF-12 (T-13 state, T-14, T-19, T-24) | DONE: merged; 64 new unit and component tests; full e2e passes apart from M1-1 and M1-2. DEBT-1 (a missing pending token is skipped silently) moves to WP-5 |
-| WP-5 | Pop-up hand-off: start, nonce, result listener with origin, source and nonce checks, timeouts and failure codes ([slice plan](plan/WP-5.md)); release waits for SP-3 | `src/lib/auth/sign-in-window.ts` | Opus (credential handling) | WP-3, WP-4, SP-3 | F-11, F-12, F-14, F-51, F-52, I-11 (T-12, T-17, T-18 codes) | PARTIAL: merged into the integration branch so WP-8 can build on it; all increments PASS with mocks. **M1 does not ship until SP-3 passes.** For WP-9: review the `__MARDOC_E2E__` test hook |
-| WP-6 | Settings screen and sign-in banner ([slice plan](plan/WP-6.md)) | `src/components/SettingsPanel.tsx`, `src/components/SignInBanner.tsx`, `e2e/sign-in-ui.spec.ts` | Sonnet | WP-4; the `startSignIn` signature frozen in WP-1 | F-10, F-13, F-15, F-17, F-18, F-32, F-33, F-37, F-38, F-41 to F-44, F-54, F-55, F-71, F-72, NF-13, NF-18, NF-22 (T-16, T-18 UI) | DONE: merged; e2e for reachable states plus component tests for live-session states. DEBT: F-42 detected from the error text (M1-3); live-session Playwright cases follow in WP-8 (M1-4) |
-| WP-7 | Docs: README, data-and-security, capabilities, the PAT guide, known issues | `README.md`, `docs/data-and-security.md`, `docs/capabilities.md`, `docs/setup-github-pat.md`, `docs/known-issues.md` | Sonnet | WP-6 (final copy) | F-70 to F-73 (T-28, T-33) | DONE: merged. WP-9 (CR-5) removed TOOL-01's token-help item: the demo sample's `read:org` text now follows the guide; the rest of TOOL-01 stays open. Open: move the docs' "reviewed against" headers at M1 close |
-| WP-8 | Integration and demo: sign-in e2e with mocks, the real Worker under `wrangler dev`, the stage 1 gate, local real sign-in with the development App, `demos/m1.md` and the owner's production runbook ([slice plan](plan/WP-8.md)) | `dev/local-auth/`, `e2e/sign-in-*.spec.ts`, `scripts/demo.sh`, `demos/m1.md`, `worker/README.md`, `package.json` | Lead: Opus | WP-1 to WP-7 | T-10, T-11, T-31, T-32; runbook for T-25, T-26, T-29 | PARTIAL: merged. Increments 1 and 2 PASS (T-32 in Chromium; 42 gate and journey tests); `npm run demo -- m1` PASS. Open: Part B real sign-in (owner registers the development App), T-32 in Firefox (DEBT-2) |
-| WP-9 | Independent code review and security review, then fixes | per findings | Opus for both reviews (high risk), fresh agents | WP-8 | Review reports in `docs/reviews/` | DONE: reviews and re-review closed all 13 findings (CR-1..CR-10, SR-1..SR-3; [code](reviews/2026-10-28-m1-code-review.md), [security](reviews/2026-10-28-m1-security-review.md)). ci at bad5a45 fails only on M1-1 and one M1-2 flake; T-32 4 passed |
+| WP-1 | Build prerequisites and frozen contracts: the `worker/` project with its own package and tsconfig, the layout check in `npm run ci`, and the shared sign-in contract and auth types (slice plan) | `worker/` (scaffold), `src/lib/auth/contract.ts`, `src/lib/auth/types.ts`, `scripts/check-layout.mjs`, `tsconfig.json`, `vitest.config.ts`, `package.json`, `.github/workflows/test.yml`, `.gitignore` | Sonnet; the lead reviews the dependency list | — | LR-10, LR-11 (T-30); contract tests | DONE: merged 6036a2a; contracts frozen at the wave 1 checkpoint (57bf8fa) |
+| WP-2 | Embed `init` accepted only in embed mode and only from the parent window (slice plan) | `src/lib/embed-init.ts`, the `init` listener in `src/lib/app-context.tsx`, `e2e/embed-init.spec.ts` | Opus (credential handling) | — | F-16 (T-15); closes RK-3 for stage 1 | PARTIAL: merged; increments 1–2 PASS; the owner\'s VS Code check (increment 3) is open |
+| WP-3 | Auth Worker: health, login, callback, revoke and install-return routes; the callback check order; the callback page (slice plan) | `worker/src/**`, `worker/test/**` | Opus (credential handling) | WP-1 | F-20 to F-29, F-61, I-12, I-13, I-16, I-17, NF-14, NF-15, C-13, C-16 (T-20 to T-23, T-27) | DONE: merged; 80 Worker tests; ran under local workerd. Interpretations Q-1..Q-5 in the builder report accepted at their defaults (callback URL from `APP_ORIGIN`) |
+| WP-4 | App auth state: the session machine, the sign-in credential beside the PAT, session key gating, expiry and 401 handling in the GitHub client (slice plan) | `src/lib/auth/session.ts`, `src/lib/auth/credential.ts`, `src/lib/github-api.ts`, `src/lib/rate-limit.ts`, auth parts of `src/lib/app-context.tsx` and `src/components/SettingsPanel.tsx` | Opus (credential handling) | WP-1; WP-2 (same file) | F-30 to F-36, F-50, F-53, F-60, I-14, I-15, NF-12 (T-13 state, T-14, T-19, T-24) | DONE: merged; 64 new unit and component tests; full e2e passes apart from M1-1 and M1-2. DEBT-1 (a missing pending token is skipped silently) moves to WP-5 |
+| WP-5 | Pop-up hand-off: start, nonce, result listener with origin, source and nonce checks, timeouts and failure codes (slice plan); release waits for SP-3 | `src/lib/auth/sign-in-window.ts` | Opus (credential handling) | WP-3, WP-4, SP-3 | F-11, F-12, F-14, F-51, F-52, I-11 (T-12, T-17, T-18 codes) | PARTIAL: merged into the integration branch so WP-8 can build on it; all increments PASS with mocks. **M1 does not ship until SP-3 passes.** For WP-9: review the `__MARDOC_E2E__` test hook |
+| WP-6 | Settings screen and sign-in banner (slice plan) | `src/components/SettingsPanel.tsx`, `src/components/SignInBanner.tsx`, `e2e/sign-in-ui.spec.ts` | Sonnet | WP-4; the `startSignIn` signature frozen in WP-1 | F-10, F-13, F-15, F-17, F-18, F-32, F-33, F-37, F-38, F-41 to F-44, F-54, F-55, F-71, F-72, NF-13, NF-18, NF-22 (T-16, T-18 UI) | DONE: merged; e2e for reachable states plus component tests for live-session states. DEBT: F-42 detected from the error text (M1-3); live-session Playwright cases follow in WP-8 (M1-4) |
+| WP-7 | Docs: README, data-and-security, capabilities, the PAT guide, known issues | `README.md`, `docs/data-and-security.md`, `docs/capabilities.md`, `docs/setup-github-pat.md`, `docs/plan.md` § Known issues | Sonnet | WP-6 (final copy) | F-70 to F-73 (T-28, T-33) | DONE: merged. WP-9 (CR-5) removed TOOL-01's token-help item: the demo sample's `read:org` text now follows the guide; the rest of TOOL-01 stays open. Open: move the docs' "reviewed against" headers at M1 close |
+| WP-8 | Integration and demo: sign-in e2e with mocks, the real Worker under `wrangler dev`, the stage 1 gate, local real sign-in with the development App, `demos/m1.md` and the owner's production runbook (slice plan) | `dev/local-auth/`, `e2e/sign-in-*.spec.ts`, `scripts/demo.sh`, `demos/m1.md`, `worker/README.md`, `package.json` | Lead: Opus | WP-1 to WP-7 | T-10, T-11, T-31, T-32; runbook for T-25, T-26, T-29 | PARTIAL: merged. Increments 1 and 2 PASS (T-32 in Chromium; 42 gate and journey tests); `npm run demo -- m1` PASS. Open: Part B real sign-in (owner registers the development App), T-32 in Firefox (DEBT-2) |
+| WP-9 | Independent code review and security review, then fixes | per findings | Opus for both reviews (high risk), fresh agents | WP-8 | Review reports in `docs/reviews/` | DONE: reviews and re-review closed all 13 findings (CR-1..CR-10, SR-1..SR-3; code, security). ci at bad5a45 fails only on M1-1 and one M1-2 flake; T-32 4 passed |
 
 Owner steps inside M1: register the development App with a localhost
 callback before WP-8 (A-15); register the production App (Q-19) and deploy
@@ -222,7 +222,7 @@ Production sign-in, 2026-10-29 (T-26): the owner signed in at `https://mardoc.ap
 
 ## Backlog from the GSI review
 
-Every finding in [2026-10-20-github-sign-in-l0.md](reviews/2026-10-20-github-sign-in-l0.md)
+Every finding in 2026-10-20-github-sign-in-l0.md
 was fixed in the L0 page. None is deferred.
 
 Add one section per review (design review R-n, code review WPn). Intentional
@@ -230,7 +230,7 @@ shortcuts are DEBT-n rows with reason, follow-up and impact.
 
 ## Backlog from adoption
 
-Code and story changes that follow owner decisions on the [adoption map](adoption/map.md#decisions-raised) (answered 2026-10-21).
+Code and story changes that follow owner decisions on the adoption map (answered 2026-10-21).
 
 | ID | Stage | Item |
 |---|---|---|
@@ -247,5 +247,73 @@ pages link here; gate status lives only in this file.
 
 | ID | Decision | Date | Owner | Status | Scope of approval | Links |
 |---|---|---|---|---|---|---|
-| D-1 | GitHub web sign-in uses a GitHub App with a Worker route on `mardoc.app/api/auth/*`. Sign-in ships first without refresh; silent refresh follows the SEC-01 fix. | 2026-10-20 | Joe Barnett | GO | Direction plus SP-1 only, not build. Defaults taken: Q-4 (SEC-01 → Joe Barnett, due 2026-11-17), Q-6 (decide by 2026-10-27), Q-7 (Joe Barnett operates the Worker and holds the secret), Q-9 (backup-operator gap accepted). The owner registers the GitHub App and configures Cloudflare. | [L0](design/github-sign-in/strategy.html), [ADR 0001](adr/0001-web-sign-in-github-app-worker-route.md), [review](reviews/2026-10-20-github-sign-in-l0.md), SP-1 |
-| D-2 | Serve mardoc.app's files from a code-free Cloudflare Site Worker; sign-in stays in the Auth Worker; the owner deploys both; dashboard-only routes cut over and roll back; GitHub Pages keeps deploying until the clean-up gate. Amends ADR 0001 if approved. | 2026-10-23 | Joe Barnett | IN REVIEW | Direction plus SP-4 and SP-5 only, not build. Defaults proposed: Q-29 to Q-35, RK-4. The owner does every Cloudflare and GitHub step. | [L0](design/cloudflare-hosting/strategy.html), [review](reviews/2026-10-23-cloudflare-hosting-l0.md) |
+| D-1 | GitHub web sign-in uses a GitHub App with a Worker route on `mardoc.app/api/auth/*`. Sign-in ships first without refresh; silent refresh follows the SEC-01 fix. | 2026-10-20 | Joe Barnett | GO | Direction plus SP-1 only, not build. Defaults taken: Q-4 (SEC-01 → Joe Barnett, due 2026-11-17), Q-6 (decide by 2026-10-27), Q-7 (Joe Barnett operates the Worker and holds the secret), Q-9 (backup-operator gap accepted). The owner registers the GitHub App and configures Cloudflare. | [L0](design/github-sign-in/strategy.html), [ADR 0001](adr/0001-web-sign-in-github-app-worker-route.md), review, SP-1 |
+| D-2 | Serve mardoc.app's files from a code-free Cloudflare Site Worker; sign-in stays in the Auth Worker; the owner deploys both; dashboard-only routes cut over and roll back; GitHub Pages keeps deploying until the clean-up gate. Amends ADR 0001 if approved. | 2026-10-23 | Joe Barnett | IN REVIEW | Direction plus SP-4 and SP-5 only, not build. Defaults proposed: Q-29 to Q-35, RK-4. The owner does every Cloudflare and GitHub step. | [L0](design/cloudflare-hosting/strategy.html), review |
+
+## Known issues
+
+Reviewed against `4abb8f5` on 2026-09-23; corrected against `2b94d90` on 2026-10-21 (adoption: see adoption judgement). Entries below are open unless explicitly changed. Documentation corrections do not close implementation issues. These are source-supported gaps; runtime reproduction and performance measurements are still needed where noted.
+
+### SEC-01: HTML isolation
+
+**Priority: first.** Rendered-content isolation. Details are kept privately; report security issues through the repository's private vulnerability reporting. See [data and security](data-and-security.md) and stories 031 / 033.
+
+Closure requires a repaired boundary and real-browser tests while rendering, selection, resizing and comments keep working. Closing SEC-01 includes the embed message checks ([RK-3](risks.md), Q-11).
+
+### AUTH-01: Sign-in ends after 8 hours or on a 401
+
+A sign-in token expires after 8 hours. MarDoc keeps no refresh token, so it cannot renew the token. When the lifetime is close, a banner warns that the sign-in is ending. When it ends, or when GitHub answers a request with 401 (for example after you revoke the app), MarDoc stops sending the token, shows "Your GitHub sign-in has ended" and offers **Sign in again**. The open page, route and unsaved edits stay. After a reload the token is gone; MarDoc offers Sign in again for the document you had open. Settings also offers a personal access token at any time.
+
+The token sits in tab memory only. The 8-hour lifetime and the installed-repository limit bound what it can reach (SEC-01, RK-1). Stage 1 has no refresh route, to keep that bound. See [data and security](data-and-security.md).
+
+### DATA-01: Draft and pending-review recovery
+
+`draft-store.ts` excludes new/local files. `PRDetail` holds pending comments in React state; there is no durable pending-review queue or cross-device recovery. The local-file exclusion also affects the dirty signal used by navigation/embed reload guards. Storage failures silently skip persistence.
+
+Define recovery and discard expectations for each document/review mode, then test refresh, navigation, and host reload. See capabilities and 026.
+
+### DATA-02: Disconnect lifecycle
+
+Disconnect removes saved token/repository keys and resets the module-level Octokit client and session caches, but does not erase stored drafts/preferences. Decide which state must be cleared and distinguish disconnect from local-data deletion. See [storage lifecycle](data-and-security.md).
+
+### REVIEW-01: Incomplete PR loading and hidden content failures
+
+**Narrowed in code since `4abb8f5`:** PR file manifests and comments paginate, renamed files read the base revision from `previous_filename`, and a failed document read shows an error state instead of an empty string (`github-api.ts:400-412, 445-452`; `app-context.tsx:703-715`). Still open: the PR list itself requests a single page of 100 (`github-api.ts:296-304`).
+
+Closure needs pagination, explicit failure states, and coverage for large PRs, renamed documents, and failed content reads. Related: 024.
+
+### REVIEW-02: Stale PR list responses
+
+**Closed in code since `4abb8f5`:** `loadPRs` now uses the list generation guard and an `AbortController` for both the list and count enrichment (`app-context.tsx:451-465`). Original finding: `loadPRs` and asynchronous document-count enrichment updated state without the generation checks used in other loads, so rapid repository/filter switches could receive old results. Regression coverage: `branch-navigation.test.tsx` ("cancels old PR lists and counts on filter changes…"). Related: 027.
+
+### REVIEW-03: Suggestions and review-PR branch semantics
+
+`applySuggestion` replaces one range in the latest file without validating original text/version coordinates. Batch acceptance in a single commit and outdated-suggestion handling remain unfinished. `createReviewPR` creates a fresh default-branch-based review with a whitespace change; it does not reuse an existing PR from the selected branch. See suggestions and file reviews.
+
+### EDIT-01: Conversion fidelity
+
+HTML comments, unsupported HTML structures, table spans, and table-cell inline formatting can be lost during editing/serialization. The HTML round-trip unit helper omits TipTap, so its passing cases do not prove full editor preservation. Add meaningful full-pipeline cases before promising broader fidelity. See 018 and the manual fixture.
+
+### EDIT-02: Existing-file edit-to-PR save path
+
+`Editor.handleSubmitEditsAsPR` calls `createFileAsPR`, which branches from the default branch and calls `createOrUpdateFileContents` without an existing file SHA. That is a create-file request, even when the target already exists. GitHub requires the existing blob SHA for an update, so this path needs repair and an existing-file regression case before being treated as reliable editing support. The handler also appends `.md` to paths that do not end in `.md`, including `.mdx`. This finding comes from source review; no live repository write was performed. [GitHub file-update contract](https://docs.github.com/en/rest/repos/contents#create-or-update-file-contents)
+
+New-file conflict handling also lacks the originally proposed overwrite-choice flow. Preserve the intended target path and branch semantics explicitly in future save tests.
+
+### NAV-01: Deep-link validation
+
+**Closed in code since `4abb8f5`:** `parseHash` catches malformed escapes, accepts only canonical numbers, and returns no route for invalid input; the builders encode the branch and each path segment (`hash-router.ts:23-58`). Original finding: `parseHash` could throw on malformed percent escapes, accepted numeric prefixes through `parseInt`, and `buildFileHash` did not encode branch/path segments. Regression coverage: `hash-router.test.ts`. Related: 021.
+
+### PERF-01: Load and render baseline
+
+**Partly addressed:** PR bodies now load for the selected file only, and hidden tabs stop comment polling (performance). Originally: PR document base/head reads were serial, and review rendering waited for all files plus comments. Repository initialization also serializes independent work. Large-document parsing, full block rendering, whole-document draft serialization, and overlapping comment refreshes merit profiling.
+
+Measure the production export before changes. Track time to first readable file, switching/typing latency, long tasks, and API requests on desktop/mobile with cold/warm and slow-network runs. Then evaluate selected-file-first fetching, bounded concurrency, commit-addressed caching, and rendering improvements. No measured speedup is claimed.
+
+### TOOL-01: Development and test maintenance
+
+`npm start` uses `next start` despite static export; the lint script lacks a configured ESLint setup. E2E tests include fixed waits. Deployment and test workflows are independent. Track this code and config cleanup separately.
+
+### Product and integration gaps
+
+HTML WYSIWYG editing, HTML word-level prose diffs, HTML suggestion parity, mobile swipe navigation, a tablet layout override, and AI translation are not complete product capabilities. App-side VS Code image/reload support exists, but extension-side status needs verification in its repository. See the feature index.

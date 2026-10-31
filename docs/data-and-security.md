@@ -1,6 +1,6 @@
 # Data storage and security
 
-Reviewed against `4abb8f5` on 2026-09-23; corrected against `2b94d90` on 2026-10-21 (adoption: see [adoption judgement](adoption/judgement.md)). This describes current behavior. Browser-only hosting is an architectural constraint, not a security guarantee by itself.
+Reviewed against `4abb8f5` on 2026-09-23; corrected against `2b94d90` on 2026-10-21 (adoption: see adoption judgement). This describes current behavior. Browser-only hosting is an architectural constraint, not a security guarantee by itself.
 
 ## What leaves the browser
 
@@ -45,7 +45,7 @@ Disconnect removes the saved PAT, the repository preference and the cached repos
 
 ## Rendered-content isolation (SEC-01)
 
-Rendered-content isolation is tracked as [SEC-01](known-issues.md#sec-01-html-isolation), and embed message validation as RK-3 in [risks.md](risks.md) (Q-11). Details are kept privately; report security issues through the repository's private vulnerability reporting. Open documents only from repositories you trust.
+Rendered-content isolation is tracked as [SEC-01](plan.md#sec-01-html-isolation), and embed message validation as RK-3 in [risks.md](risks.md) (Q-11). Details are kept privately; report security issues through the repository's private vulnerability reporting. Open documents only from repositories you trust.
 
 ## Intended boundary and verification
 
