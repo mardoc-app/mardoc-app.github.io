@@ -1,0 +1,81 @@
+<mxfile host="drawio">
+  <diagram id="landscape" name="Cloudflare hosting landscape">
+    <mxGraphModel dx="940" dy="500" grid="0" gridSize="10" page="0" pageWidth="940" pageHeight="500">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="lane-browser" value="User's browser" vertex="1" parent="1" style="html=0;verticalAlign=top;fillColor=#161b22;strokeColor=#344052;fontColor=#a9b6c6;dashed=1;">
+          <mxGeometry x="20" y="20" width="220" height="400" as="geometry"/>
+        </mxCell>
+        <mxCell id="lane-cloudflare" value="Cloudflare: mardoc.app zone" vertex="1" parent="1" style="html=0;verticalAlign=top;fillColor=#161b22;strokeColor=#344052;fontColor=#a9b6c6;dashed=1;">
+          <mxGeometry x="280" y="20" width="300" height="400" as="geometry"/>
+        </mxCell>
+        <mxCell id="lane-pages" value="GitHub Pages (rollback only)" vertex="1" parent="1" style="html=0;verticalAlign=top;fillColor=#161b22;strokeColor=#344052;fontColor=#a9b6c6;dashed=1;">
+          <mxGeometry x="620" y="20" width="300" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="lane-github" value="GitHub" vertex="1" parent="1" style="html=0;verticalAlign=top;fillColor=#161b22;strokeColor=#344052;fontColor=#a9b6c6;dashed=1;">
+          <mxGeometry x="620" y="200" width="300" height="220" as="geometry"/>
+        </mxCell>
+        <mxCell id="app" value="MarDoc app&#xa;(exists)" vertex="1" parent="1" style="rounded=0;html=0;fillColor=#1f2733;strokeColor=#4fd1ec;fontColor=#e6edf3;">
+          <mxGeometry x="40" y="70" width="180" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="proxy" value="Cloudflare proxy&#xa;(exists)" vertex="1" parent="1" style="rounded=0;html=0;fillColor=#1f2733;strokeColor=#4fd1ec;fontColor=#e6edf3;">
+          <mxGeometry x="300" y="70" width="260" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="assets" value="Site Worker: out/ files&#xa;(no code; owner deploys)" vertex="1" parent="1" style="rounded=0;html=0;dashed=1;fillColor=#1f2733;strokeColor=#4fd1ec;fontColor=#e6edf3;">
+          <mxGeometry x="330" y="205" width="210" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="auth" value="Auth Worker: /api/auth/*&#xa;(L1; owner deploys)" vertex="1" parent="1" style="rounded=0;html=0;dashed=1;fillColor=#1f2733;strokeColor=#a9b6c6;fontColor=#e6edf3;">
+          <mxGeometry x="330" y="285" width="210" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="secret" value="Worker secret: client secret" vertex="1" parent="1" style="rounded=0;html=0;dashed=1;fillColor=#1f2733;strokeColor=#344052;fontColor=#a9b6c6;">
+          <mxGeometry x="330" y="358" width="210" height="34" as="geometry"/>
+        </mxCell>
+        <mxCell id="pages" value="Static site out/&#xa;(kept deploying)" vertex="1" parent="1" style="rounded=0;html=0;fillColor=#1f2733;strokeColor=#a9b6c6;fontColor=#e6edf3;">
+          <mxGeometry x="660" y="70" width="220" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="oauth" value="github.com&#xa;sign-in" vertex="1" parent="1" style="rounded=0;html=0;fillColor=#1f2733;strokeColor=#a9b6c6;fontColor=#e6edf3;">
+          <mxGeometry x="640" y="270" width="130" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="api" value="GitHub API&#xa;(exists)" vertex="1" parent="1" style="rounded=0;html=0;fillColor=#1f2733;strokeColor=#a9b6c6;fontColor=#e6edf3;">
+          <mxGeometry x="790" y="270" width="115" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="app-proxy" value="mardoc.app/*" edge="1" parent="1" source="app" target="proxy" style="html=0;strokeColor=#a9b6c6;fontColor=#e6edf3;labelBackgroundColor=#161b22;endArrow=block;endFill=1;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="proxy-assets" value="/* (every other path)" edge="1" parent="1" source="proxy" target="assets" style="html=0;strokeColor=#a9b6c6;fontColor=#e6edf3;labelBackgroundColor=#161b22;endArrow=block;endFill=1;exitX=0.6;exitY=1;entryX=0.6;entryY=0;">
+          <mxGeometry x="0.6" relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="proxy-auth" value="/api/auth/*" edge="1" parent="1" source="proxy" target="auth" style="html=0;strokeColor=#a9b6c6;fontColor=#e6edf3;labelBackgroundColor=#161b22;endArrow=block;endFill=1;edgeStyle=orthogonalEdgeStyle;exitX=0.04;exitY=1;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="310" y="315"/></Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="proxy-pages" value="rollback" edge="1" parent="1" source="proxy" target="pages" style="html=0;dashed=1;strokeColor=#a9b6c6;fontColor=#e6edf3;labelBackgroundColor=#161b22;endArrow=block;endFill=1;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="auth-oauth" value="code + verifier + secret" edge="1" parent="1" source="auth" target="oauth" style="html=0;strokeColor=#a9b6c6;fontColor=#e6edf3;labelBackgroundColor=#161b22;endArrow=block;endFill=1;exitX=1;exitY=0.25;entryX=0;entryY=0.2;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="oauth-auth" value="redirect with code" edge="1" parent="1" source="oauth" target="auth" style="html=0;strokeColor=#a9b6c6;fontColor=#e6edf3;labelBackgroundColor=#161b22;endArrow=block;endFill=1;exitX=0;exitY=0.8;entryX=1;entryY=0.8;">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="app-oauth" value="sign in and consent (pop-up)" edge="1" parent="1" source="app" target="oauth" style="html=0;strokeColor=#a9b6c6;fontColor=#e6edf3;labelBackgroundColor=#161b22;endArrow=block;endFill=1;edgeStyle=orthogonalEdgeStyle;exitX=0.3;exitY=1;entryX=0.5;entryY=1;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="94" y="445"/><mxPoint x="705" y="445"/></Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="app-api" value="documents and reviews (access token, in memory)" edge="1" parent="1" source="app" target="api" style="html=0;strokeColor=#a9b6c6;fontColor=#e6edf3;labelBackgroundColor=#161b22;endArrow=block;endFill=1;edgeStyle=orthogonalEdgeStyle;exitX=0.7;exitY=1;entryX=0.5;entryY=1;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="166" y="480"/><mxPoint x="847" y="480"/></Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="auth-app" value="access token, once" edge="1" parent="1" source="auth" target="app" style="html=0;strokeColor=#a9b6c6;fontColor=#e6edf3;labelBackgroundColor=#161b22;endArrow=block;endFill=1;edgeStyle=orthogonalEdgeStyle;exitX=0;exitY=0.85;entryX=1;entryY=0.8;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="255" y="336"/><mxPoint x="255" y="126"/></Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

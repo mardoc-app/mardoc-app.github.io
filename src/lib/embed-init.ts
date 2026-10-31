@@ -1,5 +1,5 @@
 /**
- * Trust check for the VS Code embed `init` message (F-16, T-15).
+ * Check for the VS Code embed `init` message (F-16, T-15).
  *
  * `init` can carry a GitHub token and replace the displayed document, so
  * the app applies it only when both of these hold:

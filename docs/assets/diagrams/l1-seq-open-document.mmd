@@ -1,0 +1,20 @@
+sequenceDiagram
+  participant U as Reviewer
+  participant A as App shell and state
+  participant D as Browser storage
+  participant G as GitHub client
+  participant H as GitHub API
+  participant E as Markdown editor
+  U->>A: open #/owner/repo/blob/branch/path
+  A->>D: save mardoc_current_repo
+  A->>G: fetchRevision(branch)
+  G->>H: read branch ref
+  H-->>G: commit SHA
+  A->>G: fetchRepoTree(SHA) in the background
+  A->>G: fetchFileContent(path, SHA)
+  G->>H: read file contents
+  H-->>G: Markdown source
+  G-->>A: content and revision
+  A->>E: content and revision
+  E->>D: resolveDraftOnLoad
+  E-->>U: rendered document, restore offered if a draft differs

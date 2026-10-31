@@ -1,0 +1,22 @@
+sequenceDiagram
+  participant U as Reviewer
+  participant A as App shell and state
+  participant R as PR review
+  participant G as GitHub client
+  participant H as GitHub API
+  U->>A: open PR number N
+  A->>G: fetchPRComments (paginated)
+  A->>G: fetchPRFileManifest (paginated)
+  G->>H: pulls.listFiles and pulls.get
+  H-->>G: changed files and base and head SHAs
+  A->>G: fetchPRFile for the selected document
+  G-->>R: base and head content
+  R-->>U: rendered diff with comments
+  U->>R: select text and queue line-anchored comments
+  U->>R: submit review
+  R->>G: submitReviewBatched
+  G->>H: pulls.createReview
+  alt a comment line does not resolve (422)
+    G->>H: post comments one by one, then the review if an event or body was given
+  end
+  R->>G: refresh comments after the write and every 30 s
