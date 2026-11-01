@@ -7,11 +7,11 @@ Level: L1
 - **Date:** 2026-10-21
 - **Status:** Accepted by the owner (2026-10-27), including the six lead-derived decisions below at their defaults. Seeded from issue
   [#146](https://github.com/mardoc-app/mardoc-app.github.io/issues/146), the
-  accepted [L0 strategy](l0-github-sign-in.html) (D-1 in
-  [plan.md](../plan.md#decisions)) and the owner's L1 brief of 2026-10-21.
+  accepted [L0 strategy](../l0-github-sign-in.html) (D-1 in
+  [plan.md](../../plan.md#decisions)) and the owner's L1 brief of 2026-10-21.
 
 This document says what the owner wants and why, in the owner's words. It
-comes before [requirements.md](github-sign-in-requirements.md), which turns it into
+comes before [requirements.md](requirements.md), which turns it into
 testable requirements. If this document and the requirements disagree, this
 document is corrected first, by the owner.
 
@@ -23,7 +23,7 @@ collide with the placeholder rows of the system template in
 
 Before a new reviewer can read anything in MarDoc, they have to create a
 GitHub personal access token and paste it into Settings
-([setup-github-pat.md](../setup-github-pat.md)). Many of MarDoc's readers
+([setup-github-pat.md](../../setup-github-pat.md)). Many of MarDoc's readers
 are product managers, designers and writers who have never made one. The
 token the app then keeps is often broad and long-lived, and it sits in
 `localStorage`.
@@ -54,17 +54,17 @@ sign-in fails.
 
 - GitHub Pages stays the origin for the app; the code exchange runs in a
   Cloudflare Worker route on `mardoc.app/api/auth/*`
-  ([ADR 0001](../adr/0001-web-sign-in-github-app-worker-route.md)).
+  ([ADR 0001](../../adr/0001-web-sign-in-github-app-worker-route.md)).
 - A GitHub App, not a classic OAuth App (ADR 0001).
 - The client secret lives only in Worker secrets (Q-7).
 - The owner registers the GitHub App and does every Cloudflare step; agents
-  never do ([plan.md § How work is done](../plan.md#how-work-is-done)).
+  never do ([plan.md § How work is done](../../plan.md#how-work-is-done)).
 - Running cost stays on the Workers Free plan (L0 operating commitment).
 
 ## Out of scope
 
 - Silent refresh and any stored refresh token (stage 2). See the note in
-  [requirements.md](github-sign-in-requirements.md#stage-2-note).
+  [requirements.md](requirements.md#stage-2-note).
 - VS Code extension sign-in (`vscode.authentication`, mardoc-vscode).
 - Moving hosting off GitHub Pages.
 - Removing the PAT option.
@@ -96,7 +96,7 @@ sign-in fails.
 ## Decisions derived by the lead, accepted by the owner
 
 These came from analysis, not from the owner's words. Each is a default in
-[requirements.md](github-sign-in-requirements.md) and changes if the owner says no.
+[requirements.md](requirements.md) and changes if the owner says no.
 
 | Decision | Where | Default |
 |---|---|---|
@@ -110,5 +110,5 @@ These came from analysis, not from the owner's words. Each is a default in
 ## Open questions
 
 The questions this work raises are in
-[requirements.md § Open questions](github-sign-in-requirements.md#open-questions) (Q-8 and
+[requirements.md § Open questions](requirements.md#open-questions) (Q-8 and
 Q-19 onwards), each with a recommended default.

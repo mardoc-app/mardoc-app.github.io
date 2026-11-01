@@ -6,7 +6,7 @@
 - **Evidence:** [L0 strategy](../design/l0-github-sign-in.html);
   L0 review GSI-1..13 and re-review;
   SP-1 ([plan.md Gate 0](../plan.md#gate-0-review-and-spikes));
-  L1 design: [architecture](../design/l1-github-sign-in.html), [design.md](../design/github-sign-in-design.md);
+  L1 design: [architecture](../design/l1-github-sign-in.html), [design.md](../design/github-sign-in/design.md);
   issue [#146](https://github.com/mardoc-app/mardoc-app.github.io/issues/146)
 
 ## Context

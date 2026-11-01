@@ -1,4 +1,1 @@
-# doclint skips these unfilled templates.
-docs/design/design.md
-docs/design/intent.md
-docs/design/requirements.md
+# doclint skips nothing.

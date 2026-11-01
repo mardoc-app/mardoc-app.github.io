@@ -5,11 +5,11 @@ Level: L1
 This document lists everything stage 1 of GitHub sign-in (issue
 [#146](https://github.com/mardoc-app/mardoc-app.github.io/issues/146)) must do
 and every constraint it must respect. Each requirement has an ID that
-[design.md](github-sign-in-design.md) cites, and the design's traceability table maps every
+[design.md](design.md) cites, and the design's traceability table maps every
 ID to the parts that satisfy it and the test that verifies it. The owner's
-problem and outcome are in [intent.md](github-sign-in-intent.md); the direction was decided
-at L0 ([strategy.html](l0-github-sign-in.html), D-1,
-[ADR 0001](../adr/0001-web-sign-in-github-app-worker-route.md)) and proven
+problem and outcome are in [intent.md](intent.md); the direction was decided
+at L0 ([strategy.html](../l0-github-sign-in.html), D-1,
+[ADR 0001](../../adr/0001-web-sign-in-github-app-worker-route.md)) and proven
 live by SP-1.
 
 Stage 1 adds **Sign in with GitHub** through a MarDoc GitHub App. A Worker on
@@ -21,7 +21,7 @@ route and no stored token.
 ## How to read this document
 
 - **Source:**
-  - **S-n** is an owner statement from [intent.md](github-sign-in-intent.md), listed below.
+  - **S-n** is an owner statement from [intent.md](intent.md), listed below.
   - **C-n** is a constraint in this document.
   - **Derived** is a requirement that follows from analysis rather than from
     the owner's words. Every derived requirement names the IDs it comes from.
@@ -31,7 +31,7 @@ route and no stored token.
   - **Could** is welcome but optional.
 - **Stage** is the first release stage that delivers the requirement. Stage 1
   is sign-in without refresh; stage 2 (silent refresh) is out of scope here
-  ([note](#stage-2-note)). Milestones are scheduled in [plan.md](../plan.md).
+  ([note](#stage-2-note)). Milestones are scheduled in [plan.md](../../plan.md).
 - **Acceptance** is a check that a reviewer can run or observe. "Mocked
   exchange" means a Playwright route that stands in for `/api/auth/*` (S-22).
   "Owner demo" means a step the owner runs on the live zone, because agents
@@ -45,7 +45,7 @@ The owner has not stated them, so review them.
 
 ## Owner's statements
 
-The full list, with sources, is in [intent.md](github-sign-in-intent.md#owners-statements).
+The full list, with sources, is in [intent.md](intent.md#owners-statements).
 
 | Ref | Statement | Source |
 |---|---|---|
@@ -77,7 +77,7 @@ The full list, with sources, is in [intent.md](github-sign-in-intent.md#owners-s
 | C-11 | Sign-in uses a GitHub App, not a classic OAuth App. | ADR 0001 | The authorize URL's `client_id` belongs to a GitHub App (owner demo: the App's settings page). |
 | C-12 | The code exchange runs in a Cloudflare Worker bound to the route `mardoc.app/api/auth/*`. | ADR 0001 | `/api/auth/health` returns the Worker's JSON with no `x-github-request-id` (probe criterion 3). |
 | C-13 | The GitHub App client secret lives only in Worker secrets. | Q-7 | The repo and the built `out/` contain no `client_secret` value; the Worker reads it only from `env` (code review). |
-| C-14 | The owner registers and changes the GitHub App and does every Cloudflare step (route, deploy, secrets); agents never do. | [plan.md § How work is done](../plan.md#how-work-is-done) | No agent-run command in the WP logs calls `wrangler deploy`, `wrangler secret` or the GitHub App settings. |
+| C-14 | The owner registers and changes the GitHub App and does every Cloudflare step (route, deploy, secrets); agents never do. | [plan.md § How work is done](../../plan.md#how-work-is-done) | No agent-run command in the WP logs calls `wrangler deploy`, `wrangler secret` or the GitHub App settings. |
 | C-15 | The Worker runs on the Cloudflare Workers Free plan. | L0 operating commitment | The owner's Cloudflare dashboard shows the Free plan for the Worker. |
 | C-16 | Stage 1 has no refresh route and stores no refresh token anywhere. | D-1, S-24, S-27 | F-24 and F-25 pass. |
 | C-17 | The PAT option stays available on the web app. | ADR 0001, S-17 | F-50 passes. |
