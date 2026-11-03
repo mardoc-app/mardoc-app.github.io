@@ -25,7 +25,7 @@ export function collapseAll(_state: ReadonlySet<string>): Set<string> {
 }
 
 export function serialize(state: ReadonlySet<string>): string {
-  return JSON.stringify([...state].sort());
+  return JSON.stringify(Array.from(state).sort());
 }
 
 /** A JSON array's string items, sorted, first 200 kept; an empty set for anything else. */
