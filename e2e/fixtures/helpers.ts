@@ -13,6 +13,12 @@ import { expect } from "@playwright/test";
  * Wait for the React app to hydrate. Works on both desktop (where
  * the Sidebar's PRs button is inline in the DOM) and mobile (where
  * the hamburger button is the only hydrated element visible).
+ *
+ * Both buttons are in the prerendered HTML, so they show the page, not
+ * a hydrated one; with `next dev` the load event can also come before
+ * hydration. Next's app router adds <next-route-announcer> in an effect
+ * of the hydration commit, after the page's own effects (such as the
+ * global keyboard shortcut listener), so wait for it too.
  */
 export async function waitForHydration(page: Page): Promise<void> {
   await page.waitForFunction(
@@ -21,7 +27,8 @@ export async function waitForHydration(page: Page): Promise<void> {
         (b) => b.textContent?.trim() === "PRs"
       );
       const hamburger = document.querySelector('button[aria-label="Open navigation"]');
-      return !!prsBtn || !!hamburger;
+      const hydrated = !!document.querySelector("next-route-announcer");
+      return (!!prsBtn || !!hamburger) && hydrated;
     },
     { timeout: 15_000 }
   );
