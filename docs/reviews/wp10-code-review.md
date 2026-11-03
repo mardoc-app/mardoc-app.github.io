@@ -7,7 +7,9 @@
 - **Baseline:** at `wp-10` (`e754a78`): `npx vitest --run` on `routing-route`, `routing-view-mode`, `tree-expansion`, `check-layout`, `hash-router` and `review-links` tests: 6 files, 59 tests passed. `node scripts/check-layout.mjs`: `layout check: ok`. `npx tsc -p tsconfig.domain.json`: exit 0. Full `npm run ci` not run by the reviewer.
 - **How:** read the full diff and its callers (`app-context.tsx` `navigateToHash` and `_openPRInternal`, `SignInBanner.tsx` `routeLabel`, `page.tsx`, `DiffViewer.tsx`, `HtmlViewer.tsx`, `RepositoryReference.tsx`). Ran throwaway probes (deleted afterwards) that compare the pre-WP-10 `parseHash` with the new wrapper over 16 inputs, build partial routes, round-trip awkward paths, bound-check `parse`, and run the `f84` round-trip assertions against a mutant of `encodePath`. Ran `check-layout.mjs` on a throwaway fixture tree. Three passes: Bugs, Security, Compliance.
 
-**Verdict:** FAIL
+## Verdict
+
+**Verdict (original review, at `e754a78`):** FAIL. The current verdict is in the Re-review section below.
 
 Two Medium findings must be fixed, or deferred with a backlog ID, before owner acceptance. WP10-1 breaks the plan's "No user-visible behaviour changes" rule for existing callers. WP10-2 lets the NF-80 guard stop checking without saying so. Both fixes are small. There are no High findings. The three pure modules match the contract in every other case I tested.
 
@@ -78,3 +80,66 @@ Counts: High 0, Medium 2, Low 5, Nit 1.
 - Only the files in the plan's table changed.
 - The tests carry the requirement IDs from the plan's Proof table. There is one extra test, `f81_toggle_and_collapse_all_return_new_sets`.
 - The "Done when" doc updates are still open, as the plan allows before merge: l2-links-routing and l2-repo-browsing do not yet mark the modules as built, and the plan.md row is not yet DONE.
+
+## Re-review
+
+- **Date:** 2026-11-03.
+- **Fix commits:** `8c87910` (`serialize` uses `Array.from`), `72584f6` (code fixes for WP10-1 to WP10-8), `922c1b7` (docs for WP10-4 and WP10-6, and a copy of this report). Reviewed as `git diff e754a78 922c1b7`.
+- **Baseline at `922c1b7`:**
+  - The six targeted test files (`routing-route`, `routing-view-mode`, `tree-expansion`, `check-layout`, `hash-router`, `review-links`): 61 tests passed.
+  - `node scripts/check-layout.mjs`: `layout check: ok`.
+  - `npx tsc -p tsconfig.domain.json`: exit 0.
+  - `npm run check`: 89 files, 1223 passed and 5 expected fail.
+  - I did not run the full `npm run ci`. It installs the worker packages and runs Playwright, which is outside what I may run here.
+- **How:** read the full fix diff. Checked each finding against its original failure scenario. Ran a throwaway `check-layout.mjs` fixture for the new LR-12 walk (deleted afterwards). Checked the design and plan text the dispositions name.
+
+**Verdict:** PASS
+
+Both Medium findings are fixed, and tests pin the fixes. Two Low items remain, and neither blocks owner acceptance:
+- WP10-7 still needs its design-text change.
+- NI-WP10-1 is a gap in the new LR-12 allow-list. The domain type check backs it up.
+
+| ID | Status | Evidence |
+|---|---|---|
+| WP10-1 | Fixed | `hash-router.ts:24` returns `{type:"none"}` for a path reference. New test `f84_legacy_wrapper_keeps_path_links_invalid_until_wp12`: `legacyParseHash("#/a/b/pull/1/file/x.md")` and `"#/a/b/pull/12/file/3"` both give `{type:"none"}`, while `routing/route` still parses the path. `navigateToHash` therefore shows "Invalid document link." again, and `routeLabel` returns `null` again, as before WP-10. Index links still map to `prFileIdx`, and `hash-router.test.ts` is unchanged and passes. |
+| WP10-2 | Fixed | LR-12 now walks `src/lib/routing/**` except `route-adapter.ts`, with siblings only, and treats a missing `src/lib/tree-expansion.ts` as a violation (`LR-12 src/lib/tree-expansion.ts missing`). New cases in `nf80_lr12_rejects_imports_and_banned_globals`: `routing/routes.ts` using `window` or importing `../github-api` fails, a bare fixture fails with `missing`, and the adapter is exempt. `tsconfig.domain.json` uses `src/lib/routing/**/*.ts` and excludes the adapter. My original fixture (an impure `routing/routes.ts`) now fails. See NI-WP10-1 for a gap the new allow-list opens. |
+| WP10-3 | Fixed | `route.ts:79-89`: missing repo or `type:"none"` gives `#/`. A `pr` route without a positive safe integer, or a `file` route without `branch` or `filePath`, gives the repo root. New test `f84_build_route_of_a_partial_route_never_writes_undefined` covers all seven cases from the finding, including `{type:"repo"}` giving `#/`. |
+| WP10-4 | Accepted | The code is unchanged. The plan's Files row and l2-links-routing (the `buildRoute` signature line) now say the old builders stay byte-identical until WP-12 moves the callers. I confirmed the four builders are unchanged since `d030377`. WP-12 must still handle `buildBranchHash(r, "")` (`#/r/tree/`) differing from `buildRoute` (`#/r`) when it switches callers. |
+| WP10-5 | Fixed | The path list now includes `docs/what?.md`, `docs/a&b=c.md` and `docs/q?x=1&y#z.md`. There are exact-string assertions for `docs/what%3F.md`, `docs/a%23b%26c.md` and the design example `#/acme/docs/pull/12/file/docs/my%20guide.md?mode=preview`. The `encodeURI` mutant from the original finding fails the `docs/what%3F.md` assertion (`encodeURI` leaves `?` raw), which I checked by reading the test. |
+| WP10-6 | Fixed | `parse` removes duplicates before it sorts and caps (`tree-expansion.ts:36-37`). New assertion: 200 × `"a"` plus `"b"`, `"c"` gives `{a, b, c}`. The l2-repo-browsing Bound text now says "Beyond 200 distinct paths, only the first 200 in sorted order are kept", which matches the code and the plan. |
+| WP10-7 | Partly (Open, Low) | Code and tests are fixed. `reveal` skips only `__local__/` and `__new__/`, and the test now expects `__tests__/a/b.md` to give `__tests__` and `__tests__/a`. The design text was not updated. l2-repo-browsing § 05 (the `reveal` row) still says "Paths that start with `__` (new or local files) add nothing", and § 09 still says "synthetic `__` paths give nothing". WP-10.md Increment 3 says the same, but that file is deleted before merge. Failure scenario: a WP-13 builder works from § 05, restores `startsWith("__")` in the Sidebar effect, and links to files under `__tests__/` stop revealing again. Fix: change both l2-repo-browsing lines to name `__local__/` and `__new__/`. |
+| WP10-8 | Fixed | `view-mode.ts:3` now reads "Tokens and the precedence rule (`pickMode`); the caller supplies storage and screen facts." |
+
+### New findings
+
+| ID | Severity | Pass | Location | Finding | Failure scenario | Fix |
+|---|---|---|---|---|---|---|
+| NI-WP10-1 | Low | Compliance | `scripts/check-layout.mjs:71` (`LR12_SIBLING`) | The sibling allow-list accepts any `./x`, including `./route-adapter`. So a pure routing module may import the one exempt, impure file, and the layout check passes. The domain `tsc` backs this up: `exclude` only filters `include`, so `tsc` still compiles an imported adapter, and fails if the adapter names `window` or `location`. But the layout check itself, which NF-80 names, does not catch it, and the error would point at the adapter, not the importer. | Reproduced. A fixture with `src/lib/routing/route.ts` containing `import { readLocation } from "./route-adapter"`, a `route-adapter.ts` using `window.location.hash`, and a clean `tree-expansion.ts`: `node scripts/check-layout.mjs <fixture>` prints `layout check: ok` and exits 0. | Reject the adapter in the allow-list (`LR12_SIBLING = (s) => /^\.\/[\w-][\w.-]*$/.test(s) && stripExt(s) !== "./route-adapter"`). Add one `fails(...)` case to `nf80_lr12_rejects_imports_and_banned_globals`. |
+
+Counts for the re-review: Open Low 2 (WP10-7 design text, NI-WP10-1); Fixed 6; Accepted 1.
+
+### Checked in the fixes and found sound
+
+**Fix behaviour and regressions**
+- `buildRoute` gives the same output as before for every full route the original probes used: repo, tree, blob, PR with and without a path, and the query. All the earlier round-trip and exact-string tests still pass.
+- When a partial route returns early, its query is dropped. Nothing calls `buildRoute` yet, so nothing depends on that query.
+- The wrapper checks for a path reference before an index reference. Since the two kinds cannot both be set, the order changes nothing for index links.
+
+**LR-12 walk**
+- Uses the same `walk` and exact-path exemption as LR-10.
+- The `missing` violation applies only to the listed exact path. The routing files are covered by the walk, so a rename inside `routing/` is still checked.
+- The fixture helper adds a clean `tree-expansion.ts` unless `bare` is set, so the existing LR-10 and LR-11 cases still pass. `t30_layout_check_real_tree_is_clean` passes.
+- The header comment matches the new rule.
+
+**Domain type check**
+- The `src/lib/routing/**/*.ts` include picks up `route.ts` and `view-mode.ts`, and `tsc` exits 0.
+- `.tsx` files under `routing/` are not in that include, but the layout walk checks them.
+
+**Security pass**
+- No new dependency and no new I/O. Nothing in the fixes changes what reaches GitHub or storage.
+
+**Docs**
+- The l2-links-routing and plan wording for WP10-4 matches the unchanged code.
+- The l2-repo-browsing Bound text matches `parse`.
+- The l2-links-routing § 08 LR-12 entry (`routing/** except route-adapter.ts`) now matches the script.
+- WP-10.md Increment 3 still describes the old exact-path LR-12. That file is deleted before merge, so this is not recorded as a finding.

@@ -104,7 +104,7 @@ svg .is-active text{font-weight:700}svg [data-edge].is-active text{fill:var(--se
 <h3>The model: <code>src/lib/tree-expansion.ts</code></h3>
 <p>State is a set of expanded folder paths, such as <code>docs</code> and <code>docs/design</code>. An empty set means everything is collapsed.</p>
 <table><thead><tr><th>Function</th><th>Behaviour</th></tr></thead><tbody>
-<tr><td><code>reveal(state, filePath)</code></td><td>Adds every ancestor folder of <code>filePath</code>. Paths that start with <code>__</code> (new or local files) add nothing.</td></tr>
+<tr><td><code>reveal(state, filePath)</code></td><td>Adds every ancestor folder of <code>filePath</code>. Paths under <code>__local__/</code> or <code>__new__/</code> (local or new files) add nothing.</td></tr>
 <tr><td><code>toggle(state, folderPath)</code></td><td>Adds the folder if absent, removes it if present.</td></tr>
 <tr><td><code>collapseAll(state)</code></td><td>Returns the empty set.</td></tr>
 <tr><td><code>serialize(state)</code> / <code>parse(text)</code></td><td>A sorted JSON array of paths. <code>parse</code> accepts only an array of strings, drops other items, keeps at most 200 and never throws.</td></tr>
@@ -174,7 +174,7 @@ svg .is-active text{font-weight:700}svg [data-edge].is-active text{fill:var(--se
 
 <section id="tests"><h2><span class="num">09 · Proof</span>Three checks show it works; the full list goes in the slice plan</h2>
 <ul>
-<li><code>reveal</code> unit tests: <code>a/b/c.md</code> gives exactly <code>a</code> and <code>a/b</code>, synthetic <code>__</code> paths give nothing, and corrupt or oversized storage parses to a bounded set without throwing.</li>
+<li><code>reveal</code> unit tests: <code>a/b/c.md</code> gives exactly <code>a</code> and <code>a/b</code>, <code>__local__/</code> and <code>__new__/</code> paths give nothing, and corrupt or oversized storage parses to a bounded set without throwing.</li>
 <li>A Sidebar component test: toggle, open another file and remount keeps the folder open; a branch switch loads its own set; a provisional <code>main</code> writes nothing.</li>
 <li>The LR-12 check fails when <code>tree-expansion.ts</code> imports a module or names <code>localStorage</code>.</li>
 </ul>

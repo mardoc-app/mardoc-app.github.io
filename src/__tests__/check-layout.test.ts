@@ -207,6 +207,7 @@ describe("layout check", () => {
     fails({ "src/lib/routing/view-mode.ts": "const t = Date.now();\n" }, /^LR-12 src\/lib\/routing\/view-mode\.ts:1 uses Date\.now$/m);
     fails({ "src/lib/routing/routes.ts": "const h = window.location.hash;\n" }, /^LR-12 src\/lib\/routing\/routes\.ts:1 uses window$/m);
     fails({ "src/lib/routing/routes.ts": 'import { x } from "../github-api";\n' }, /^LR-12 src\/lib\/routing\/routes\.ts:1 imports \.\.\/github-api$/m);
+    fails({ "src/lib/routing/route.ts": 'import { publish } from "./route-adapter";\n' }, /^LR-12 src\/lib\/routing\/route\.ts:1 imports \.\/route-adapter$/m);
     const missing = run(fixture({}, { bare: true }));
     expect(missing.code).toBe(1);
     expect(missing.out).toMatch(/^LR-12 src\/lib\/tree-expansion\.ts missing$/m);

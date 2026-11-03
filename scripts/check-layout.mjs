@@ -68,7 +68,7 @@ const LR11_IMPORTS = (spec) =>
 
 // LR-12: routing/** is pure except the adapter; tree-expansion.ts is listed by exact path.
 const LR12_EXEMPT = new Set(["src/lib/routing/route-adapter.ts"]);
-const LR12_SIBLING = (spec) => /^\.\/[\w-][\w.-]*$/.test(spec);
+const LR12_SIBLING = (spec) => /^\.\/[\w-][\w.-]*$/.test(spec) && stripExt(spec) !== "./route-adapter";
 const LR12_EXACT = ["src/lib/tree-expansion.ts"];
 
 function walk(dir) {
