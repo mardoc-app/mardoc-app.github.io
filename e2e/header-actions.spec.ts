@@ -43,6 +43,8 @@ async function expectHeaderTidy(page: Page) {
     const fits = await c.evaluate(el => el.scrollWidth <= el.clientWidth + 1 && el.scrollHeight <= el.clientHeight + 1);
     expect(fits).toBe(true);
   }
+  // The brand stays clear of the actions.
+  controls.push(page.getByText(/^MarDoc(\.app)?$/).first());
   const boxes = await Promise.all(controls.map(box));
   for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) expect(overlaps(boxes[i], boxes[j])).toBe(false);
 }
