@@ -32,6 +32,8 @@ import {
   Keyboard,
   Menu,
   RefreshCw,
+  GitBranch,
+  GitCommitHorizontal,
 } from "lucide-react";
 
 export default function Home() {
@@ -225,20 +227,21 @@ export default function Home() {
             </div>
           )}
           {!isEmbedded && !isDemoMode && selectedFile && !selectedFile.path.startsWith("__") && (
-            <div className="flex items-center gap-1">
+            <div className="relative flex items-center gap-1">
               {fileRevision && (
                 <>
-                  <span className="text-xs font-mono hidden sm:inline" title={`Loaded commit ${fileRevision}`}>
+                  <span className="header-revision hidden sm:inline" title={`Loaded commit ${fileRevision}`}>
                     {isCommitSha(selectedBranch) ? "Pinned" : "Revision"} {fileRevision.slice(0, 7)}
                   </span>
-                  {!isCommitSha(selectedBranch) && <button className="toolbar-btn text-xs" onClick={() => copyDocumentLink(selectedBranch)} title="Copy a link that follows the branch" aria-label="Copy branch link">Share branch</button>}
-                  <button className="toolbar-btn text-xs" onClick={() => copyDocumentLink(fileRevision)} title="Copy a link to exactly this revision" aria-label="Copy revision link">Share revision</button>
+                  {!isCommitSha(selectedBranch) && <button className="header-action" onClick={() => copyDocumentLink(selectedBranch)} title="Copy a link that follows the branch" aria-label="Copy branch link"><GitBranch size={14} /><span className="hidden md:inline">Share branch</span></button>}
+                  <button className="header-action" onClick={() => copyDocumentLink(fileRevision)} title="Copy a link to exactly this revision" aria-label="Copy revision link"><GitCommitHorizontal size={14} /><span className="hidden md:inline">Share revision</span></button>
                 </>
               )}
               <button onClick={refreshDocument} disabled={loadingContent} className="toolbar-btn" title="Refresh document from GitHub" aria-label="Refresh document">
                 <RefreshCw size={16} className={loadingContent ? "animate-spin" : ""} />
               </button>
-              <span role="status" className="text-xs">{shareMessage}</span>
+              {/* #149: the confirmation floats below the actions so nothing shifts. */}
+              <span role="status" className={shareMessage ? "header-toast" : "sr-only"}>{shareMessage}</span>
             </div>
           )}
           {/* Embed mode: visible reload trigger. Keystrokes inside the
