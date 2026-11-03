@@ -13,7 +13,7 @@
  * change that breaks a formatting action fails here.
  */
 import { test, expect } from "@playwright/test";
-import { openMarkdownFile } from "./fixtures/helpers";
+import { openMarkdownFile, placeCursorIn } from "./fixtures/helpers";
 
 // Each test gets its own page context. The editor maintains in-memory
 // and localStorage state between serial tests, which caused flakiness
@@ -75,7 +75,7 @@ test.describe("Editor toolbar: headings", () => {
     await openMarkdownFile(page);
     const targetText = "A modern markdown workspace backed by GitHub";
     const target = page.locator(".ProseMirror p", { hasText: targetText });
-    await target.click();
+    await placeCursorIn(target);
     await page.locator('button[title="Heading 1"]').locator("visible=true").first().click();
     await expect(
       page.locator(".ProseMirror h1", { hasText: targetText })
@@ -86,7 +86,7 @@ test.describe("Editor toolbar: headings", () => {
     await openMarkdownFile(page);
     const targetText = "A modern markdown workspace backed by GitHub";
     const target = page.locator(".ProseMirror p", { hasText: targetText });
-    await target.click();
+    await placeCursorIn(target);
     await page.locator('button[title="Heading 2"]').locator("visible=true").first().click();
     await expect(
       page.locator(".ProseMirror h2", { hasText: targetText })
@@ -103,7 +103,7 @@ test.describe("Editor toolbar: lists", () => {
     await openMarkdownFile(page);
     const targetText = "A modern markdown workspace backed by GitHub";
     const target = page.locator(".ProseMirror p", { hasText: targetText });
-    await target.click();
+    await placeCursorIn(target);
     await page
       .locator('button[title^="Bullet List"]')
       .locator("visible=true")
@@ -118,7 +118,7 @@ test.describe("Editor toolbar: lists", () => {
     await openMarkdownFile(page);
     const targetText = "A modern markdown workspace backed by GitHub";
     const target = page.locator(".ProseMirror p", { hasText: targetText });
-    await target.click();
+    await placeCursorIn(target);
     await page
       .locator('button[title^="Numbered List"]')
       .locator("visible=true")

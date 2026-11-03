@@ -85,6 +85,25 @@ export async function waitForEditorContent(page: Page): Promise<void> {
   await expect(page.locator('span[title$="min read"]')).toBeAttached({ timeout: 10_000 });
 }
 
+/**
+ * Click inside an editor block and wait until the editor has moved its
+ * cursor there. ProseMirror reads a click's caret from the browser's
+ * selectionchange event, and ignores it once focus has left the editor,
+ * so a toolbar button pressed before that event is handled acts on the
+ * previous cursor.
+ */
+export async function placeCursorIn(target: Locator): Promise<void> {
+  await target.click();
+  await expect
+    .poll(() =>
+      target.evaluate((el) => {
+        const editor = (el.closest(".ProseMirror") as any)?.editor;
+        return !!editor && el.contains(editor.view.domAtPos(editor.state.selection.from).node);
+      })
+    )
+    .toBe(true);
+}
+
 /** Open an HTML file from the demo repo file tree. */
 export async function openHtmlFile(
   page: Page,
