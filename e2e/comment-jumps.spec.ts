@@ -40,7 +40,14 @@ async function setup(page: Page) {
     await route.fulfill({contentType:"application/json",body:JSON.stringify(data)});
   });
   await page.goto("/#/acme/docs/pull/12");
+  await viewerReady(page);
+}
+// On phones the Comments sheet renders open for a moment when the viewer
+// mounts, then closes; jump() reads that state, so wait for it to settle.
+async function viewerReady(page: Page) {
   await expect(page.getByRole("button",{name:"7 comments",exact:true})).toBeVisible();
+  if ((page.viewportSize()?.width ?? 1280) < 768)
+    await expect(page.locator('[role="dialog"][aria-label="Comments"]')).toHaveAttribute("aria-hidden","true");
 }
 async function jump(page:Page, body:string, mobile:boolean, keyboard=false) {
   const card=page.getByText(body,{exact:false}).locator("xpath=../..");
@@ -87,7 +94,7 @@ test("jumps use source side/range, refuse uncertainty, and preserve formatted se
   await jump(page,"Range only",isMobile);
   await expect(page.getByRole("status").filter({hasText:"Source block highlighted"})).toBeVisible();
   await page.reload();
-  await expect(page.getByRole("button",{name:"7 comments",exact:true})).toBeVisible();
+  await viewerReady(page);
   await jump(page,"Repeated target",isMobile);
   await expect(page.locator('mark[data-comment-id="rc-1"]').first()).toBeFocused();
 });
