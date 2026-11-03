@@ -381,7 +381,7 @@ export async function fetchPullRequests(
     request: { signal },
   });
 
-  return data.map((pr) => ({
+  return data.map((pr): PullRequest => ({
     id: `pr-${pr.number}`,
     number: pr.number,
     title: pr.title,
@@ -393,7 +393,7 @@ export async function fetchPullRequests(
     description: pr.body || "",
     files: [], // loaded separately
     comments: [], // loaded separately
-  }));
+  })).sort((a, b) => b.number - a.number); // #140: fetched by last update, listed by number
 }
 
 export async function fetchPullRequest(repoFullName: string, number: number, signal?: AbortSignal): Promise<PullRequest> {
