@@ -185,7 +185,7 @@ export default function Home() {
           >
             <Menu size={18} />
           </button>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <BookOpen size={18} className="text-[var(--accent)]" />
             <span
               className="text-xl text-[var(--text-primary)] leading-none"
@@ -202,7 +202,7 @@ export default function Home() {
               >
                 Doc
               </span>
-              <span className="text-[var(--text-muted)]" style={{ fontWeight: 500 }}>
+              <span className="text-[var(--text-muted)] hidden sm:inline" style={{ fontWeight: 500 }}>
                 .app
               </span>
             </span>
