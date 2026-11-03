@@ -5,10 +5,10 @@
 
 const MAX_FOLDERS = 200;
 
-/** Opens every ancestor folder of a file. Paths under `__` and top-level files open nothing. */
+/** Opens every ancestor folder of a file. Virtual `__local__/` and `__new__/` paths and top-level files open nothing. */
 export function reveal(state: ReadonlySet<string>, filePath: string): Set<string> {
   const next = new Set(state);
-  if (filePath.startsWith("__")) return next;
+  if (filePath.startsWith("__local__/") || filePath.startsWith("__new__/")) return next;
   const segments = filePath.split("/");
   for (let i = 1; i < segments.length; i++) next.add(segments.slice(0, i).join("/"));
   return next;
@@ -33,8 +33,8 @@ export function parse(text: string): Set<string> {
   try {
     const value: unknown = JSON.parse(text);
     if (!Array.isArray(value)) return new Set();
-    const items = value.filter((x): x is string => typeof x === "string").sort();
-    return new Set(items.slice(0, MAX_FOLDERS));
+    const unique = new Set(value.filter((x): x is string => typeof x === "string"));
+    return new Set(Array.from(unique).sort().slice(0, MAX_FOLDERS));
   } catch {
     return new Set();
   }

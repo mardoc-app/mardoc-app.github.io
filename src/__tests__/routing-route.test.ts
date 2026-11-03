@@ -4,7 +4,7 @@ import { parseHash as legacyParseHash } from "@/lib/hash-router";
 
 describe("routing/route", () => {
   it("f84_round_trips_path_links_with_spaces_percent_hash_and_unicode", () => {
-    const paths = ["docs/my file.md", "docs/100%.md", "docs/a#b.md", "docs/café/日本.md"];
+    const paths = ["docs/my file.md", "docs/100%.md", "docs/a#b.md", "docs/café/日本.md", "docs/what?.md", "docs/a&b=c.md", "docs/q?x=1&y#z.md"];
     for (const path of paths) {
       const built = buildRoute({ type: "pr", repoFullName: "acme/widgets", prNumber: 7, file: { kind: "path", path } });
       expect(parseHash(built)).toMatchObject({ type: "pr", prNumber: 7, file: { kind: "path", path } });
@@ -15,6 +15,27 @@ describe("routing/route", () => {
     expect(withQuery).toBe("#/a/b/pull/1?anchor=x%20%26%20y&mode=split");
     expect(parseHash(withQuery)).toMatchObject({ anchor: "x & y", mode: "split" });
     expect(buildRoute({ type: "pr", repoFullName: "a/b", prNumber: 1 })).toBe("#/a/b/pull/1");
+    const pr = (path: string) => buildRoute({ type: "pr", repoFullName: "acme/docs", prNumber: 12, file: { kind: "path", path } });
+    expect(pr("docs/what?.md")).toBe("#/acme/docs/pull/12/file/docs/what%3F.md");
+    expect(pr("docs/a#b&c.md")).toBe("#/acme/docs/pull/12/file/docs/a%23b%26c.md");
+    expect(buildRoute({ type: "pr", repoFullName: "acme/docs", prNumber: 12, file: { kind: "path", path: "docs/my guide.md" }, mode: "preview" }))
+      .toBe("#/acme/docs/pull/12/file/docs/my%20guide.md?mode=preview");
+  });
+
+  it("f84_build_route_of_a_partial_route_never_writes_undefined", () => {
+    expect(buildRoute({ type: "repo" })).toBe("#/");
+    expect(buildRoute({ type: "repo", owner: "a" })).toBe("#/");
+    expect(buildRoute({ type: "pr", repoFullName: "a/b" })).toBe("#/a/b");
+    expect(buildRoute({ type: "pr", owner: "a", repo: "b", prNumber: 0 })).toBe("#/a/b");
+    expect(buildRoute({ type: "file", repoFullName: "a/b", filePath: "x.md" })).toBe("#/a/b");
+    expect(buildRoute({ type: "file", repoFullName: "a/b", branch: "main" })).toBe("#/a/b");
+    expect(buildRoute({ type: "file", owner: "a", repo: "b", branch: "main", filePath: "x.md" })).toBe("#/a/b/blob/main/x.md");
+  });
+
+  it("f84_legacy_wrapper_keeps_path_links_invalid_until_wp12", () => {
+    expect(legacyParseHash("#/a/b/pull/1/file/x.md")).toEqual({ type: "none" });
+    expect(legacyParseHash("#/a/b/pull/12/file/3")).toEqual({ type: "none" });
+    expect(parseHash("#/a/b/pull/1/file/x.md").file).toEqual({ kind: "path", path: "x.md" });
   });
 
   it("f84_file_3_is_a_path_and_files_3_is_an_index", () => {

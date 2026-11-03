@@ -76,14 +76,16 @@ const encodePath = (path: string) => path.split("/").map(encodeURIComponent).joi
 
 /** Builds the path form only; an index file reference is not written. */
 export function buildRoute(route: HashRoute): string {
-  const full = route.repoFullName ?? `${route.owner}/${route.repo}`;
+  const full = route.repoFullName ?? (route.owner && route.repo ? `${route.owner}/${route.repo}` : undefined);
+  if (route.type === "none" || !full) return "#/";
   let base = `#/${full}`;
-  if (route.type === "none") return "#/";
   if (route.type === "repo" && route.branch) base += `/tree/${encodeURIComponent(route.branch)}`;
   if (route.type === "file") {
-    base += `/blob/${encodeURIComponent(route.branch ?? "")}/${encodePath(route.filePath ?? "")}`;
+    if (!route.branch || !route.filePath) return base;
+    base += `/blob/${encodeURIComponent(route.branch)}/${encodePath(route.filePath)}`;
   }
   if (route.type === "pr") {
+    if (!Number.isSafeInteger(route.prNumber) || (route.prNumber as number) < 1) return base;
     base += `/pull/${route.prNumber}`;
     if (route.file?.kind === "path") base += `/file/${encodePath(route.file.path)}`;
   }

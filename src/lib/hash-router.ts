@@ -21,6 +21,7 @@ export interface HashRoute extends Route {
 
 export function parseHash(hash: string): HashRoute {
   const route = parseRoute(hash);
+  if (route.file?.kind === "path") return { type: "none" }; // path links stay invalid for current callers until WP-12
   if (route.file?.kind === "index") {
     const { file, ...rest } = route;
     return { ...rest, prFileIdx: file.index };

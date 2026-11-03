@@ -1,6 +1,6 @@
 /**
  * View mode tokens carried in the `mode` query parameter of a link.
- * Pure: no browser state. Mode choice by precedence lives elsewhere.
+ * Tokens and the precedence rule (`pickMode`); the caller supplies storage and screen facts.
  */
 
 export type MdMode = "inline" | "split" | "suggest" | "preview";

@@ -6,7 +6,9 @@ describe("tree-expansion", () => {
     expect([...reveal(new Set(), "a/b/c.md")].sort()).toEqual(["a", "a/b"]);
     expect([...reveal(new Set(["x"]), "a/b.md")].sort()).toEqual(["a", "x"]);
     expect(reveal(new Set(), "top.md").size).toBe(0);
-    expect(reveal(new Set(), "__tests__/a/b.md").size).toBe(0);
+    expect(reveal(new Set(), "__local__/x/y.md").size).toBe(0);
+    expect(reveal(new Set(), "__new__/x/y.md").size).toBe(0);
+    expect([...reveal(new Set(), "__tests__/a/b.md")].sort()).toEqual(["__tests__", "__tests__/a"]);
   });
 
   it("f82_parse_is_total_and_bounded", () => {
@@ -19,6 +21,7 @@ describe("tree-expansion", () => {
     const out = parse(JSON.stringify(many));
     expect(out.size).toBe(200);
     expect([...out]).toEqual(many.slice(0, 200));
+    expect(parse(JSON.stringify([...Array(200).fill("a"), "b", "c"]))).toEqual(new Set(["a", "b", "c"]));
     expect(parse(serialize(new Set(["b", "a"])))).toEqual(new Set(["a", "b"]));
     expect(serialize(new Set(["b", "a"]))).toBe('["a","b"]');
   });
