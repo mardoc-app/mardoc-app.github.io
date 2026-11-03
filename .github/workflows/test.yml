@@ -14,7 +14,7 @@ concurrency:
 jobs:
   unit:
     name: Unit + component tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
 
@@ -33,7 +33,7 @@ jobs:
 
   worker:
     name: Layout check + Worker
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
 
@@ -52,7 +52,7 @@ jobs:
 
   e2e:
     name: E2E (Playwright)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: unit
     steps:
       - uses: actions/checkout@v6
