@@ -69,7 +69,20 @@ export async function openMarkdownFile(
   await clickVisibleText(page, filename);
   const proseMirror = page.locator(".ProseMirror");
   await expect(proseMirror).toBeVisible({ timeout: 10_000 });
+  await waitForEditorContent(page);
   return proseMirror;
+}
+
+/**
+ * Wait until the editor holds the prepared document. The editor first
+ * mounts with the raw file, then replaces it once Mermaid diagrams are
+ * rendered, which moves the cursor to the end of the document and drops
+ * anything inserted before. The word count is set right after that
+ * replacement, so editor actions are safe once it is in the DOM (it is
+ * hidden on phones, hence attached rather than visible).
+ */
+export async function waitForEditorContent(page: Page): Promise<void> {
+  await expect(page.locator('span[title$="min read"]')).toBeAttached({ timeout: 10_000 });
 }
 
 /** Open an HTML file from the demo repo file tree. */
