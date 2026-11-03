@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { prCommentsLoaded } from "./fixtures/helpers";
 const head = "# Review\n\nSame **phrase**.\n\nNew text.\n\nSame **phrase**.\n\nDuplicate Duplicate\n\nRead **this** guide\n\nNext step";
 const base = head.replace("New text.", "Old text.");
 async function setup(page: Page) {
@@ -27,6 +28,9 @@ async function setup(page: Page) {
   await page.route("https://api.github.com/**", async route => {
     const url=new URL(route.request().url());
     const path=decodeURIComponent(url.pathname);
+    // jump() reads whether the phone Comments sheet is open, then acts:
+    // see prCommentsLoaded.
+    if (path.includes("/contents/")) await prCommentsLoaded(page, comments.length);
     const data = path.endsWith("/pulls/12/files") ? [{filename:"guide.md",status:"modified"}]
       : path.endsWith("/pulls/12/comments") ? comments
       : path.endsWith("/issues/12/comments") ? []

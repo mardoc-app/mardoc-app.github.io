@@ -166,6 +166,17 @@ export async function selectTextInsideIframe(
   );
 }
 
+/**
+ * Wait until the PR header counts `count` unresolved comments, that is,
+ * until the PR's comments have loaded. On phones the Comments sheet opens
+ * when the comments reach the diff viewer after the document and stays
+ * closed when they arrive first, so specs that expect it closed hold the
+ * mocked document response on this.
+ */
+export async function prCommentsLoaded(page: Page, count: number): Promise<void> {
+  await expect(page.getByText(String(count), { exact: true }).first()).toBeVisible();
+}
+
 /** Open the nonmodal tools tray without toggling an already open tray closed. */
 export async function openReviewTools(page: Page): Promise<void> {
   const commentsSheet = page.getByRole("dialog", { name: "Comments", exact: true });

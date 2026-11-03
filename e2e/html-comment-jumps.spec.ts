@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { openReviewTools } from "./fixtures/helpers";
+import { openReviewTools, prCommentsLoaded } from "./fixtures/helpers";
 
 const html = [
   '<!doctype html>',
@@ -43,13 +43,10 @@ async function setup(page: Page, source = html) {
   const pr={number:12,title:"HTML comment targets",state:"open",user:{login:"reviewer"},
     base:{ref:"main",sha:"a".repeat(40),repo:{full_name:"acme/docs"}},
     head:{ref:"topic",sha:"b".repeat(40),repo:{full_name:"acme/docs"}}};
-  // On phones the Comments sheet opens if the comments reach the viewer
-  // after the document and stays closed otherwise. These tests expect it
-  // closed, so serve the document once the PR header counts the comments.
-  const commentsLoaded=()=>expect(page.getByText(String(comments.length),{exact:true})).toBeVisible();
   await page.route("https://api.github.com/**",async route=>{
     const url=new URL(route.request().url()), path=decodeURIComponent(url.pathname);
-    if (path.includes("/contents/")) await commentsLoaded();
+    // These tests expect the phone Comments sheet closed: see prCommentsLoaded.
+    if (path.includes("/contents/")) await prCommentsLoaded(page,comments.length);
     const data=path.endsWith("/pulls/12/files") ? [{filename:"deck.html",status:"modified"}]
       : path.endsWith("/pulls/12/comments") ? comments
       : path.endsWith("/issues/12/comments") ? []
