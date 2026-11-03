@@ -114,7 +114,7 @@ svg .is-active text{font-weight:700}svg [data-edge].is-active text{fill:var(--se
 <h3>The adapter: <code>src/lib/expansion-store.ts</code></h3>
 <ul>
 <li><strong>Key:</strong> one localStorage key, <code>mardoc_tree_expansion</code>, holding <code>{"owner/repo@branch": ["docs","docs/design"], ...}</code>. It matches the existing <code>mardoc_*</code> keys.</li>
-<li><strong>Bound:</strong> at most 20 repo-and-branch entries and 200 paths per entry, so the value stays under about 32 KB (hypothesis: 200 paths of about 60 bytes is 12 KB per entry before the cap on entries). A save re-inserts its entry last; beyond 20 entries the first is dropped. Beyond 200 paths the earliest in sorted order are dropped. Both limits are design choices, not measurements.</li>
+<li><strong>Bound:</strong> at most 20 repo-and-branch entries and 200 paths per entry, so the value stays under about 32 KB (hypothesis: 200 paths of about 60 bytes is 12 KB per entry before the cap on entries). A save re-inserts its entry last; beyond 20 entries the first is dropped. Beyond 200 distinct paths, only the first 200 in sorted order are kept. Both limits are design choices, not measurements.</li>
 <li><strong>Injected store:</strong> <code>load(store, repo, branch)</code> and <code>save(store, repo, branch, set)</code> take an object with <code>getItem</code> and <code>setItem</code>. The Sidebar passes <code>safe-storage</code>. Tests pass a plain object.</li>
 </ul>
 

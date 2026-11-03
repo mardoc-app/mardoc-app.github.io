@@ -136,7 +136,7 @@ type FileRef  = { kind: "path"; path: string } | { kind: "index"; index: number 
 // HashRoute gains: file?: FileRef; mode?: ViewMode  (prFileIdx is replaced by file)
 
 parseHash(hash: string): HashRoute
-buildRoute(route: HashRoute): string          // build*Hash become thin wrappers
+buildRoute(route: HashRoute): string          // build*Hash keep their output until callers move (WP-12)
 resolvePRFile(ref: FileRef | undefined, paths: readonly string[]):
   { ok: true; index: number } | { ok: false; reason: "no-such-path" | "index-out-of-range" }
 parseMode(raw: string | null | undefined): ViewMode | undefined
