@@ -94,7 +94,7 @@ export function buildRoute(route: HashRoute): string {
 }
 
 /** Which file of a PR a link names: no reference means the first file. */
-export function resolvePRFile(ref: FileRef | undefined, paths: string[]): ResolvedPRFile {
+export function resolvePRFile(ref: FileRef | undefined, paths: readonly string[]): ResolvedPRFile {
   if (!ref) return paths.length > 0 ? { ok: true, index: 0 } : { ok: false, reason: "index-out-of-range" };
   if (ref.kind === "path") {
     const i = paths.indexOf(ref.path);
