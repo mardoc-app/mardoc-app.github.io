@@ -24,6 +24,19 @@ import { openMarkdownFile } from "./fixtures/helpers";
 // within the file keeps the editor instance clean between tests.
 test.describe.configure({ mode: "serial" });
 
+// The tests insert https://example.com/*.png, which does not exist (404)
+// and would otherwise come from the network. Serve a real 120×60 PNG so
+// each image loads, and lays out, the same way on every run.
+const TEST_PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAHgAAAA8CAIAAAAiz+n/AAAAhklEQVR4nO3QAQkAIADAMNMZzHTGsoXCHTzA2Zhr60Lj+cEngQbdCjToVqBBtwINuhVo0K1Ag24FGnQr0KBbgQbdCjToVqBBtwINuhVo0K1Ag24FGnQr0KBbgQbdCjToVqBBtwINuhVo0K1Ag24FGnQr0KBbgQbdCjToVqBBtwINuhVo0K0OvEb0hqqolooAAAAASUVORK5CYII=",
+  "base64"
+);
+test.beforeEach(async ({ page }) => {
+  await page.route("https://example.com/**/*.png", (route) =>
+    route.fulfill({ contentType: "image/png", body: TEST_PNG })
+  );
+});
+
 // ─── Shared helpers ──────────────────────────────────────────────
 
 /** Click the Add Image button in the Editor toolbar. */
