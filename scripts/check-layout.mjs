@@ -7,7 +7,11 @@
 //   LR-11: worker/src/domain/** imports only its siblings (./x) and
 //          ../../../src/lib/auth/contract, and uses none of the banned globals
 //          below nor env (also as a member, `x.env`).
-// Banned globals (both rules): window, document, localStorage, sessionStorage,
+//   LR-12: the pure modules listed in LR12_FILES, by exact path, use none of
+//          the banned globals below and import only what their entry allows:
+//          src/lib/routing/route.ts and view-mode.ts import only ./route and
+//          ./view-mode; src/lib/tree-expansion.ts imports nothing.
+// Banned globals (all rules): window, document, localStorage, sessionStorage,
 // fetch, navigator, XMLHttpRequest, indexedDB, caches, WebSocket,
 // BroadcastChannel, setTimeout, setInterval, eval, globalThis, self, process;
 // location (as location.x, location[..], location = ..); Date.now, new Date(),
@@ -59,6 +63,14 @@ const stripExt = (spec) => spec.replace(/\.(ts|tsx|js|mjs|cjs)$/, "");
 const LR10_IMPORTS = (spec) => ["./types", "./contract"].includes(stripExt(spec));
 const LR11_IMPORTS = (spec) =>
   /^\.\/[\w-][\w.-]*$/.test(spec) || stripExt(spec) === "../../../src/lib/auth/contract";
+
+// Pure modules checked by exact path from the repository root: path -> allowed imports.
+const ROUTING_IMPORTS = (spec) => ["./route", "./view-mode"].includes(stripExt(spec));
+const LR12_FILES = new Map([
+  ["src/lib/routing/route.ts", ROUTING_IMPORTS],
+  ["src/lib/routing/view-mode.ts", ROUTING_IMPORTS],
+  ["src/lib/tree-expansion.ts", () => false],
+]);
 
 function walk(dir) {
   let entries;
@@ -176,6 +188,16 @@ for (const f of walk(path.join(root, "src/lib/auth"))) {
 }
 for (const f of walk(path.join(root, "worker/src/domain"))) {
   checkFile(f, "LR-11", { idents: LR11_IDENTS, members: LR11_MEMBERS, allowImport: LR11_IMPORTS });
+}
+
+for (const [rel, allowImport] of LR12_FILES) {
+  const file = path.join(root, rel);
+  try {
+    statSync(file);
+  } catch {
+    continue; // missing files are not violations
+  }
+  checkFile(file, "LR-12", { idents: GLOBALS, allowImport });
 }
 
 if (violations.length) {

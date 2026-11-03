@@ -198,6 +198,22 @@ describe("layout check", () => {
     expect(ok.out).toBe("layout check: ok\n");
   });
 
+  it("nf80_lr12_rejects_imports_and_banned_globals", () => {
+    fails({ "src/lib/tree-expansion.ts": 'import { x } from "./other";\n' }, /^LR-12 src\/lib\/tree-expansion\.ts:1 imports \.\/other$/m);
+    fails({ "src/lib/tree-expansion.ts": "const s = localStorage.getItem('a');\n" }, /^LR-12 src\/lib\/tree-expansion\.ts:1 uses localStorage$/m);
+    fails({ "src/lib/routing/route.ts": 'import { x } from "../github-api";\n' }, /^LR-12 src\/lib\/routing\/route\.ts:1 imports \.\.\/github-api$/m);
+    fails({ "src/lib/routing/view-mode.ts": "const t = Date.now();\n" }, /^LR-12 src\/lib\/routing\/view-mode\.ts:1 uses Date\.now$/m);
+    const ok = run(
+      fixture({
+        "src/lib/tree-expansion.ts": "// localStorage is the caller's\nexport const a = 1;\n",
+        "src/lib/routing/route.ts": 'import { parseMode } from "./view-mode";\nexport const b = parseMode;\n',
+        "src/lib/routing/view-mode.ts": 'import type { R } from "./route";\nexport type T = R;\n',
+      }),
+    );
+    expect(ok.out).toBe("layout check: ok\n");
+    expect(ok.code).toBe(0);
+  });
+
   it("t30_layout_check_real_tree_is_clean", () => {
     const r = run(repoRoot);
     expect(r.out).toBe("layout check: ok\n");

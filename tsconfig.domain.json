@@ -10,5 +10,5 @@
     "skipLibCheck": true,
     "isolatedModules": true
   },
-  "include": ["scripts/domain-globals.d.ts", "src/lib/auth/session.ts", "src/lib/auth/types.ts", "src/lib/auth/contract.ts", "worker/src/domain/**/*.ts"]
+  "include": ["scripts/domain-globals.d.ts", "src/lib/auth/session.ts", "src/lib/auth/types.ts", "src/lib/auth/contract.ts", "src/lib/routing/route.ts", "src/lib/routing/view-mode.ts", "src/lib/tree-expansion.ts", "worker/src/domain/**/*.ts"]
 }
