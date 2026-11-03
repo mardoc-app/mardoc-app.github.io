@@ -43,8 +43,13 @@ async function setup(page: Page, source = html) {
   const pr={number:12,title:"HTML comment targets",state:"open",user:{login:"reviewer"},
     base:{ref:"main",sha:"a".repeat(40),repo:{full_name:"acme/docs"}},
     head:{ref:"topic",sha:"b".repeat(40),repo:{full_name:"acme/docs"}}};
+  // On phones the Comments sheet opens if the comments reach the viewer
+  // after the document and stays closed otherwise. These tests expect it
+  // closed, so serve the document once the PR header counts the comments.
+  const commentsLoaded=()=>expect(page.getByText(String(comments.length),{exact:true})).toBeVisible();
   await page.route("https://api.github.com/**",async route=>{
     const url=new URL(route.request().url()), path=decodeURIComponent(url.pathname);
+    if (path.includes("/contents/")) await commentsLoaded();
     const data=path.endsWith("/pulls/12/files") ? [{filename:"deck.html",status:"modified"}]
       : path.endsWith("/pulls/12/comments") ? comments
       : path.endsWith("/issues/12/comments") ? []
