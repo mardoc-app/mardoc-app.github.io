@@ -136,7 +136,7 @@ type FileRef  = { kind: "path"; path: string } | { kind: "index"; index: number 
 // HashRoute gains: file?: FileRef; mode?: ViewMode  (prFileIdx is replaced by file)
 
 parseHash(hash: string): HashRoute
-buildRoute(route: HashRoute): string          // build*Hash become thin wrappers
+buildRoute(route: HashRoute): string          // build*Hash keep their output until callers move (WP-12)
 resolvePRFile(ref: FileRef | undefined, paths: readonly string[]):
   { ok: true; index: number } | { ok: false; reason: "no-such-path" | "index-out-of-range" }
 parseMode(raw: string | null | undefined): ViewMode | undefined
@@ -200,7 +200,7 @@ pickMode&lt;M extends ViewMode&gt;(i: { link?: ViewMode; remembered?: ViewMode;
 <li>One Playwright cold load of a path link to a PR that gained a file opens the right file in the linked mode. A unit test with a fake manifest cannot show the ordering.</li>
 <li>Copy link on a blob in code view copies <code>?mode=source</code>.</li>
 </ul>
-<p class="source">Keep green: <a href="../../src/__tests__/hash-router.test.ts">hash-router.test.ts</a>, <a href="../../src/__tests__/review-links.test.ts">review-links.test.ts</a>. Test names cite F-n once the issues have rows (Q-RT-7). Status: planned, nothing built.</p>
+<p class="source">Keep green: <a href="../../src/__tests__/hash-router.test.ts">hash-router.test.ts</a>, <a href="../../src/__tests__/review-links.test.ts">review-links.test.ts</a>. Test names cite F-n once the issues have rows (Q-RT-7). Status: the pure modules <code>routing/route.ts</code> and <code>routing/view-mode.ts</code> and LR-12 are built (WP-10); the adapter and callers are planned (WP-12, WP-13).</p>
 </section>
 
 <section id="questions"><h2><span class="num">10 · Open questions</span>Defaults apply until the owner says otherwise</h2>

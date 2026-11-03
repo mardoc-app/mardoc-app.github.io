@@ -7,7 +7,13 @@
 //   LR-11: worker/src/domain/** imports only its siblings (./x) and
 //          ../../../src/lib/auth/contract, and uses none of the banned globals
 //          below nor env (also as a member, `x.env`).
-// Banned globals (both rules): window, document, localStorage, sessionStorage,
+//   LR-12: src/lib/routing/** except the adapter (src/lib/routing/route-adapter.ts,
+//          exempt by exact path) imports only its relative siblings (./x) and
+//          uses none of the banned globals below. src/lib/tree-expansion.ts
+//          imports nothing and uses none either. A listed exact path that is
+//          missing is a violation ("LR-12 <path> missing"). A new file under
+//          src/lib/routing is domain code by default.
+// Banned globals (all rules): window, document, localStorage, sessionStorage,
 // fetch, navigator, XMLHttpRequest, indexedDB, caches, WebSocket,
 // BroadcastChannel, setTimeout, setInterval, eval, globalThis, self, process;
 // location (as location.x, location[..], location = ..); Date.now, new Date(),
@@ -59,6 +65,11 @@ const stripExt = (spec) => spec.replace(/\.(ts|tsx|js|mjs|cjs)$/, "");
 const LR10_IMPORTS = (spec) => ["./types", "./contract"].includes(stripExt(spec));
 const LR11_IMPORTS = (spec) =>
   /^\.\/[\w-][\w.-]*$/.test(spec) || stripExt(spec) === "../../../src/lib/auth/contract";
+
+// LR-12: routing/** is pure except the adapter; tree-expansion.ts is listed by exact path.
+const LR12_EXEMPT = new Set(["src/lib/routing/route-adapter.ts"]);
+const LR12_SIBLING = (spec) => /^\.\/[\w-][\w.-]*$/.test(spec) && stripExt(spec) !== "./route-adapter";
+const LR12_EXACT = ["src/lib/tree-expansion.ts"];
 
 function walk(dir) {
   let entries;
@@ -176,6 +187,21 @@ for (const f of walk(path.join(root, "src/lib/auth"))) {
 }
 for (const f of walk(path.join(root, "worker/src/domain"))) {
   checkFile(f, "LR-11", { idents: LR11_IDENTS, members: LR11_MEMBERS, allowImport: LR11_IMPORTS });
+}
+
+for (const f of walk(path.join(root, "src/lib/routing"))) {
+  if (LR12_EXEMPT.has(path.relative(root, f).split(path.sep).join("/"))) continue;
+  checkFile(f, "LR-12", { idents: GLOBALS, allowImport: LR12_SIBLING });
+}
+for (const rel of LR12_EXACT) {
+  const file = path.join(root, rel);
+  try {
+    statSync(file);
+  } catch {
+    violations.push(`LR-12 ${rel} missing`);
+    continue;
+  }
+  checkFile(file, "LR-12", { idents: GLOBALS, allowImport: () => false });
 }
 
 if (violations.length) {

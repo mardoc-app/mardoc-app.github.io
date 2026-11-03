@@ -14,10 +14,12 @@ function run(root: string) {
   return { code: r.status, out: r.stdout };
 }
 
-function fixture(files: Record<string, string>) {
+// LR-12 requires src/lib/tree-expansion.ts to exist, so fixtures carry a clean one unless told otherwise.
+function fixture(files: Record<string, string>, { bare = false } = {}) {
   const dir = mkdtempSync(path.join(os.tmpdir(), "layout-"));
   tmps.push(dir);
-  for (const [rel, body] of Object.entries(files)) {
+  const all = bare ? files : { "src/lib/tree-expansion.ts": "export const a = 1;\n", ...files };
+  for (const [rel, body] of Object.entries(all)) {
     const full = path.join(dir, rel);
     mkdirSync(path.dirname(full), { recursive: true });
     writeFileSync(full, body);
@@ -196,6 +198,30 @@ describe("layout check", () => {
       }),
     );
     expect(ok.out).toBe("layout check: ok\n");
+  });
+
+  it("nf80_lr12_rejects_imports_and_banned_globals", () => {
+    fails({ "src/lib/tree-expansion.ts": 'import { x } from "./other";\n' }, /^LR-12 src\/lib\/tree-expansion\.ts:1 imports \.\/other$/m);
+    fails({ "src/lib/tree-expansion.ts": "const s = localStorage.getItem('a');\n" }, /^LR-12 src\/lib\/tree-expansion\.ts:1 uses localStorage$/m);
+    fails({ "src/lib/routing/route.ts": 'import { x } from "../github-api";\n' }, /^LR-12 src\/lib\/routing\/route\.ts:1 imports \.\.\/github-api$/m);
+    fails({ "src/lib/routing/view-mode.ts": "const t = Date.now();\n" }, /^LR-12 src\/lib\/routing\/view-mode\.ts:1 uses Date\.now$/m);
+    fails({ "src/lib/routing/routes.ts": "const h = window.location.hash;\n" }, /^LR-12 src\/lib\/routing\/routes\.ts:1 uses window$/m);
+    fails({ "src/lib/routing/routes.ts": 'import { x } from "../github-api";\n' }, /^LR-12 src\/lib\/routing\/routes\.ts:1 imports \.\.\/github-api$/m);
+    fails({ "src/lib/routing/route.ts": 'import { publish } from "./route-adapter";\n' }, /^LR-12 src\/lib\/routing\/route\.ts:1 imports \.\/route-adapter$/m);
+    const missing = run(fixture({}, { bare: true }));
+    expect(missing.code).toBe(1);
+    expect(missing.out).toMatch(/^LR-12 src\/lib\/tree-expansion\.ts missing$/m);
+    const adapter = run(fixture({ "src/lib/routing/route-adapter.ts": "window.location.hash = 'x'; import 'react';\n" }));
+    expect(adapter.code).toBe(0);
+    const ok = run(
+      fixture({
+        "src/lib/tree-expansion.ts": "// localStorage is the caller's\nexport const a = 1;\n",
+        "src/lib/routing/route.ts": 'import { parseMode } from "./view-mode";\nexport const b = parseMode;\n',
+        "src/lib/routing/view-mode.ts": 'import type { R } from "./route";\nexport type T = R;\n',
+      }),
+    );
+    expect(ok.out).toBe("layout check: ok\n");
+    expect(ok.code).toBe(0);
   });
 
   it("t30_layout_check_real_tree_is_clean", () => {
