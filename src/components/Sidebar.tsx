@@ -573,7 +573,7 @@ export default function Sidebar() {
                 </div>
               )}
             </div>
-          ) : loadingFiles ? (
+          ) : loadingFiles && (repoFiles.length === 0 || treeRef !== selectedBranch) ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 size={18} className="animate-spin text-[var(--text-muted)]" />
             </div>

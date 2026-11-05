@@ -20,10 +20,10 @@ async function mockGitHub(page: Page) {
     else if (path.includes("/contents/")) data = { encoding: "base64", content: Buffer.from("# Doc\n\ntext").toString("base64") };
     else if (path.includes("/git/trees/")) {
       data = { tree: paths.map((p) => ({ path: p, type: p.endsWith(".md") ? "blob" : "tree", sha: "s" })) };
-    } else if (path.endsWith("/branches")) data = [{ name: "main" }];
+    } else if (path.endsWith("/branches")) data = [{ name: "dev" }];
     else if (path.endsWith("/pulls")) data = [];
     else if (path === "/graphql") data = { data: {} };
-    else if (path === "/repos/o/r") data = { default_branch: "main" };
+    else if (path === "/repos/o/r") data = { default_branch: "dev" };
     else { await route.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ message: path }) }); return; }
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(data) });
   });
@@ -51,7 +51,7 @@ test("f80_repo_opens_with_folders_collapsed", async ({ page }) => {
 
 test("f81_deep_link_reveals_highlights_and_scrolls", async ({ page }) => {
   await mockGitHub(page);
-  await page.goto("/#/o/r/blob/main/a/b/c.md");
+  await page.goto("/#/o/r/blob/dev/a/b/c.md");
   await showTree(page);
   const open = folderRows(page).and(page.locator('[aria-expanded="true"]'));
   await expect(open).toHaveCount(2);
@@ -88,7 +88,7 @@ test("f82_folder_state_survives_file_open_and_reload", async ({ page }) => {
 
 test("f83_collapse_all_closes_every_folder", async ({ page }) => {
   await mockGitHub(page);
-  await page.goto("/#/o/r/blob/main/a/b/c.md");
+  await page.goto("/#/o/r/blob/dev/a/b/c.md");
   await showTree(page);
   await openTreeFolder(page, "x");
   const open = folderRows(page).and(page.locator('[aria-expanded="true"]'));
@@ -102,4 +102,27 @@ test("f83_collapse_all_closes_every_folder", async ({ page }) => {
   await showTree(page);
   await expect(folderRows(page)).toHaveCount(3);
   await expect(open).toHaveCount(0);
+});
+
+test("f81_clicking_a_visible_row_does_not_scroll_the_tree", async ({ page }) => {
+  await mockGitHub(page);
+  await page.goto("/#/o/r/blob/dev/a/b/c.md");
+  await showTree(page);
+  const rowOf = (name: string) => page.locator("button", { hasText: name }).locator("visible=true").first();
+  const target = rowOf("aa-20.md");
+  await target.evaluate((el) => el.scrollIntoView({ block: "center" }));
+  const scrollTop = () =>
+    target.evaluate((el) => {
+      let s: HTMLElement | null = el.parentElement;
+      while (s && !/(auto|scroll)/.test(getComputedStyle(s).overflowY)) s = s.parentElement;
+      return s ? s.scrollTop : -1;
+    });
+  const top = () => target.evaluate((el) => Math.round(el.getBoundingClientRect().top));
+  const before = { scroll: await scrollTop(), top: await top() };
+  expect(before.scroll).toBeGreaterThan(0);
+  await target.click();
+  await expect(target).toHaveClass(/bg-\[var\(--accent-muted\)\]/);
+  await expect(page.locator(".ProseMirror")).toBeVisible();
+  expect(await scrollTop()).toBe(before.scroll);
+  expect(Math.abs((await top()) - before.top)).toBeLessThanOrEqual(1);
 });
