@@ -17,6 +17,8 @@ interface Entry {
   ref: string | null;
   set: ReadonlySet<string>;
   listeners: Set<() => void>;
+  /** Carried over from the in-memory entry and not yet saved. */
+  unsaved: boolean;
 }
 
 const EMPTY: ReadonlySet<string> = new Set();
@@ -40,12 +42,19 @@ function entryFor(repo: string | null, treeRef: string | null): Entry {
   let entry = entries.get(key);
   if (!entry) {
     const persisted = repo !== null && treeRef !== null;
-    entry = {
-      repo: repo ?? "",
-      ref: persisted ? treeRef : null,
-      set: persisted ? load(store, repo, treeRef) : EMPTY,
-      listeners: new Set(),
-    };
+    let set: ReadonlySet<string> = persisted ? load(store, repo, treeRef) : EMPTY;
+    let unsaved = false;
+    if (persisted) {
+      // Folders opened while the ref was unknown join the stored set, then the memory entry goes.
+      const memoryKey = keyOf(repo, null);
+      const memory = entries.get(memoryKey);
+      if (memory && memory.set.size > 0) {
+        set = new Set(Array.from(set).concat(Array.from(memory.set)));
+        unsaved = true;
+      }
+      entries.delete(memoryKey);
+    }
+    entry = { repo: repo ?? "", ref: persisted ? treeRef : null, set, listeners: new Set(), unsaved };
     entries.set(key, entry);
   }
   return entry;
@@ -74,10 +83,12 @@ export function useTreeExpansion({ repo, treeRef, selectedPath }: TreeExpansionI
 
   // Open the folders above the selected file when it, or the tree it sits in, changes.
   useEffect(() => {
-    if (!selectedPath) return;
     const entry = entryFor(repo, treeRef);
-    const next = reveal(entry.set, selectedPath);
-    if (next.size !== entry.set.size) commit(entry, next);
+    const next = selectedPath ? reveal(entry.set, selectedPath) : entry.set;
+    if (next.size !== entry.set.size || entry.unsaved) {
+      entry.unsaved = false;
+      commit(entry, next);
+    }
   }, [repo, treeRef, selectedPath]);
 
   const toggle = useCallback((path: string) => {

@@ -34,7 +34,7 @@ describe("use-tree-expansion", () => {
     expect(reads.length).toBeGreaterThan(0);
     expect(new Set(reads)).toEqual(new Set([EXPANSION_KEY]));
     expect(Object.keys(saved())).toEqual(["o/r@dev"]);
-    expect(saved()["o/r@dev"]).toEqual(["docs", "docs/a"]);
+    expect(saved()["o/r@dev"]).toEqual(["docs", "docs/a", "src"]); // the pending toggle is kept
     expect(Object.keys(saved()).some((k) => k.endsWith("@main"))).toBe(false);
   });
 
@@ -65,5 +65,19 @@ describe("use-tree-expansion", () => {
     expect(Array.from(out.current!.expanded).sort()).toEqual(["a", "a/b", "c", "keep"]);
     // one load, plus the one read each save makes before it writes
     expect(reads).toHaveLength(1 + writes.length);
+  });
+
+  it("f82_toggles_before_the_ref_resolves_are_kept", () => {
+    data.set(EXPANSION_KEY, JSON.stringify({ "o/r@dev": ["stored"] }));
+    const out: { current?: Api } = {};
+    const input = { repo: "o/r", treeRef: null, selectedPath: null };
+    const { rerender } = render(<Probe input={input} out={out} />);
+    act(() => out.current!.toggle("early"));
+    rerender(<Probe input={{ ...input, treeRef: "dev" }} out={out} />);
+    expect(Array.from(out.current!.expanded).sort()).toEqual(["early", "stored"]);
+    expect(saved()["o/r@dev"]).toEqual(["early", "stored"]);
+    // the memory entry is gone: a later load for another ref does not inherit it
+    rerender(<Probe input={{ ...input, treeRef: "other" }} out={out} />);
+    expect(out.current!.expanded.size).toBe(0);
   });
 });
