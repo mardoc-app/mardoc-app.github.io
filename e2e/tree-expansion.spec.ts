@@ -85,3 +85,21 @@ test("f82_folder_state_survives_file_open_and_reload", async ({ page }) => {
   await expect(folderRows(page).and(page.locator('[aria-expanded="true"]'))).toHaveCount(1);
   await expect(page.locator("button", { hasText: "y.md" }).locator("visible=true").first()).toBeVisible();
 });
+
+test("f83_collapse_all_closes_every_folder", async ({ page }) => {
+  await mockGitHub(page);
+  await page.goto("/#/o/r/blob/main/a/b/c.md");
+  await showTree(page);
+  await openTreeFolder(page, "x");
+  const open = folderRows(page).and(page.locator('[aria-expanded="true"]'));
+  await expect(open).toHaveCount(3);
+  await page.getByRole("button", { name: "Collapse all folders" }).locator("visible=true").click();
+  await expect(open).toHaveCount(0);
+  await expect(folderRows(page)).toHaveCount(3);
+  // A deep link would reveal its file again, so reload from the repo root.
+  await page.goto("/#/o/r");
+  await page.reload();
+  await showTree(page);
+  await expect(folderRows(page)).toHaveCount(3);
+  await expect(open).toHaveCount(0);
+});
