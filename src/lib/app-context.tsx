@@ -5,6 +5,8 @@ import { RepoFile, PullRequest, PRFile, PRComment, ViewMode } from "@/types";
 import { fetchRepoTree, fetchPullRequests, fetchFileContent, fetchPRFileManifest, fetchPRFile, fetchPRComments, fetchDefaultBranch, fetchBranches, fetchPRMarkdownCounts, fetchRevision, fetchPullRequest, expireGitHubSession, setOnAuthError, fetchLoginForToken } from "./github-api";
 import { formatApiError } from "./rate-limit";
 import { createStalenessGuard } from "./staleness-guard";
+import { EXPANSION_KEY } from "./expansion-store";
+import { resetTreeExpansion } from "./use-tree-expansion";
 import { repoFiles as mockFiles, pullRequests as mockPRs, findFile, flattenFiles } from "./mock-data";
 import { parseHash, buildFileHash, buildPRHash, buildRepoHash, buildBranchHash } from "./hash-router";
 import * as safeStorage from "./safe-storage";
@@ -345,6 +347,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setCurrentRepoState(null); setSelectedFile(null); setSelectedPR(null);
     setFileContent(""); setAvailableBranches([]); setPRFiles([]); setPRComments([]);
     safeStorage.removeItem("mardoc_user_repos");
+    safeStorage.removeItem(EXPANSION_KEY); resetTreeExpansion();
   }, [invalidateNavigation, repoLoadGuard, listLoadGuard]);
 
   // No credential: reset the client and caches (F-60) and show demo data.
@@ -534,6 +537,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           break;
         case "remove-user-repos":
           safeStorage.removeItem("mardoc_user_repos");
+          safeStorage.removeItem(EXPANSION_KEY); resetTreeExpansion();
           break;
         case "remove-saved-pat":
           safeStorage.removeItem(TOKEN_KEY);
@@ -854,6 +858,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const controller = new AbortController();
     treeController.current = controller;
     setLoadingFiles(true);
+    // A tree for another ref is coming: until it arrives no loaded tree matches the selected branch.
+    setTreeRef((current) => (current === ref ? current : null));
     try {
       const sha = await revision;
       if (!isCurrent()) return;

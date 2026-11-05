@@ -42,22 +42,39 @@ function entryFor(repo: string | null, treeRef: string | null): Entry {
   let entry = entries.get(key);
   if (!entry) {
     const persisted = repo !== null && treeRef !== null;
-    let set: ReadonlySet<string> = persisted ? load(store, repo, treeRef) : EMPTY;
-    let unsaved = false;
-    if (persisted) {
-      // Folders opened while the ref was unknown join the stored set, then the memory entry goes.
-      const memoryKey = keyOf(repo, null);
-      const memory = entries.get(memoryKey);
-      if (memory && memory.set.size > 0) {
-        set = new Set(Array.from(set).concat(Array.from(memory.set)));
-        unsaved = true;
-      }
-      entries.delete(memoryKey);
-    }
-    entry = { repo: repo ?? "", ref: persisted ? treeRef : null, set, listeners: new Set(), unsaved };
+    entry = {
+      repo: repo ?? "",
+      ref: persisted ? treeRef : null,
+      set: persisted ? load(store, repo, treeRef) : EMPTY,
+      listeners: new Set(),
+      unsaved: false,
+    };
     entries.set(key, entry);
   }
+  if (repo !== null && treeRef !== null) carryOverMemory(repo, entry);
   return entry;
+}
+
+/**
+ * Whenever a persisted key is active, folders opened while the ref was unknown join
+ * its set (cached or freshly loaded), and the repo's memory entry goes, so they can
+ * never reach a later branch.
+ */
+function carryOverMemory(repo: string, entry: Entry): void {
+  const memoryKey = keyOf(repo, null);
+  const memory = entries.get(memoryKey);
+  if (!memory) return;
+  entries.delete(memoryKey);
+  const merged = new Set(Array.from(entry.set).concat(Array.from(memory.set)));
+  if (merged.size !== entry.set.size) {
+    entry.set = merged;
+    entry.unsaved = true;
+  }
+}
+
+/** Forget every entry (Disconnect). The stored key is removed by the caller. */
+export function resetTreeExpansion(): void {
+  entries.clear();
 }
 
 function commit(entry: Entry, next: ReadonlySet<string>): void {
