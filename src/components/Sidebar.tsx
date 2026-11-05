@@ -21,6 +21,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Check,
+  ChevronsDownUp,
 } from "lucide-react";
 import { RepoFile, PRFile } from "@/types";
 import { useApp } from "@/lib/app-context";
@@ -305,7 +306,7 @@ export default function Sidebar() {
     treeRef,
   } = useApp();
 
-  const { expanded: expandedFolders, toggle: toggleFolder } = useTreeExpansion({
+  const { expanded: expandedFolders, toggle: toggleFolder, collapseAll: collapseAllFolders } = useTreeExpansion({
     repo: currentRepo,
     treeRef,
     selectedPath: selectedFile?.path ?? null,
@@ -601,6 +602,14 @@ export default function Sidebar() {
                     title="Open a local .md file"
                   >
                     <FolderInput size={14} />
+                  </button>
+                  <button
+                    onClick={collapseAllFolders}
+                    className="flex items-center gap-1.5 px-2 py-1.5 text-xs rounded-md text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--surface-hover)] transition-colors"
+                    aria-label="Collapse all folders"
+                    title="Collapse all"
+                  >
+                    <ChevronsDownUp size={14} />
                   </button>
                   <input
                     ref={fileInputRef}

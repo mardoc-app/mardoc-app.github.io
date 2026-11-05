@@ -80,4 +80,15 @@ describe("use-tree-expansion", () => {
     rerender(<Probe input={{ ...input, treeRef: "other" }} out={out} />);
     expect(out.current!.expanded.size).toBe(0);
   });
+
+  it("f83_collapse_all_saves_an_empty_set", () => {
+    data.set(EXPANSION_KEY, JSON.stringify({ "o/r@dev": ["a", "a/b"], "o/r@main": ["z"] }));
+    const out: { current?: Api } = {};
+    render(<Probe input={{ repo: "o/r", treeRef: "dev", selectedPath: null }} out={out} />);
+    expect(out.current!.expanded.size).toBe(2);
+    act(() => out.current!.collapseAll());
+    expect(out.current!.expanded.size).toBe(0);
+    expect(saved()["o/r@dev"]).toEqual([]);
+    expect(saved()["o/r@main"]).toEqual(["z"]);
+  });
 });
