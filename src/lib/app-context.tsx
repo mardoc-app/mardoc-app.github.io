@@ -43,6 +43,8 @@ interface AppState {
   setSelectedBranch: (branch: string) => void;
   setCurrentRepo: (repo: string) => void;
   repoFiles: RepoFile[];
+  /** The ref the loaded tree was fetched for; null until a tree has loaded. */
+  treeRef: string | null;
   pullRequests: PullRequest[];
   prStateFilter: "open" | "closed" | "all";
   setPRStateFilter: (state: "open" | "closed" | "all") => void;
@@ -177,6 +179,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [selectedBranch, setSelectedBranchState] = useState("main");
   const [availableBranches, setAvailableBranches] = useState<{ name: string; isDefault: boolean }[]>([]);
   const [repoFilesList, setRepoFiles] = useState<RepoFile[]>(mockFiles);
+  const [treeRef, setTreeRef] = useState<string | null>(null);
   const [prList, setPRList] = useState<PullRequest[]>(mockPRs);
   const [prStateFilter, setPRStateFilterState] = useState<"open" | "closed" | "all">("open");
 
@@ -352,7 +355,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     credential.clearCredential();
     safeStorage.removeItem(REPO_KEY);
     setIsDemoMode(true);
-    setRepoFiles(mockFiles);
+    setRepoFiles(mockFiles); setTreeRef(null);
     setPRList(mockPRs);
   }, [resetForCredentialChange, bumpTokenRevision]);
 
@@ -555,7 +558,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // "Continue without signing in" ends the reload prompt with demo data (F-38).
     if (event.type === "continue-without" && prev.status === "sign-in-again" && state.status === "signed-out") {
       setIsDemoMode(true);
-      setRepoFiles(mockFiles);
+      setRepoFiles(mockFiles); setTreeRef(null);
       setPRList(mockPRs);
     }
   };
@@ -628,7 +631,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setIsDemoMode(false);
     } else if (start === "sign-in-again") {
       setIsDemoMode(false);
-      setRepoFiles([]);
+      setRepoFiles([]); setTreeRef(null);
       setPRList([]);
     }
     replaceSession(initialSessionState(start));
@@ -837,7 +840,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setCurrentRepoState(repo); setSelectedBranchState(branch);
     safeStorage.setItem(REPO_KEY, repo);
     if (changed) {
-      setRepoFiles([]); setPRList([]); setAvailableBranches([]);
+      setRepoFiles([]); setTreeRef(null); setPRList([]); setAvailableBranches([]);
       repoLoadGuard.invalidate(); listLoadGuard.invalidate();
       branchListController.current?.abort(); prListController.current?.abort();
       metadataRequests.current = {};
@@ -845,7 +848,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [repoLoadGuard, listLoadGuard]);
 
-  const loadTree = useCallback(async (repo: string, revision: Promise<string>) => {
+  const loadTree = useCallback(async (repo: string, ref: string, revision: Promise<string>) => {
     const isCurrent = treeLoadGuard.begin();
     treeController.current.abort();
     const controller = new AbortController();
@@ -855,9 +858,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const sha = await revision;
       if (!isCurrent()) return;
       const files = await fetchRepoTree(repo, sha, controller.signal);
-      if (isCurrent()) setRepoFiles(files);
+      if (isCurrent()) { setRepoFiles(files); setTreeRef(ref); }
     } catch (err) {
-      if (isCurrent()) { setRepoFiles([]); setError(formatApiError(err, "Failed to load branch")); }
+      if (isCurrent()) { setRepoFiles([]); setTreeRef(null); setError(formatApiError(err, "Failed to load branch")); }
     } finally { if (isCurrent()) setLoadingFiles(false); }
   }, [treeLoadGuard]);
 
@@ -875,7 +878,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       locationRef.current.branch = ref;
       if (!branch) setDefaultBranch(ref);
       setSelectedBranchState(ref);
-      await loadTree(repo, fetchRevision(repo, ref, navigationController.current.signal));
+      await loadTree(repo, ref, fetchRevision(repo, ref, navigationController.current.signal));
     } catch (err) { if (isCurrent()) setError(formatApiError(err, "Failed to load repository")); }
   }, [invalidateNavigation, navigationGuard, activateRepo, setHash, hasCredential, loadTree]);
 
@@ -896,7 +899,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const { owner, repo, branch } = pendingInitRef.current;
     pendingInitRef.current = null;
     activateRepo(`${owner}/${repo}`, branch || "main");
-    void loadTree(`${owner}/${repo}`, fetchRevision(`${owner}/${repo}`, branch || "main", navigationController.current.signal));
+    void loadTree(`${owner}/${repo}`, branch || "main", fetchRevision(`${owner}/${repo}`, branch || "main", navigationController.current.signal));
     // tokenRevision: re-run when the embed token string changes, as before.
   }, [hasCredential, tokenRevision, activateRepo, loadTree]);
 
@@ -920,7 +923,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!repo || !hasCredential) return;
     activateRepo(repo, branch);
     const revision = fetchRevision(repo, branch, navigationController.current.signal);
-    void loadTree(repo, revision);
+    void loadTree(repo, branch, revision);
     setLoadingContent(true);
     try {
       const sha = await revision;
@@ -1117,7 +1120,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const { repo, branch } = locationRef.current;
     if (repo && hasCredential) {
       loadMetadata(repo);
-      await loadTree(repo, fetchRevision(repo, branch, navigationController.current.signal));
+      await loadTree(repo, branch, fetchRevision(repo, branch, navigationController.current.signal));
     }
   }, [hasCredential, loadMetadata, loadTree]);
 
@@ -1141,6 +1144,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setSelectedBranch,
         setCurrentRepo,
         repoFiles: repoFilesList,
+        treeRef,
         pullRequests: prList,
         prStateFilter,
         setPRStateFilter,

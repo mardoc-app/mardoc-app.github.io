@@ -285,3 +285,19 @@ describe("sidebar metadata demand", () => {
     expect(api.fetchBranches).toHaveBeenCalledTimes(3);
   });
 });
+
+describe("tree ref", () => {
+  it("f82_tree_ref_is_set_with_the_loaded_tree", async () => {
+    const tree = deferred<any[]>();
+    vi.mocked(api.fetchRepoTree).mockReturnValue(tree.promise);
+    await start("#/acme/docs/tree/feature-x");
+    await waitFor(() => expect(api.fetchRepoTree).toHaveBeenCalled());
+    expect(state.treeRef).toBeNull();
+    await act(async () => tree.resolve([file("a.md")]));
+    expect(state.treeRef).toBe("feature-x");
+    expect(vi.mocked(api.fetchRepoTree).mock.calls.at(-1)![1]).toBe(FEATURE);
+    vi.mocked(api.fetchRepoTree).mockRejectedValue(new Error("down"));
+    await act(async () => { await state.refreshRepo(); });
+    expect(state.treeRef).toBeNull();
+  });
+});
