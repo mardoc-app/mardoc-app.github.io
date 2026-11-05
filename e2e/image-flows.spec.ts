@@ -15,7 +15,8 @@
  * These tests drive headless Chromium + WebKit against a real Next
  * dev server in demo mode.
  */
-import { test, expect, type Page, type Locator } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
+import { openMarkdownFile } from "./fixtures/helpers";
 
 // Image tests manipulate the ProseMirror editor state; running them
 // in parallel in the same file causes state contamination because
@@ -23,55 +24,20 @@ import { test, expect, type Page, type Locator } from "@playwright/test";
 // within the file keeps the editor instance clean between tests.
 test.describe.configure({ mode: "serial" });
 
-// ─── Shared helpers ──────────────────────────────────────────────
-
-async function waitForHydration(page: Page) {
-  await page.waitForFunction(
-    () => {
-      const prsBtn = Array.from(document.querySelectorAll("button")).find(
-        (b) => b.textContent?.trim() === "PRs"
-      );
-      const hamburger = document.querySelector('button[aria-label="Open navigation"]');
-      return !!prsBtn || !!hamburger;
-    },
-    { timeout: 15_000 }
+// The tests insert https://example.com/*.png, which does not exist (404)
+// and would otherwise come from the network. Serve a real 120×60 PNG so
+// each image loads, and lays out, the same way on every run.
+const TEST_PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAHgAAAA8CAIAAAAiz+n/AAAAhklEQVR4nO3QAQkAIADAMNMZzHTGsoXCHTzA2Zhr60Lj+cEngQbdCjToVqBBtwINuhVo0K1Ag24FGnQr0KBbgQbdCjToVqBBtwINuhVo0K1Ag24FGnQr0KBbgQbdCjToVqBBtwINuhVo0K1Ag24FGnQr0KBbgQbdCjToVqBBtwINuhVo0K0OvEb0hqqolooAAAAASUVORK5CYII=",
+  "base64"
+);
+test.beforeEach(async ({ page }) => {
+  await page.route("https://example.com/**/*.png", (route) =>
+    route.fulfill({ contentType: "image/png", body: TEST_PNG })
   );
-}
+});
 
-async function openSidebar(page: Page) {
-  const hamburger = page.locator('button[aria-label="Open navigation"]');
-  if (await hamburger.isVisible().catch(() => false)) {
-    await hamburger.click();
-    await page.waitForTimeout(350);
-  }
-}
-
-async function clickInVisibleSidebar(page: Page, text: string) {
-  await page
-    .locator("button", { hasText: new RegExp(`^${text}$`) })
-    .locator("visible=true")
-    .first()
-    .click();
-}
-
-async function clickVisibleText(page: Page, text: string | RegExp) {
-  await page.getByText(text).locator("visible=true").first().click();
-}
-
-/**
- * Open a markdown file in the Editor. Returns the ProseMirror
- * content element for subsequent interactions.
- */
-async function openMarkdownFile(page: Page, filename: string | RegExp = /README\.md/) {
-  await page.goto("/");
-  await waitForHydration(page);
-  await openSidebar(page);
-  await clickInVisibleSidebar(page, "Files");
-  await clickVisibleText(page, filename);
-  const proseMirror = page.locator(".ProseMirror");
-  await expect(proseMirror).toBeVisible({ timeout: 10_000 });
-  return proseMirror;
-}
+// ─── Shared helpers ──────────────────────────────────────────────
 
 /** Click the Add Image button in the Editor toolbar. */
 async function clickAddImageButton(page: Page) {

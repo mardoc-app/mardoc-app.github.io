@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { prCommentsLoaded } from "./fixtures/helpers";
 const head = "# Review\n\nSame **phrase**.\n\nNew text.\n\nSame **phrase**.\n\nDuplicate Duplicate\n\nRead **this** guide\n\nNext step";
 const base = head.replace("New text.", "Old text.");
 async function setup(page: Page) {
@@ -27,6 +28,9 @@ async function setup(page: Page) {
   await page.route("https://api.github.com/**", async route => {
     const url=new URL(route.request().url());
     const path=decodeURIComponent(url.pathname);
+    // jump() reads whether the phone Comments sheet is open, then acts:
+    // see prCommentsLoaded.
+    if (path.includes("/contents/")) await prCommentsLoaded(page, comments.length);
     const data = path.endsWith("/pulls/12/files") ? [{filename:"guide.md",status:"modified"}]
       : path.endsWith("/pulls/12/comments") ? comments
       : path.endsWith("/issues/12/comments") ? []
@@ -36,7 +40,14 @@ async function setup(page: Page) {
     await route.fulfill({contentType:"application/json",body:JSON.stringify(data)});
   });
   await page.goto("/#/acme/docs/pull/12");
+  await viewerReady(page);
+}
+// On phones the Comments sheet renders open for a moment when the viewer
+// mounts, then closes; jump() reads that state, so wait for it to settle.
+async function viewerReady(page: Page) {
   await expect(page.getByRole("button",{name:"7 comments",exact:true})).toBeVisible();
+  if ((page.viewportSize()?.width ?? 1280) < 768)
+    await expect(page.locator('[role="dialog"][aria-label="Comments"]')).toHaveAttribute("aria-hidden","true");
 }
 async function jump(page:Page, body:string, mobile:boolean, keyboard=false) {
   const card=page.getByText(body,{exact:false}).locator("xpath=../..");
@@ -83,7 +94,7 @@ test("jumps use source side/range, refuse uncertainty, and preserve formatted se
   await jump(page,"Range only",isMobile);
   await expect(page.getByRole("status").filter({hasText:"Source block highlighted"})).toBeVisible();
   await page.reload();
-  await expect(page.getByRole("button",{name:"7 comments",exact:true})).toBeVisible();
+  await viewerReady(page);
   await jump(page,"Repeated target",isMobile);
   await expect(page.locator('mark[data-comment-id="rc-1"]').first()).toBeFocused();
 });

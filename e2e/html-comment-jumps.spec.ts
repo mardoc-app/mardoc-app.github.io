@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { openReviewTools } from "./fixtures/helpers";
+import { openReviewTools, prCommentsLoaded } from "./fixtures/helpers";
 
 const html = [
   '<!doctype html>',
@@ -45,6 +45,8 @@ async function setup(page: Page, source = html) {
     head:{ref:"topic",sha:"b".repeat(40),repo:{full_name:"acme/docs"}}};
   await page.route("https://api.github.com/**",async route=>{
     const url=new URL(route.request().url()), path=decodeURIComponent(url.pathname);
+    // These tests expect the phone Comments sheet closed: see prCommentsLoaded.
+    if (path.includes("/contents/")) await prCommentsLoaded(page,comments.length);
     const data=path.endsWith("/pulls/12/files") ? [{filename:"deck.html",status:"modified"}]
       : path.endsWith("/pulls/12/comments") ? comments
       : path.endsWith("/issues/12/comments") ? []

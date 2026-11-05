@@ -13,6 +13,12 @@ import { expect } from "@playwright/test";
  * Wait for the React app to hydrate. Works on both desktop (where
  * the Sidebar's PRs button is inline in the DOM) and mobile (where
  * the hamburger button is the only hydrated element visible).
+ *
+ * Both buttons are in the prerendered HTML, so they show the page, not
+ * a hydrated one; with `next dev` the load event can also come before
+ * hydration. Next's app router adds <next-route-announcer> in an effect
+ * of the hydration commit, after the page's own effects (such as the
+ * global keyboard shortcut listener), so wait for it too.
  */
 export async function waitForHydration(page: Page): Promise<void> {
   await page.waitForFunction(
@@ -21,7 +27,8 @@ export async function waitForHydration(page: Page): Promise<void> {
         (b) => b.textContent?.trim() === "PRs"
       );
       const hamburger = document.querySelector('button[aria-label="Open navigation"]');
-      return !!prsBtn || !!hamburger;
+      const hydrated = !!document.querySelector("next-route-announcer");
+      return (!!prsBtn || !!hamburger) && hydrated;
     },
     { timeout: 15_000 }
   );
@@ -69,7 +76,39 @@ export async function openMarkdownFile(
   await clickVisibleText(page, filename);
   const proseMirror = page.locator(".ProseMirror");
   await expect(proseMirror).toBeVisible({ timeout: 10_000 });
+  await waitForEditorContent(page);
   return proseMirror;
+}
+
+/**
+ * Wait until the editor holds the prepared document. The editor first
+ * mounts with the raw file, then replaces it once Mermaid diagrams are
+ * rendered, which moves the cursor to the end of the document and drops
+ * anything inserted before. The word count is set right after that
+ * replacement, so editor actions are safe once it is in the DOM (it is
+ * hidden on phones, hence attached rather than visible).
+ */
+export async function waitForEditorContent(page: Page): Promise<void> {
+  await expect(page.locator('span[title$="min read"]')).toBeAttached({ timeout: 10_000 });
+}
+
+/**
+ * Click inside an editor block and wait until the editor has moved its
+ * cursor there. ProseMirror reads a click's caret from the browser's
+ * selectionchange event, and ignores it once focus has left the editor,
+ * so a toolbar button pressed before that event is handled acts on the
+ * previous cursor.
+ */
+export async function placeCursorIn(target: Locator): Promise<void> {
+  await target.click();
+  await expect
+    .poll(() =>
+      target.evaluate((el) => {
+        const editor = (el.closest(".ProseMirror") as any)?.editor;
+        return !!editor && el.contains(editor.view.domAtPos(editor.state.selection.from).node);
+      })
+    )
+    .toBe(true);
 }
 
 /** Open an HTML file from the demo repo file tree. */
@@ -132,6 +171,17 @@ export async function selectTextInsideIframe(
     },
     maxLength
   );
+}
+
+/**
+ * Wait until the PR header counts `count` unresolved comments, that is,
+ * until the PR's comments have loaded. On phones the Comments sheet opens
+ * when the comments reach the diff viewer after the document and stays
+ * closed when they arrive first, so specs that expect it closed hold the
+ * mocked document response on this.
+ */
+export async function prCommentsLoaded(page: Page, count: number): Promise<void> {
+  await expect(page.getByText(String(count), { exact: true }).first()).toBeVisible();
 }
 
 /** Open the nonmodal tools tray without toggling an already open tray closed. */
