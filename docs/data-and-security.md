@@ -32,6 +32,7 @@ The sign-in token reaches only repositories where the MarDoc GitHub App is insta
 | Existing repository Markdown draft | `localStorage`: `mardoc:draft:v1:{repo}:{branch}:{path}` | Includes Markdown and timestamp. Restore is offered when different from the baseline. New/local files are excluded. |
 | Display preferences | `localStorage`: `theme`, `mardoc_wide_format` | Persist independently of the connection. |
 | Image folder preference | `localStorage`: `mardoc:image-folder:{repo}` | Defaults to `docs/images` if missing or invalid. |
+| Open folders in the file tree | `localStorage`: `mardoc_tree_expansion` | Holds up to 20 `owner/repo@ref` entries, each with up to 200 folder paths. The oldest entry is dropped first. Removed on Disconnect. |
 | Cached repository list | `localStorage`: `mardoc_user_repos` | Filled by Settings; removed on Disconnect. |
 | AI feedback settings | `localStorage`: `mardoc_feedback_ai` (endpoint and model), `mardoc_feedback_ai_enabled` | **Clear AI connection** removes the endpoint and model; the enabled flag persists. The API key is memory-only. |
 | Loaded documents, pending review comments, editor state | React/browser memory | Pending comments and new/local edits are not recovered by the repository draft store. |
