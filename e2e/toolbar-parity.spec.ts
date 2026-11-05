@@ -11,6 +11,7 @@
  * All three get pinned here so any future divergence fails CI.
  */
 import { test, expect, type Page } from "@playwright/test";
+import { openTreeFolder } from "./fixtures/helpers";
 
 test.describe.configure({ mode: "serial" });
 
@@ -61,6 +62,7 @@ async function openHtmlFile(page: Page) {
   await waitForHydration(page);
   await openSidebar(page);
   await clickInVisibleSidebar(page, "Files");
+  await openTreeFolder(page, "docs");
   await clickVisibleText(page, /architecture-overview\.html/);
   await expect(page.locator("iframe")).toBeVisible({ timeout: 10_000 });
 }

@@ -14,6 +14,7 @@
  * gets caught.
  */
 import { test, expect, type Page } from "@playwright/test";
+import { openTreeFolder } from "./fixtures/helpers";
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 
@@ -174,10 +175,10 @@ test.describe("Critical flow: HTML commenting outside a PR (HtmlViewer)", () => 
     await waitForHydration(page);
 
     // Browse to an HTML file in the repo's file tree. Demo mode
-    // includes docs/architecture-overview.html. The docs folder
-    // auto-expands on first render, so the file should be visible
-    // without any expand/collapse dance.
+    // includes docs/architecture-overview.html. Folders start
+    // collapsed, so open docs first.
     await openFilesTab(page);
+    await openTreeFolder(page, "docs");
     await clickVisibleText(page, /architecture-overview.html/);
 
     // Wait for the HtmlViewer iframe
