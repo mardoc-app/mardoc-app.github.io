@@ -1,7 +1,8 @@
 /**
  * The open folders of the repo tree, shared by every mounted Sidebar (phones mount
- * two). One module-level entry per `owner/repo@ref` holds the set; each hook
- * instance subscribes to it, so all instances read and write the same set.
+ * two). One module-level entry per `owner/repo@ref` holds the set, and every hook
+ * instance subscribes to one shared listener list, so all instances read and write
+ * the same set.
  *
  * While the tree's ref is unknown (`treeRef` null) the set lives in memory only:
  * nothing is read from or written to storage, so a guessed branch never owns state.
@@ -43,9 +44,9 @@ function keyOf(repo: string | null, treeRef: string | null): string {
 
 /**
  * The entry for a repo and tree ref. A memory entry (ref unknown) is never merged
- * into a stored one: while the ref is unknown the tree shows a spinner, so only
- * reveals land there, and the reveal effect re-applies the selected file's folders
- * once the real ref arrives.
+ * into a stored one, so nothing opened while the ref is unknown is ever saved under a
+ * branch. The reveal effect re-applies the selected file's folders once the real ref
+ * arrives.
  */
 function entryFor(repo: string | null, treeRef: string | null): Entry {
   const key = keyOf(repo, treeRef);

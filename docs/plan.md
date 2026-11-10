@@ -219,6 +219,7 @@ spend separate from estimates and quota/credit usage. `sdlc:loop` records it.
 | ID | Item | Evidence | Status |
 |---|---|---|---|
 | WP11-1 | Following a link to the same file path on another branch reloads the tree with a spinner, so it comes back scrolled to the top and the selected row is not scrolled into view again (the once-per-selection guard is keyed on the path) | WP-11 re-review, WP11R-5 residual (2026-11-10) | PENDING |
+| WP11-2 | While a tree for another branch of the same repo loads, "New file", opening a PR or a local file cancels that load without starting another, so the previous branch's tree stays on screen with the new branch in the selector; its folder clicks are kept in memory only and never saved | WP-11 second re-review, WP11R-11 (2026-11-10) | PENDING |
 
 ## Backlog from M1 acceptance (Part B, 2026-10-28)
 
