@@ -7,7 +7,7 @@ import { useApp } from "@/lib/app-context";
 import { injectSourceLineAttributes } from "@/lib/html-source-lines";
 import { buildIframeResizeScript } from "@/lib/iframe-resize";
 import { buildIframeSelectionScript } from "@/lib/html-selection";
-import { createReviewPR, createInlineComment } from "@/lib/github-api";
+import { createReviewPR, createInlineComment, loadAuthenticatedImages } from "@/lib/github-api";
 import { rewriteHtmlAssetUrls } from "@/lib/html-assets";
 import RepositoryReference, { type ReferenceTarget } from "./RepositoryReference";
 import { useHtmlReviewLinks } from "@/lib/use-html-review-links";
@@ -353,7 +353,7 @@ export default function HtmlViewer({ content, filePath, repoFullName, branch }: 
           ) : (
             <iframe
               ref={iframeRef}
-              onLoad={onHtmlLoad}
+              onLoad={() => { onHtmlLoad(); const body = iframeRef.current?.contentDocument?.body; if (body) void loadAuthenticatedImages(body); }}
               srcDoc={srcdoc}
               sandbox="allow-scripts allow-same-origin"
               title={fileName}

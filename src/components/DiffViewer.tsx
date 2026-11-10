@@ -1115,7 +1115,7 @@ export default function DiffViewer({
                 <div className="flex-1 overflow-auto">
                   {htmlReady && <iframe
                     ref={htmlIframeRef}
-                    onLoad={() => { onHtmlLoad(); onHtmlCommentLoad(); if (anchor && htmlIframeRef.current?.contentDocument) scrollToDocumentAnchor(htmlIframeRef.current.contentDocument, anchor); }}
+                    onLoad={() => { onHtmlLoad(); onHtmlCommentLoad(); const doc = htmlIframeRef.current?.contentDocument; if (doc) { void loadAuthenticatedImages(doc.body); if (anchor) scrollToDocumentAnchor(doc, anchor); } }}
                     srcDoc={htmlSrcdoc}
                     sandbox="allow-scripts allow-same-origin"
                     title={file.path}
