@@ -60,8 +60,10 @@ describe("folder state through app-context", () => {
     expect(writes).toEqual([]);
     await act(async () => def.resolve("dev"));
     await waitFor(() => expect(app.treeRef).toBe("dev"));
-    await waitFor(() => expect(Object.keys(stored())).toEqual(["o/r@dev"]));
-    expect(stored()["o/r@dev"]).toEqual(["early"]);
+    // Nothing is stored for the guessed main, and the in-memory toggle is not
+    // carried into dev (WP11R-7); dev starts from its own stored set.
+    expect(sorted(tree.expanded)).toEqual([]);
+    expect(Object.keys(stored()).some((k) => k.endsWith("@main"))).toBe(false);
   });
 
   it("f82_a_branch_switch_loads_its_own_set", async () => {
@@ -113,6 +115,36 @@ describe("folder state through app-context", () => {
     expect(sorted(tree.expanded)).toEqual([]);
     expect(stored()["acme/docs@feature-x"] ?? []).toEqual([]);
     expect(stored()["acme/docs@main"]).toEqual(["x", "x/y"]);
+  });
+
+  it("f82_back_before_the_new_tree_arrives_keeps_the_old_branch_clean", async () => {
+    // WP11R-7 (A)
+    await start("#/acme/docs/blob/main/top.md");
+    await waitFor(() => expect(app.treeRef).toBe("main"));
+    const slow = deferred<any[]>();
+    vi.mocked(api.fetchRepoTree).mockReturnValue(slow.promise);
+    await navigate("#/acme/docs/blob/feature-x/a/b/c.md");
+    await waitFor(() => expect(app.selectedBranch).toBe("feature-x"));
+    vi.mocked(api.fetchRepoTree).mockResolvedValue([file("top.md")]);
+    await navigate("#/acme/docs/blob/main/top.md");
+    await waitFor(() => expect(app.treeRef).toBe("main"));
+    await act(async () => slow.resolve([file("a/b/c.md")]));
+    expect(sorted(tree.expanded)).toEqual([]);
+    expect(stored()["acme/docs@main"] ?? []).toEqual([]);
+  });
+
+  it("f82_a_failed_refresh_does_not_leak_into_the_next_branch", async () => {
+    // WP11R-7 (C)
+    await start("#/acme/docs/blob/main/docs/top.md");
+    await waitFor(() => expect(app.treeRef).toBe("main"));
+    vi.mocked(api.fetchRepoTree).mockRejectedValueOnce(new Error("boom"));
+    await act(async () => { await app.refreshRepo(); });
+    expect(app.treeRef).toBeNull();
+    vi.mocked(api.fetchRepoTree).mockResolvedValue([]);
+    act(() => app.setSelectedBranch("feature-x"));
+    await waitFor(() => expect(app.treeRef).toBe("feature-x"));
+    expect(sorted(tree.expanded)).toEqual([]);
+    expect(stored()["acme/docs@feature-x"] ?? []).toEqual([]);
   });
 });
 

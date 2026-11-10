@@ -1,7 +1,7 @@
 import React from "react";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, act, cleanup } from "@testing-library/react";
-import { useTreeExpansion, setTreeExpansionStore, type TreeExpansionInput } from "@/lib/use-tree-expansion";
+import { useTreeExpansion, setTreeExpansionStore, resetTreeExpansion, type TreeExpansionInput } from "@/lib/use-tree-expansion";
 import { EXPANSION_KEY } from "@/lib/expansion-store";
 
 let reads: string[], writes: string[], data: Map<string, string>;
@@ -34,7 +34,9 @@ describe("use-tree-expansion", () => {
     expect(reads.length).toBeGreaterThan(0);
     expect(new Set(reads)).toEqual(new Set([EXPANSION_KEY]));
     expect(Object.keys(saved())).toEqual(["o/r@dev"]);
-    expect(saved()["o/r@dev"]).toEqual(["docs", "docs/a", "src"]); // the pending toggle is kept
+    // The selected file's folders are revealed again under the real ref; the
+    // in-memory state is not carried over (WP11R-7).
+    expect(saved()["o/r@dev"]).toEqual(["docs", "docs/a"]);
     expect(Object.keys(saved()).some((k) => k.endsWith("@main"))).toBe(false);
   });
 
@@ -67,18 +69,27 @@ describe("use-tree-expansion", () => {
     expect(reads).toHaveLength(1 + writes.length);
   });
 
-  it("f82_toggles_before_the_ref_resolves_are_kept", () => {
+  it("f82_memory_state_never_reaches_a_stored_branch", () => {
+    // WP11R-7: folders held while the ref is unknown stay in memory.
     data.set(EXPANSION_KEY, JSON.stringify({ "o/r@dev": ["stored"] }));
     const out: { current?: Api } = {};
     const input = { repo: "o/r", treeRef: null, selectedPath: null };
     const { rerender } = render(<Probe input={input} out={out} />);
     act(() => out.current!.toggle("early"));
     rerender(<Probe input={{ ...input, treeRef: "dev" }} out={out} />);
-    expect(Array.from(out.current!.expanded).sort()).toEqual(["early", "stored"]);
-    expect(saved()["o/r@dev"]).toEqual(["early", "stored"]);
-    // the memory entry is gone: a later load for another ref does not inherit it
+    expect(Array.from(out.current!.expanded).sort()).toEqual(["stored"]);
     rerender(<Probe input={{ ...input, treeRef: "other" }} out={out} />);
     expect(out.current!.expanded.size).toBe(0);
+    expect(Object.keys(saved())).toEqual(["o/r@dev"]);
+  });
+
+  it("f82_reset_keeps_mounted_trees_live", () => {
+    // WP11R-8: a reset while repo and ref stay the same must not orphan the subscription
+    const out: { current?: Api } = {};
+    render(<Probe input={{ repo: null, treeRef: null, selectedPath: null }} out={out} />);
+    act(() => resetTreeExpansion());
+    act(() => out.current!.toggle("docs"));
+    expect(Array.from(out.current!.expanded)).toEqual(["docs"]);
   });
 
   it("f83_collapse_all_saves_an_empty_set", () => {

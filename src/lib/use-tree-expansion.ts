@@ -16,20 +16,24 @@ interface Entry {
   /** null: in memory only. */
   ref: string | null;
   set: ReadonlySet<string>;
-  listeners: Set<() => void>;
-  /** Carried over from the in-memory entry and not yet saved. */
-  unsaved: boolean;
 }
 
 const EMPTY: ReadonlySet<string> = new Set();
 const entries = new Map<string, Entry>();
+/** One listener list for every entry, so a reset never strands a mounted tree. */
+const listeners = new Set<() => void>();
 let store: KeyValueStore = safeStorage;
+
+function notify(): void {
+  Array.from(listeners).forEach((l) => l());
+}
 
 /** Test seam: swap the storage and forget every entry. Returns the previous store. */
 export function setTreeExpansionStore(next: KeyValueStore | null): KeyValueStore {
   const prev = store;
   store = next ?? safeStorage;
   entries.clear();
+  notify();
   return prev;
 }
 
@@ -37,6 +41,12 @@ function keyOf(repo: string | null, treeRef: string | null): string {
   return repo !== null && treeRef !== null ? `${repo}@${treeRef}` : `\u0000memory:${repo ?? ""}`;
 }
 
+/**
+ * The entry for a repo and tree ref. A memory entry (ref unknown) is never merged
+ * into a stored one: while the ref is unknown the tree shows a spinner, so only
+ * reveals land there, and the reveal effect re-applies the selected file's folders
+ * once the real ref arrives.
+ */
 function entryFor(repo: string | null, treeRef: string | null): Entry {
   const key = keyOf(repo, treeRef);
   let entry = entries.get(key);
@@ -46,41 +56,22 @@ function entryFor(repo: string | null, treeRef: string | null): Entry {
       repo: repo ?? "",
       ref: persisted ? treeRef : null,
       set: persisted ? load(store, repo, treeRef) : EMPTY,
-      listeners: new Set(),
-      unsaved: false,
     };
     entries.set(key, entry);
   }
-  if (repo !== null && treeRef !== null) carryOverMemory(repo, entry);
   return entry;
-}
-
-/**
- * Whenever a persisted key is active, folders opened while the ref was unknown join
- * its set (cached or freshly loaded), and the repo's memory entry goes, so they can
- * never reach a later branch.
- */
-function carryOverMemory(repo: string, entry: Entry): void {
-  const memoryKey = keyOf(repo, null);
-  const memory = entries.get(memoryKey);
-  if (!memory) return;
-  entries.delete(memoryKey);
-  const merged = new Set(Array.from(entry.set).concat(Array.from(memory.set)));
-  if (merged.size !== entry.set.size) {
-    entry.set = merged;
-    entry.unsaved = true;
-  }
 }
 
 /** Forget every entry (Disconnect). The stored key is removed by the caller. */
 export function resetTreeExpansion(): void {
   entries.clear();
+  notify();
 }
 
 function commit(entry: Entry, next: ReadonlySet<string>): void {
   entry.set = next;
   if (entry.ref !== null) save(store, entry.repo, entry.ref, next);
-  Array.from(entry.listeners).forEach((l) => l());
+  notify();
 }
 
 export interface TreeExpansionInput {
@@ -91,10 +82,9 @@ export interface TreeExpansionInput {
 
 export function useTreeExpansion({ repo, treeRef, selectedPath }: TreeExpansionInput) {
   const subscribe = useCallback((listener: () => void) => {
-    const entry = entryFor(repo, treeRef);
-    entry.listeners.add(listener);
-    return () => { entry.listeners.delete(listener); };
-  }, [repo, treeRef]);
+    listeners.add(listener);
+    return () => { listeners.delete(listener); };
+  }, []);
   const getSnapshot = useCallback(() => entryFor(repo, treeRef).set, [repo, treeRef]);
   const expanded = useSyncExternalStore(subscribe, getSnapshot, () => EMPTY);
 
@@ -102,10 +92,7 @@ export function useTreeExpansion({ repo, treeRef, selectedPath }: TreeExpansionI
   useEffect(() => {
     const entry = entryFor(repo, treeRef);
     const next = selectedPath ? reveal(entry.set, selectedPath) : entry.set;
-    if (next.size !== entry.set.size || entry.unsaved) {
-      entry.unsaved = false;
-      commit(entry, next);
-    }
+    if (next.size !== entry.set.size) commit(entry, next);
   }, [repo, treeRef, selectedPath]);
 
   const toggle = useCallback((path: string) => {
