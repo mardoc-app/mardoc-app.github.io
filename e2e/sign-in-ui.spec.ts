@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { waitForHydration } from "./fixtures/helpers";
+import { waitForHydration, openTreeFolder } from "./fixtures/helpers";
 
 // WP-6. These specs drive the states the UI can reach before the sign-in
 // window adapter (WP-5) exists: signed out, a saved PAT, embed mode, and the
@@ -107,7 +107,7 @@ test.describe("banner", () => {
     await page.getByRole("button", { name: "Continue without signing in" }).click();
     await expect(page.getByTestId("sign-in-banner")).toHaveCount(0);
     await expect(page.getByTestId("sign-in-again-pane")).toHaveCount(0);
-    if (!isMobile) await expect(page.getByText("getting-started.md").first()).toBeVisible(); // demo data
+    if (!isMobile) { await openTreeFolder(page, "docs"); await expect(page.getByText("getting-started.md").first()).toBeVisible(); } // demo data
     expect(await page.evaluate((m) => localStorage.getItem(m), MARKER)).toBeNull();
     await page.reload();
     await waitForHydration(page);

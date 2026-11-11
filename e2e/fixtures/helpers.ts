@@ -34,6 +34,20 @@ export async function waitForHydration(page: Page): Promise<void> {
   );
 }
 
+/**
+ * Open a repo-tree folder in the visible sidebar, only if it is closed.
+ * Folders start collapsed, so specs that click a file inside one open it first.
+ */
+export async function openTreeFolder(page: Page, name: string): Promise<void> {
+  const row = page
+    .locator("button[aria-expanded]", { hasText: new RegExp(`^${name}$`) })
+    .locator("visible=true")
+    .first();
+  await expect(row).toBeVisible();
+  if ((await row.getAttribute("aria-expanded")) !== "true") await row.click();
+  await expect(row).toHaveAttribute("aria-expanded", "true");
+}
+
 /** Open the sidebar drawer on mobile. No-op on desktop. */
 export async function openSidebar(page: Page): Promise<void> {
   const hamburger = page.locator('button[aria-label="Open navigation"]');
@@ -73,6 +87,7 @@ export async function openMarkdownFile(
   await waitForHydration(page);
   await openSidebar(page);
   await clickInVisibleSidebar(page, "Files");
+  if (!/README|CHANGELOG/.test(String(filename))) await openTreeFolder(page, "docs");
   await clickVisibleText(page, filename);
   const proseMirror = page.locator(".ProseMirror");
   await expect(proseMirror).toBeVisible({ timeout: 10_000 });
@@ -120,6 +135,7 @@ export async function openHtmlFile(
   await waitForHydration(page);
   await openSidebar(page);
   await clickInVisibleSidebar(page, "Files");
+  await openTreeFolder(page, "docs");
   await clickVisibleText(page, filename);
   await expect(page.locator("iframe")).toBeVisible({ timeout: 10_000 });
 }

@@ -19,6 +19,7 @@ import {
   openSidebar,
   openMarkdownFile,
   waitForHydration,
+  openTreeFolder,
 } from "./fixtures/helpers";
 
 test.describe("Navigation: sidebar file switching", () => {
@@ -55,8 +56,7 @@ test.describe("Navigation: sidebar file switching", () => {
     await openSidebar(page);
     await clickInVisibleSidebar(page, "Files");
     // The docs/ folder in the demo tree has contributing.md inside it.
-    // Clicking the file name loads it regardless of whether the folder
-    // is expanded by default.
+    await openTreeFolder(page, "docs");
     await clickVisibleText(page, /contributing\.md/);
     await expect(page.locator(".ProseMirror")).toBeVisible({ timeout: 5_000 });
     // The contributing doc contains a Development Setup heading

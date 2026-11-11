@@ -21,9 +21,11 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Check,
+  ChevronsDownUp,
 } from "lucide-react";
 import { RepoFile, PRFile } from "@/types";
 import { useApp } from "@/lib/app-context";
+import { useTreeExpansion } from "@/lib/use-tree-expansion";
 import { isMarkdownFile, isHtmlFile } from "@/lib/file-types";
 
 function fileTypeChip(name: string): { label: string; color: string } | null {
@@ -48,20 +50,36 @@ function FileTreeItem({
   depth,
   onSelect,
   selectedPath,
+  expandedSet,
+  onToggle,
+  scrolledFor,
 }: {
   file: RepoFile;
   depth: number;
   onSelect: (file: RepoFile) => void;
   selectedPath: string | null;
+  expandedSet: ReadonlySet<string>;
+  onToggle: (path: string) => void;
+  /** Holds the path already scrolled to, so a selection scrolls once. */
+  scrolledFor: React.MutableRefObject<string | null>;
 }) {
-  const [expanded, setExpanded] = useState(depth < 2);
+  const expanded = expandedSet.has(file.path);
   const isSelected = file.path === selectedPath;
+  const rowRef = useRef<HTMLButtonElement>(null);
+
+  // Once per selection, after the row exists (the tree can arrive after the file).
+  useEffect(() => {
+    if (file.type === "folder" || !isSelected || scrolledFor.current === file.path) return;
+    scrolledFor.current = file.path;
+    rowRef.current?.scrollIntoView({ block: "nearest" });
+  }, [file.type, file.path, isSelected, scrolledFor]);
 
   if (file.type === "folder") {
     return (
       <div>
         <button
-          onClick={() => setExpanded(!expanded)}
+          aria-expanded={expanded}
+          onClick={() => onToggle(file.path)}
           className="w-full flex items-center gap-1.5 px-2 py-2 md:py-1 text-sm rounded-md hover:bg-[var(--surface-hover)] transition-colors"
           style={{ paddingLeft: `${depth * 16 + 8}px` }}
         >
@@ -86,6 +104,9 @@ function FileTreeItem({
                 depth={depth + 1}
                 onSelect={onSelect}
                 selectedPath={selectedPath}
+                expandedSet={expandedSet}
+                onToggle={onToggle}
+                scrolledFor={scrolledFor}
               />
             ))}
           </div>
@@ -98,6 +119,7 @@ function FileTreeItem({
 
   return (
     <button
+      ref={rowRef}
       onClick={() => onSelect(file)}
       className={`w-full flex items-center gap-1.5 px-2 py-2 md:py-1 text-sm rounded-md transition-colors ${
         isSelected
@@ -281,7 +303,18 @@ export default function Sidebar() {
     loadingBranches,
     setSelectedBranch,
     isEmbedded,
+    treeRef,
   } = useApp();
+
+  const { expanded: expandedFolders, toggle: toggleFolder, collapseAll: collapseAllFolders } = useTreeExpansion({
+    repo: currentRepo,
+    treeRef,
+    selectedPath: selectedFile?.path ?? null,
+  });
+  const scrolledFor = useRef<string | null>(null);
+  // A new selection (or none) re-arms the once-per-selection scroll.
+  const selectedFilePath = selectedFile?.path ?? null;
+  if (scrolledFor.current !== null && scrolledFor.current !== selectedFilePath) scrolledFor.current = null;
 
   const [activeTab, setActiveTab] = useState<"files" | "prs">("files");
   const [prFileFilter, setPRFileFilter] = useState("");
@@ -540,7 +573,7 @@ export default function Sidebar() {
                 </div>
               )}
             </div>
-          ) : loadingFiles ? (
+          ) : loadingFiles && (repoFiles.length === 0 || treeRef !== selectedBranch) ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 size={18} className="animate-spin text-[var(--text-muted)]" />
             </div>
@@ -570,6 +603,14 @@ export default function Sidebar() {
                   >
                     <FolderInput size={14} />
                   </button>
+                  <button
+                    onClick={collapseAllFolders}
+                    className="flex items-center gap-1.5 px-2 py-1.5 text-xs rounded-md text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--surface-hover)] transition-colors"
+                    aria-label="Collapse all folders"
+                    title="Collapse all"
+                  >
+                    <ChevronsDownUp size={14} />
+                  </button>
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -586,6 +627,9 @@ export default function Sidebar() {
                   depth={0}
                   onSelect={(f) => openFile(f)}
                   selectedPath={selectedFile?.path || null}
+                  expandedSet={expandedFolders}
+                  onToggle={toggleFolder}
+                  scrolledFor={scrolledFor}
                 />
               ))}
             </div>
