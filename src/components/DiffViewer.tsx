@@ -67,6 +67,13 @@ function pickMdMode(link: ViewMode | undefined): MdViewMode {
   return MD_FROM_TOKEN[pickMode({ link, remembered: routeAdapter.loadMode("md"), available, fallback: "inline" })];
 }
 
+/** The HTML view a file opens in: the link's mode, then the remembered one, then Inline Diff. */
+function pickHtmlMode(link: ViewMode | undefined): { view: "rendered" | "source"; diff: HtmlDiffMode } {
+  const token = pickMode({ link, remembered: routeAdapter.loadMode("html"),
+    available: ["diff", "head", "base", "source"] as const, fallback: "diff" });
+  return token === "source" ? { view: "source", diff: "diff" } : { view: "rendered", diff: token };
+}
+
 interface DiffViewerProps {
   /** Whether this file is the one shown; a file that becomes shown picks its view mode again. */
   active?: boolean;
@@ -343,6 +350,9 @@ export default function DiffViewer({
     lastPick.current = { active, linkMode };
     if (!active || (last.active === active && last.linkMode === linkMode)) return;
     setViewMode(pickMdMode(linkMode));
+    const pick = pickHtmlMode(linkMode);
+    setHtmlViewMode(pick.view);
+    setHtmlDiffMode(pick.diff);
   }, [active, linkMode]);
   const pickViewMode = (value: MdViewMode) => {
     setViewMode(value);
@@ -350,8 +360,15 @@ export default function DiffViewer({
     routeAdapter.publishMode(MD_TOKEN[value]);
     onModeChange?.(MD_TOKEN[value]);
   };
-  const [htmlViewMode, setHtmlViewMode] = useState<"rendered" | "source">("rendered");
-  const [htmlDiffMode, setHtmlDiffMode] = useState<HtmlDiffMode>("diff");
+  const htmlHeld = useRef<{ view: "rendered" | "source"; diff: HtmlDiffMode }>();
+  if (!htmlHeld.current) htmlHeld.current = pickHtmlMode(linkMode);
+  const [htmlViewMode, setHtmlViewMode] = useState<"rendered" | "source">(htmlHeld.current.view);
+  const [htmlDiffMode, setHtmlDiffMode] = useState<HtmlDiffMode>(htmlHeld.current.diff);
+  const pickHtmlAgain = () => {
+    const pick = pickHtmlMode(linkMode);
+    setHtmlViewMode(pick.view);
+    setHtmlDiffMode(pick.diff);
+  };
   const htmlShowBase = htmlDiffMode === "base";
   const [activeHtmlChange, setActiveHtmlChange] = useState(-1);
   const [htmlReady, setHtmlReady] = useState(false);
@@ -508,14 +525,20 @@ export default function DiffViewer({
   }, [fileIsHtml, htmlDiffMode, htmlDiff.html, htmlAnnotatedSource, htmlShowBase]);
 
   useEffect(() => {
-    setHtmlDiffMode("diff");
+    pickHtmlAgain();
     setActiveHtmlChange(-1);
     setPendingSelection(null);
     setPendingSelectionRange(null);
     setPendingCommentInput("");
   }, [file.path, file.baseContent, file.headContent]);
 
+  const rememberHtmlMode = (token: ViewMode) => {
+    routeAdapter.saveMode("html", token);
+    routeAdapter.publishMode(token);
+    onModeChange?.(token);
+  };
   const changeHtmlMode = (mode: HtmlDiffMode) => {
+    rememberHtmlMode(mode);
     setHtmlDiffMode(mode);
     setActiveHtmlChange(-1);
     setJumpRequest(null);
@@ -1009,9 +1032,9 @@ export default function DiffViewer({
   const modeButtonClass = "min-h-11 sm:min-h-8 rounded px-2 text-xs whitespace-nowrap focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]";
   const revisionControls = fileIsHtml ? (
     <div role="group" aria-label="HTML display" className="flex shrink-0 items-center gap-0.5">
-      {htmlViewMode === "source" && <button type="button" onClick={() => setHtmlViewMode("rendered")}
+      {htmlViewMode === "source" && <button type="button" onClick={() => { setHtmlViewMode("rendered"); rememberHtmlMode(htmlDiffMode); }}
         className={modeButtonClass}><Eye size={14} className="inline mr-1" />Rendered</button>}
-      <button type="button" onClick={() => setHtmlViewMode("source")} aria-pressed={htmlViewMode === "source"}
+      <button type="button" onClick={() => { setHtmlViewMode("source"); rememberHtmlMode("source"); }} aria-pressed={htmlViewMode === "source"}
         className={modeButtonClass + (htmlViewMode === "source" ? " bg-[var(--accent)] text-white" : " hover:bg-[var(--surface-hover)]")}>
         <FileCode size={14} className="inline mr-1" />Source Diff
       </button>

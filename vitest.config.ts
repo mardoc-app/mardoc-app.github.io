@@ -11,6 +11,7 @@ export default defineConfig({
   },
   test: {
     environment: "jsdom",
+    setupFiles: ["./vitest.setup.ts"],
     // Node 25+ ships a global localStorage that shadows jsdom's; turn it off
     execArgv: ["--no-experimental-webstorage"],
     // Playwright tests live in e2e/ and have their own runner; .claude holds agent worktrees
