@@ -97,14 +97,14 @@ describe("PR file links by path", () => {
     await start("#/acme/docs/pull/12/file/docs/gone.md");
     await waitFor(() => expect(state.prFiles).toHaveLength(2));
     expect(state.selectedPRFileIdx).toBe(0);
-    expect(state.error).toBe("The linked file docs/gone.md is not in this PR.");
+    expect(state.error).toBe("Not in this PR: docs/gone.md");
     expect(location.hash).toBe("#/acme/docs/pull/12/file/docs/gone.md");
   });
 
   it("f84_selecting_another_file_clears_only_the_linked_file_error", async () => {
     vi.mocked(api.fetchPRFileManifest).mockResolvedValue([prFile("intro.md"), prFile("guide.md")]);
     await start("#/acme/docs/pull/12/file/gone.md");
-    await waitFor(() => expect(state.error).toBe("The linked file gone.md is not in this PR."));
+    await waitFor(() => expect(state.error).toBe("Not in this PR: gone.md"));
     await act(async () => state.setSelectedPRFileIdx(1));
     expect(state.error).toBeNull();
     expect(location.hash).toBe("#/acme/docs/pull/12/file/guide.md");
@@ -136,7 +136,7 @@ describe("PR file links by path", () => {
     expect(window.history.length).toBe(before);
     await follow("#/acme/docs/pull/12/file/gone.md");
     expect(state.selectedPRFileIdx).toBe(0);
-    expect(state.error).toBe("The linked file gone.md is not in this PR.");
+    expect(state.error).toBe("Not in this PR: gone.md");
     expect(location.hash).toBe("#/acme/docs/pull/12/file/gone.md");
     expect(api.fetchPRFileManifest).toHaveBeenCalledTimes(1);
   });

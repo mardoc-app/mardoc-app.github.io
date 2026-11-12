@@ -20,9 +20,11 @@
 //          (also as onhashchange/onpopstate), the history object on a global
 //          (`window.history`, `globalThis.history`, `self.history`,
 //          `window["history"]`), `{ hash }` or `{ history }` destructured from
-//          location or a global, and the bare global (`history.back()`,
-//          `history.pushState(..)` and the other History members) in a file
-//          that declares no `history` of its own. Comments do not count.
+//          location or a global, and the bare global's navigation members
+//          (`history.back()`, `.forward()`, `.go()`, `.pushState(..)`,
+//          `.replaceState(..)`, `.scrollRestoration`). `history.length` and
+//          `history.state` are not checked, so a local undo array named
+//          `history` passes. Comments do not count.
 //          Known limits: an alias (`const loc = window.location; loc.hash = ..`)
 //          and a template literal spanning lines are not followed, and a
 //          multi-line template literal that mentions location.hash is flagged.
@@ -99,9 +101,8 @@ const LR26_PATTERNS = [
   [/\{[^{}]*\b(?:hash|history)\b[^{}]*\}\s*=\s*(?:(?:window|globalThis|self|document)\s*\.\s*)?(?:location|window|globalThis|self)\s*(?:[;,)]|$)/,
     "destructuring from location or window", false],
 ];
-/** The bare `history` global, checked only in a file that declares no `history` of its own. */
-const LR26_BARE_HISTORY = /(?<![\w$.])history\s*\.\s*(?:pushState|replaceState|back|forward|go|state|length|scrollRestoration)\b/;
-const LR26_LOCAL_HISTORY = /\b(?:const|let|var)\s+(?:\{[^}]*)?\bhistory\b|[(,]\s*history\s*[:,)=]|\bimport\b[^;]*\bhistory\b/;
+/** The bare `history` global's navigation members; an array-like local shares only `length`. */
+const LR26_BARE_HISTORY = /(?<![\w$.])history\s*\.\s*(?:pushState|replaceState|back|forward|go|scrollRestoration)\b/;
 
 function walk(dir) {
   let entries;
@@ -240,12 +241,11 @@ for (const f of walk(path.join(root, "src"))) {
   const rel = path.relative(root, f).split(path.sep).join("/");
   if (rel === LR26_ADAPTER || rel.startsWith(LR26_SKIP)) continue;
   const lines = stripComments(readFileSync(f, "utf8")).split("\n");
-  const localHistory = lines.some((raw) => LR26_LOCAL_HISTORY.test(blankStrings(raw)));
   lines.forEach((raw, idx) => {
     const code = blankStrings(raw);
     const labels = new Set();
     for (const [re, label, strings] of LR26_PATTERNS) if (re.test(strings ? raw : code)) labels.add(label);
-    if (!localHistory && LR26_BARE_HISTORY.test(code)) labels.add("history");
+    if (LR26_BARE_HISTORY.test(code)) labels.add("history");
     for (const label of labels) violations.push(`LR-26 ${rel}:${idx + 1} uses ${label}`);
   });
 }

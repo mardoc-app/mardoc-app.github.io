@@ -179,7 +179,7 @@ pickMode&lt;M extends ViewMode&gt;(i: { link?: ViewMode; remembered?: ViewMode;
 
 <section id="failures"><h2><span class="num">07 · Failures</span>Every bad link ends in a message, never a blank screen</h2>
 <table><thead><tr><th>Case</th><th>Outcome</th><th>Rule</th></tr></thead><tbody>
-<tr><td>Path not in the PR (file reverted or renamed)</td><td>PR opens at its first file; error "The linked file &lt;path&gt; is not in this PR." The address keeps the link as followed, and selecting a file clears the message.</td><td><code>resolvePRFile</code> returns <code>no-such-path</code></td></tr>
+<tr><td>Path not in the PR (file reverted or renamed)</td><td>PR opens at its first file; error "Not in this PR: &lt;path&gt;", with the full text in the error box's title. The address keeps the link as followed, and selecting a file clears the message.</td><td><code>resolvePRFile</code> returns <code>no-such-path</code></td></tr>
 <tr><td>Index past the end</td><td>Error "The linked PR file no longer exists" (as <a href="../../src/lib/app-context.tsx">today (:1022)</a>)</td><td><code>index-out-of-range</code></td></tr>
 <tr><td><code>mode=bogus</code></td><td>Ignored; remembered mode or the default</td><td><code>parseMode</code> returns undefined</td></tr>
 <tr><td>Mode unavailable (<code>split</code> on a phone, <code>base</code> on a Markdown file)</td><td>Falls to the kind's default</td><td><code>pickMode</code>, <code>available</code></td></tr>

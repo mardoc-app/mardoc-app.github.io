@@ -246,6 +246,9 @@ describe("layout check", () => {
     fails({ "src/components/A.tsx": "const { hash, search } = location;\n" }, /^LR-26 src\/components\/A\.tsx:1 uses destructuring from location or window$/m);
     fails({ "src/components/A.tsx": "const { history: h } = window;\n" }, /^LR-26 src\/components\/A\.tsx:1 uses destructuring from location or window$/m);
     fails({ "src/components/A.tsx": "const { history } = globalThis;\n" }, /^LR-26 src\/components\/A\.tsx:1 uses destructuring from location or window$/m);
+    // A history key or argument elsewhere in the file does not hide the browser's history.
+    fails({ "src/components/Editor.tsx": "setUndo({ past, history: next });\nhistory.back();\n" }, /^LR-26 src\/components\/Editor\.tsx:2 uses history$/m);
+    fails({ "src/components/Nav.tsx": 'track("nav", history);\nhistory.pushState({}, "", "#/x");\n' }, /^LR-26 src\/components\/Nav\.tsx:2 uses history$/m);
     const adapter = run(fixture({ "src/lib/routing/route-adapter.ts":
       "export const r = () => window.location.hash;\nwindow.addEventListener(\"popstate\", f);\nwindow.history.back();\n" }));
     expect(adapter.out).toBe("layout check: ok\n");

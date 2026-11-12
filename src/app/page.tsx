@@ -223,7 +223,7 @@ export default function Home() {
           {error && (
             <div className="flex items-center gap-1 text-xs text-red-500 mr-2">
               <AlertCircle size={12} />
-              <span className="max-w-48 truncate">{error}</span>
+              <span className="max-w-48 truncate" title={error}>{error}</span>
             </div>
           )}
           {!isEmbedded && !isDemoMode && selectedFile && !selectedFile.path.startsWith("__") && (

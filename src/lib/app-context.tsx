@@ -1027,7 +1027,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // clears this message and leaves any other error in place.
   const linkedFileError = useRef<string | null>(null);
   const reportMissingLinkedFile = useCallback((path: string) => {
-    linkedFileError.current = `The linked file ${path} is not in this PR.`;
+    linkedFileError.current = `Not in this PR: ${path}`;
     setError(linkedFileError.current);
   }, []);
 

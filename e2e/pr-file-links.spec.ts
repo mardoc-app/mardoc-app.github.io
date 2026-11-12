@@ -83,9 +83,21 @@ test("f84_missing_path_opens_the_pr_with_a_message", async ({ page }) => {
   const { release } = await mockPR(page);
   release();
   await page.goto("/#/acme/docs/pull/12/file/docs/gone.md");
-  await expect(page.getByText("The linked file docs/gone.md is not in this PR.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Not in this PR: docs/gone.md", { exact: true })).toBeVisible();
+  await expect(page.getByText("Not in this PR: docs/gone.md", { exact: true })).toHaveAttribute("title", "Not in this PR: docs/gone.md");
   await expect(heading(page, "aaa-added.md")).toBeVisible();
   await expect(page).toHaveURL(/#\/acme\/docs\/pull\/12\/file\/docs\/gone\.md$/);
+});
+
+test("f84_missing_long_path_message_leads_with_the_outcome_and_keeps_the_full_text", async ({ page }) => {
+  const { release } = await mockPR(page);
+  release();
+  const message = "Not in this PR: docs/guide/onboarding/setup-for-new-reviewers.md";
+  await page.goto("/#/acme/docs/pull/12/file/docs/guide/onboarding/setup-for-new-reviewers.md");
+  await expect(heading(page, "aaa-added.md")).toBeVisible();
+  const box = page.getByTitle(message, { exact: true });
+  await expect(box).toBeVisible();
+  await expect(box).toHaveText(message);
 });
 
 test("f84_back_after_a_cold_link_skips_the_unresolved_address", async ({ page }) => {
