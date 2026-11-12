@@ -25,6 +25,10 @@ async function mockPR(page: Page) {
       await files;
       data = FILES.map(filename => ({ filename, status: "added", additions: 3, deletions: 0 }));
     } else if (path.endsWith("/comments")) data = [];
+    else if (path.includes("/commits/")) data = { sha: "c".repeat(40) };
+    else if (path.includes("/git/trees/")) data = { tree: FILES.map(file => ({ path: file, type: "blob", sha: "blob" })) };
+    else if (path.endsWith("/branches") || path.endsWith("/pulls")) data = [];
+    else if (path === "/repos/acme/docs") data = { default_branch: "main" };
     else if (path === "/graphql") data = { data: { repository: { pullRequest: { reviewThreads: { nodes: [] } } } } };
     else if (path.includes("/contents/")) {
       const file = path.split("/contents/")[1];
@@ -79,8 +83,24 @@ test("f84_missing_path_opens_the_pr_with_a_message", async ({ page }) => {
   const { release } = await mockPR(page);
   release();
   await page.goto("/#/acme/docs/pull/12/file/docs/gone.md");
-  await expect(page.getByText("The linked file is not in this PR.", { exact: true })).toBeVisible();
+  await expect(page.getByText("The linked file docs/gone.md is not in this PR.", { exact: true })).toBeVisible();
   await expect(heading(page, "aaa-added.md")).toBeVisible();
+  await expect(page).toHaveURL(/#\/acme\/docs\/pull\/12\/file\/docs\/gone\.md$/);
+});
+
+test("f84_back_after_a_cold_link_skips_the_unresolved_address", async ({ page }) => {
+  const { release, filesRequested } = await mockPR(page);
+  await page.goto("/#/acme/docs/blob/main/readme.md");
+  await expect(page.locator(".ProseMirror h1")).toHaveText("Readme");
+  await page.evaluate(() => { window.location.hash = "#/acme/docs/pull/12/files/1"; });
+  await expect.poll(filesRequested).toBe(true);
+  await expect(page).toHaveURL(/#\/acme\/docs\/pull\/12\/files\/1$/);
+  release();
+  await expect(heading(page, "docs/guide.md")).toBeVisible();
+  await expect(page).toHaveURL(/#\/acme\/docs\/pull\/12\/file\/docs\/guide\.md$/);
+  await page.goBack();
+  await expect(page).toHaveURL(/#\/acme\/docs\/blob\/main\/readme\.md$/);
+  await expect(page.locator(".ProseMirror h1")).toHaveText("Readme");
 });
 
 test("f85_legacy_index_link_opens_and_shows_the_path_form", async ({ page }) => {

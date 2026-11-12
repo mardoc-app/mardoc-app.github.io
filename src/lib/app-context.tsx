@@ -1010,22 +1010,31 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
 
   // Which file of a PR a link names: its head path, then its base path
-  // (renamed and deleted files), else its index. Returns the index to show,
-  // or null when the link names an index past the end.
-  const pickLinkedPRFile = useCallback((files: readonly PRFile[], file: FileRef | undefined): number | null => {
+  // (renamed and deleted files), else its index. Returns the index to show
+  // and whether the link resolved, or null when it names an index past the end.
+  const pickLinkedPRFile = useCallback((files: readonly PRFile[], file: FileRef | undefined): { index: number; resolved: boolean } | null => {
     let found = resolvePRFile(file, files.map(f => f.path));
     if (!found.ok && found.reason === "no-such-path") {
       const byBase = resolvePRFile(file, files.map(f => f.basePath || f.path));
       if (byBase.ok) found = byBase;
     }
-    if (found.ok) return found.index;
-    if (found.reason === "no-such-path") { setError("The linked file is not in this PR."); return 0; }
-    return files.length ? null : 0;
+    if (found.ok) return { index: found.index, resolved: true };
+    if (found.reason === "no-such-path" || !files.length) return { index: 0, resolved: false };
+    return null;
+  }, []);
+
+  // The message for a linked path that is not in the PR. Selecting a file
+  // clears this message and leaves any other error in place.
+  const linkedFileError = useRef<string | null>(null);
+  const reportMissingLinkedFile = useCallback((path: string) => {
+    linkedFileError.current = `The linked file ${path} is not in this PR.`;
+    setError(linkedFileError.current);
   }, []);
 
   // A PR opened from a link writes nothing until its files are known; then a
-  // named file replaces the link with its path form. A PR opened from the
-  // list pushes its address at once.
+  // named file that resolves takes its path form in place (replace). A link to
+  // a path that is not in the PR stays as followed. A PR opened from the list
+  // pushes its address at once.
   const _openPRInternal = useCallback(async (pr: PullRequest,
     repo = locationRef.current.repo, file?: FileRef, anchor = "", fromLink = false) => {
     invalidateNavigation();
@@ -1034,10 +1043,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setSelectedPRFileIdx(0); setError(null); setPRFiles([]); setPRComments([]);
     if (repo && !fromLink) setHash(prFileRoute(repo, pr.number, undefined, anchor));
     const settle = (files: PRFile[]) => {
-      const idx = pickLinkedPRFile(files, file);
-      if (idx === null) return null;
-      if (repo && file && files[idx]) routeAdapter.publish(prFileRoute(repo, pr.number, files[idx].path, anchor), { replace: true });
-      return idx;
+      const pick = pickLinkedPRFile(files, file);
+      if (!pick) return null;
+      if (file?.kind === "path" && !pick.resolved) reportMissingLinkedFile(file.path);
+      else if (repo && file && files[pick.index]) {
+        routeAdapter.publish(prFileRoute(repo, pr.number, files[pick.index].path, anchor), { replace: true });
+      }
+      return pick.index;
     };
     if (isDemoMode) {
       const idx = settle(pr.files);
@@ -1063,7 +1075,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       if (isCurrent()) setError(formatApiError(err, `Failed to load PR #${pr.number}`));
     } finally { if (isCurrent()) setLoadingPRFiles(false); }
-  }, [invalidateNavigation, prLoadGuard, setHash, isDemoMode, hasCredential, activateRepo, pickLinkedPRFile]);
+  }, [invalidateNavigation, prLoadGuard, setHash, isDemoMode, hasCredential, activateRepo, pickLinkedPRFile, reportMissingLinkedFile]);
 
   const selectedPRFile = prFiles[selectedPRFileIdx];
   useEffect(() => {
@@ -1092,6 +1104,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const selectPRFile = useCallback((idx: number, anchor: string, write: "push" | "replace" | "none") => {
     setDocumentAnchor(anchor);
     setSelectedPRFileIdx(idx);
+    setError(old => old !== null && old === linkedFileError.current ? null : old);
     setPRFiles(files => files.map((file, i) => i === idx && file.loadState === "error"
       ? { ...file, loadState: "pending", loadError: undefined } : file));
     const path = prFilesRef.current[idx]?.path;
@@ -1113,9 +1126,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } else if (route.type === "pr" && route.prNumber) {
       setDocumentAnchor(route.anchor || "");
       if (selectedPR?.number === route.prNumber && currentRepo === route.repoFullName && prFiles.length) {
-        const idx = pickLinkedPRFile(prFiles, route.file);
-        if (idx === null) { setError("The linked PR file no longer exists. Open the PR to select a file."); return; }
-        selectPRFile(idx, route.anchor || "", route.file ? "replace" : "none");
+        const pick = pickLinkedPRFile(prFiles, route.file);
+        if (!pick) { setError("The linked PR file no longer exists. Open the PR to select a file."); return; }
+        selectPRFile(pick.index, route.anchor || "", route.file && pick.resolved ? "replace" : "none");
+        if (route.file?.kind === "path" && !pick.resolved) reportMissingLinkedFile(route.file.path);
         setCurrentView("pr-diff");
         return;
       }
@@ -1136,7 +1150,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } else if (route.repoFullName && !isDemoMode) {
       await loadRepoRoot(route.repoFullName, route.branch);
     }
-  }, [_openFileInternal, _openPRInternal, isDemoMode, invalidateNavigation, navigationGuard, loadRepoRoot, selectedPR, currentRepo, prFiles, pickLinkedPRFile, selectPRFile]);
+  }, [_openFileInternal, _openPRInternal, isDemoMode, invalidateNavigation, navigationGuard, loadRepoRoot, selectedPR, currentRepo, prFiles, pickLinkedPRFile, selectPRFile, reportMissingLinkedFile]);
 
   // Read the latest callback without replaying navigation on every state update.
   const navigateRef = useRef(navigateToHash);
