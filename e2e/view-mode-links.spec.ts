@@ -133,3 +133,71 @@ test("f88_html_and_markdown_modes_are_remembered_separately", async ({ page }) =
   await openFile(page, "readme.md", "Readme");
   await expect(toggle(page, "Preview")).toBeVisible();
 });
+
+// Clipboard permissions are Chromium-only and the phone project does not run Chromium,
+// so the write is captured where the app makes it.
+async function captureClipboard(page: Page) {
+  await page.addInitScript(() => {
+    (window as unknown as { __copied: string[] }).__copied = [];
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: {
+      writeText: async (text: string) => { (window as unknown as { __copied: string[] }).__copied.push(text); },
+    } });
+  });
+}
+const lastCopied = (page: Page) => page.evaluate(() => (window as unknown as { __copied: string[] }).__copied.at(-1) ?? "");
+
+test("f87_copy_link_after_split_ends_in_mode_split", async ({ page }, info) => {
+  test.skip(info.project.name === "mobile", "Side by Side is not offered on a phone");
+  await captureClipboard(page);
+  await mockPR(page);
+  await page.goto(GUIDE);
+  await expect(guideHeading(page)).toBeVisible();
+  await page.getByRole("button", { name: "Side by Side", exact: true }).click();
+  await expect(pressed(page, "Side by Side")).toBeVisible();
+  await page.getByRole("button", { name: "Copy link" }).click();
+  await expect.poll(() => lastCopied(page)).toMatch(/#\/acme\/docs\/pull\/12\/file\/docs\/guide\.md\?mode=split$/);
+});
+
+test("f87_copy_link_carries_the_shown_mode", async ({ page }) => {
+  await captureClipboard(page);
+  await mockPR(page);
+  await page.goto(GUIDE);
+  await expect(guideHeading(page)).toBeVisible();
+  await page.getByRole("button", { name: "Copy link" }).click();
+  await expect.poll(() => lastCopied(page)).toMatch(/guide\.md\?mode=inline$/);
+  await page.getByRole("button", { name: "Preview", exact: true }).click();
+  await page.getByRole("button", { name: "Copy link" }).click();
+  await expect.poll(() => lastCopied(page)).toMatch(/guide\.md\?mode=preview$/);
+  await openReadme(page);
+  await expect(pressed(page, "Preview")).toBeVisible();
+  await page.getByRole("button", { name: "Copy link" }).click();
+  await expect.poll(() => lastCopied(page)).toMatch(/file\/readme\.md\?mode=preview$/);
+});
+
+const BLOB = "/#/acme/docs/blob/main/readme.md";
+
+test("f87_blob_code_view_copies_mode_source", async ({ page }) => {
+  await captureClipboard(page);
+  await mockPR(page);
+  await page.goto(BLOB);
+  await expect(page.getByRole("button", { name: "Copy revision link" })).toBeVisible();
+  await page.getByRole("button", { name: "Copy revision link" }).click();
+  await expect.poll(() => lastCopied(page)).toMatch(/\/blob\/c+\/readme\.md$/);
+  await page.getByTitle("Edit raw markdown").click();
+  await expect(page.getByTitle("Switch back to rich editor")).toBeVisible();
+  await page.getByRole("button", { name: "Copy revision link" }).click();
+  await expect.poll(() => lastCopied(page)).toMatch(/\/blob\/c+\/readme\.md\?mode=source$/);
+  await page.getByRole("button", { name: "Copy branch link" }).click();
+  await expect.poll(() => lastCopied(page)).toMatch(/\/blob\/main\/readme\.md\?mode=source$/);
+  await page.getByTitle("Switch back to rich editor").click();
+  await page.getByRole("button", { name: "Copy branch link" }).click();
+  await expect.poll(() => lastCopied(page)).toMatch(/\/blob\/main\/readme\.md$/);
+});
+
+test("f86_blob_source_link_opens_code_view", async ({ page }) => {
+  await mockPR(page);
+  await page.goto(`${BLOB}?mode=source`);
+  await expect(page.getByTitle("Switch back to rich editor")).toBeVisible();
+  await expect(page).toHaveURL(/readme\.md\?mode=source$/);
+  expect(await stored(page)).toBeNull();
+});

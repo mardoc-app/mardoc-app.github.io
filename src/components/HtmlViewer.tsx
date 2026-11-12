@@ -21,6 +21,10 @@ interface HtmlViewerProps {
   filePath: string;
   repoFullName?: string;
   branch?: string;
+  /** Open the file in code view (a link with mode=source). */
+  openInCode?: boolean;
+  /** Called with whether the code view is on. */
+  onCodeViewChange?: (codeView: boolean) => void;
 }
 
 interface HtmlComment {
@@ -34,8 +38,10 @@ interface HtmlComment {
   resolved: boolean;
 }
 
-export default function HtmlViewer({ content, filePath, repoFullName, branch }: HtmlViewerProps) {
-  const [viewSource, setViewSource] = useState(false);
+export default function HtmlViewer({ content, filePath, repoFullName, branch, openInCode = false, onCodeViewChange }: HtmlViewerProps) {
+  const [viewSource, setViewSource] = useState(openInCode);
+  useEffect(() => { if (openInCode) setViewSource(true); }, [filePath, openInCode]);
+  useEffect(() => { onCodeViewChange?.(viewSource); }, [viewSource, onCodeViewChange]);
   const [fullscreen, setFullscreen] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);

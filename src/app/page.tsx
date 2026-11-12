@@ -13,7 +13,7 @@ import SettingsPanel from "@/components/SettingsPanel";
 import SignInBanner, { routeLabel } from "@/components/SignInBanner";
 import { INSTALL_URL } from "@/components/sign-in-text";
 import { isAttemptStatus, isSignInKey } from "@/lib/auth/session";
-import { parseHash, buildFileHash } from "@/lib/routing/route";
+import { parseHash, buildRoute } from "@/lib/routing/route";
 import { readLocation } from "@/lib/routing/route-adapter";
 import ThemeToggle from "@/components/ThemeToggle";
 import KeyboardCheatsheet from "@/components/KeyboardCheatsheet";
@@ -34,6 +34,7 @@ import {
   RefreshCw,
   GitBranch,
   GitCommitHorizontal,
+  Link2,
 } from "lucide-react";
 
 export default function Home() {
@@ -43,6 +44,9 @@ export default function Home() {
     selectedFile,
     selectedPR,
     selectedPRFileIdx,
+    prFiles,
+    linkMode,
+    shownMode,
     setSelectedPR,
     fileContent,
     fileRevision,
@@ -80,14 +84,23 @@ export default function Home() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const isMobile = useIsMobile();
   const [shareMessage, setShareMessage] = useState("");
-  const copyDocumentLink = async (ref: string) => {
-    if (!currentRepo || !selectedFile) return;
+  const [blobCodeView, setBlobCodeView] = useState(false);
+  const copyHash = async (hash: string) => {
     const url = new URL(window.location.href);
-    url.hash = buildFileHash(currentRepo, ref, selectedFile.path);
+    url.hash = hash;
     try { await navigator.clipboard.writeText(url.href); setShareMessage("Link copied"); }
     catch { setShareMessage("Could not copy link. Copy the address from your browser."); }
   };
-  useEffect(() => { setShareMessage(""); }, [selectedFile, selectedBranch, fileRevision]);
+  const copyDocumentLink = (ref: string) => {
+    if (!currentRepo || !selectedFile) return;
+    return copyHash(buildRoute({ type: "file", repoFullName: currentRepo, branch: ref, filePath: selectedFile.path, mode: blobCodeView ? "source" : undefined }));
+  };
+  const prFilePath = selectedPR ? prFiles[selectedPRFileIdx]?.path : undefined;
+  const copyPRLink = () => {
+    if (!currentRepo || !selectedPR || !prFilePath) return;
+    return copyHash(buildRoute({ type: "pr", repoFullName: currentRepo, prNumber: selectedPR.number, file: { kind: "path", path: prFilePath }, mode: shownMode }));
+  };
+  useEffect(() => { setShareMessage(""); }, [selectedFile, selectedBranch, fileRevision, selectedPRFileIdx]);
 
   // Auto-close the mobile drawer when the selection changes (file picked,
   // PR opened) so the user isn't left staring at the drawer after
@@ -244,6 +257,12 @@ export default function Home() {
               <span role="status" className={shareMessage ? "header-toast" : "sr-only"}>{shareMessage}</span>
             </div>
           )}
+          {!isEmbedded && !isDemoMode && currentView === "pr-diff" && selectedPR && prFilePath && (
+            <div className="relative flex items-center gap-1">
+              <button className="header-action" onClick={copyPRLink} title="Copy a link to this file in this view" aria-label="Copy link"><Link2 size={14} /><span className="hidden md:inline">Copy link</span></button>
+              <span role="status" className={shareMessage ? "header-toast" : "sr-only"}>{shareMessage}</span>
+            </div>
+          )}
           {/* Embed mode: visible reload trigger. Keystrokes inside the
               webview iframe are best-effort (VS Code and the wrapper can
               consume them first) — the button is the reliable path. */}
@@ -337,6 +356,8 @@ export default function Home() {
                 assetRef={fileRevision || undefined}
                 onContentChange={() => {}}
                 reloadNonce={reloadNonce}
+                openInCode={linkMode === "source"}
+                onCodeViewChange={setBlobCodeView}
               />
             )
           ) : currentView === "html-viewer" && selectedFile ? (
@@ -353,6 +374,8 @@ export default function Home() {
                 filePath={selectedFile.path}
                 repoFullName={currentRepo || undefined}
                 branch={fileRevision || selectedBranch}
+                openInCode={linkMode === "source"}
+                onCodeViewChange={setBlobCodeView}
               />
             )
           ) : currentView === "pr-diff" && selectedPR ? (

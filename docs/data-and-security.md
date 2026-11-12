@@ -31,6 +31,7 @@ The sign-in token reaches only repositories where the MarDoc GitHub App is insta
 | Last repository | `localStorage`: `mardoc_current_repo` | Restored when a deep link does not take precedence; removed on Disconnect. |
 | Existing repository Markdown draft | `localStorage`: `mardoc:draft:v1:{repo}:{branch}:{path}` | Includes Markdown and timestamp. Restore is offered when different from the baseline. New/local files are excluded. |
 | Display preferences | `localStorage`: `theme`, `mardoc_wide_format` | Persist independently of the connection. |
+| Last view mode | `localStorage`: `mardoc_view_mode` | JSON with one token per file kind (`md`, `html`): the view the user last picked by clicking a mode button. A mode that arrives in a link is shown but not stored. Holds no repository data, so Disconnect leaves it. |
 | Image folder preference | `localStorage`: `mardoc:image-folder:{repo}` | Defaults to `docs/images` if missing or invalid. |
 | Open folders in the file tree | `localStorage`: `mardoc_tree_expansion` | Holds up to 20 `owner/repo@ref` entries, each with up to 200 folder paths. The oldest entry is dropped first. Removed on Disconnect. |
 | Cached repository list | `localStorage`: `mardoc_user_repos` | Filled by Settings; removed on Disconnect. |

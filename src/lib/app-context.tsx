@@ -72,6 +72,9 @@ interface AppState {
   documentAnchor: string;
   /** The view mode named by the link that opened the current file; cleared when the user opens another file. */
   linkMode: LinkViewMode | undefined;
+  /** The view mode token of the PR file on screen, reported by its viewer; used by Copy link. */
+  shownMode: LinkViewMode | undefined;
+  setShownMode: (token: LinkViewMode | undefined) => void;
   loadingPRFiles: boolean;
 
   // Loading states
@@ -211,6 +214,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [prComments, setPRComments] = useState<PRComment[]>([]);
   const [selectedPRFileIdx, setSelectedPRFileIdx] = useState(0);
   const [linkMode, setLinkMode] = useState<LinkViewMode | undefined>(undefined);
+  const [shownMode, setShownMode] = useState<LinkViewMode | undefined>(undefined);
   const [documentAnchor, setDocumentAnchor] = useState("");
   const [loadingPRFiles, setLoadingPRFiles] = useState(false);
 
@@ -919,13 +923,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [guardNavigation, loadRepoRoot]);
 
   const _openFileInternal = useCallback(async (file: RepoFile,
-    repo = locationRef.current.repo, branch = locationRef.current.branch) => {
+    repo = locationRef.current.repo, branch = locationRef.current.branch, mode?: LinkViewMode) => {
     invalidateNavigation();
     const isCurrent = fileLoadGuard.begin();
     setSelectedFile(file); setSelectedPR(null);
     setCurrentView(isHtmlFile(file.name) ? "html-viewer" : "editor");
     setFileContent(""); setError(null);
-    if (repo) setHash(buildFileHash(repo, branch, file.path));
+    if (repo) setHash(mode ? buildRoute({ type: "file", repoFullName: repo, branch, filePath: file.path, mode }) : buildFileHash(repo, branch, file.path));
     if (isDemoMode) {
       setFileContent(findFile(mockFiles, file.path)?.content || "");
       return;
@@ -948,7 +952,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const openFile = useCallback((file: RepoFile): Promise<void> => {
     let result = Promise.resolve();
-    guardNavigation(`open ${file.name}`, () => { result = _openFileInternal(file); });
+    guardNavigation(`open ${file.name}`, () => { setLinkMode(undefined); result = _openFileInternal(file); });
     return result;
   }, [guardNavigation, _openFileInternal]);
 
@@ -1126,10 +1130,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const navigateToHash = useCallback(async (hash: string) => {
     const route = parseHash(hash);
     if (route.type === "none") { if (hash) setError("Invalid document link."); return; }
-    setLinkMode(route.type === "pr" ? route.mode : undefined);
+    setLinkMode(route.type === "pr" || route.type === "file" ? route.mode : undefined);
     if (route.type === "file" && route.filePath && route.branch) {
       await _openFileInternal({ id: `hash-${route.filePath}`, name: route.filePath.split("/").pop()!,
-        path: route.filePath, type: "file" }, route.repoFullName, route.branch);
+        path: route.filePath, type: "file" }, route.repoFullName, route.branch, route.mode);
     } else if (route.type === "pr" && route.prNumber) {
       setDocumentAnchor(route.anchor || "");
       if (selectedPR?.number === route.prNumber && currentRepo === route.repoFullName && prFiles.length) {
@@ -1231,6 +1235,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         selectedPRFileIdx,
         documentAnchor,
         linkMode,
+        shownMode,
+        setShownMode,
         setSelectedPRFileIdx: setSelectedPRFileIdxWithHash,
         loadingPRFiles,
         loadingFiles,

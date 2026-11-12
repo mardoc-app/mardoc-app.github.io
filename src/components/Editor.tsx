@@ -168,6 +168,10 @@ interface EditorProps {
   // current file, forcing the content-load effect to re-run for the
   // same filePath. See feature 040.
   reloadNonce?: number;
+  /** Open the file in code view (a link with mode=source). */
+  openInCode?: boolean;
+  /** Called with whether the code view is on. */
+  onCodeViewChange?: (codeView: boolean) => void;
 }
 
 interface EditorComment {
@@ -507,7 +511,7 @@ function CommentSidePanel({
 
 // ─── Main Editor Component ──────────────────────────────────────────────
 
-export default function Editor({ content, onContentChange, filePath, repoFullName, branch, assetRef = branch, reloadNonce = 0 }: EditorProps) {
+export default function Editor({ content, onContentChange, filePath, repoFullName, branch, assetRef = branch, reloadNonce = 0, openInCode = false, onCodeViewChange }: EditorProps) {
   const editorContainerRef = useRef<HTMLDivElement>(null);
   // Separate ref for the positioned content wrapper inside the scroll
   // container. LinkImageBubble uses `position: absolute`, so its
@@ -538,6 +542,11 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
   // Code view toggle
   const [codeView, setCodeView] = useState(false);
   const [codeContent, setCodeContent] = useState("");
+  useEffect(() => { onCodeViewChange?.(codeView); }, [codeView, onCodeViewChange]);
+  // A link opens its file in code view once, after the content is loaded.
+  const openedInCode = useRef<string | null>(null);
+  const openInCodeRef = useRef(openInCode);
+  openInCodeRef.current = openInCode;
   const codeTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Word count + reading time — displayed in the toolbar. Recomputed in the
@@ -845,6 +854,13 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
           // Initialize downstream feature state from the loaded content.
           setStats(analyzeMarkdown(originalMarkdownRef.current));
           setCurrentMarkdown(originalMarkdownRef.current);
+          if (!openInCodeRef.current) openedInCode.current = null;
+          else if (openedInCode.current !== `${repoFullName}@${branch}:${filePath}`) {
+            openedInCode.current = `${repoFullName}@${branch}:${filePath}`;
+            setCodeContent(originalMarkdownRef.current);
+            setCodeView(true);
+            editor.setEditable(false);
+          }
 
           // Check for a locally-saved draft that differs from upstream — if
           // found, offer to restore it. resolveDraftOnLoad handles the

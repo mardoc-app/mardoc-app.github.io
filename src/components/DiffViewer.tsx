@@ -358,7 +358,6 @@ export default function DiffViewer({
     setViewMode(value);
     routeAdapter.saveMode("md", MD_TOKEN[value]);
     routeAdapter.publishMode(MD_TOKEN[value]);
-    onModeChange?.(MD_TOKEN[value]);
   };
   const htmlHeld = useRef<{ view: "rendered" | "source"; diff: HtmlDiffMode }>();
   if (!htmlHeld.current) htmlHeld.current = pickHtmlMode(linkMode);
@@ -370,6 +369,11 @@ export default function DiffViewer({
     setHtmlDiffMode(pick.diff);
   };
   const htmlShowBase = htmlDiffMode === "base";
+  const fileIsHtmlNow = isHtmlFile(file.path);
+  const shownToken: ViewMode = fileIsHtmlNow ? (htmlViewMode === "source" ? "source" : htmlDiffMode) : MD_TOKEN[viewMode];
+  useEffect(() => {
+    if (active) onModeChange?.(shownToken);
+  }, [active, shownToken, onModeChange]);
   const [activeHtmlChange, setActiveHtmlChange] = useState(-1);
   const [htmlReady, setHtmlReady] = useState(false);
   useEffect(() => { setHtmlReady(true); }, []);
@@ -535,7 +539,6 @@ export default function DiffViewer({
   const rememberHtmlMode = (token: ViewMode) => {
     routeAdapter.saveMode("html", token);
     routeAdapter.publishMode(token);
-    onModeChange?.(token);
   };
   const changeHtmlMode = (mode: HtmlDiffMode) => {
     rememberHtmlMode(mode);
