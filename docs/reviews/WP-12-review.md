@@ -104,3 +104,63 @@ Counts: High 0, Medium 2, Low 4, Nit 1.
 | WP12R-5 | Fixed in `43982e4`. `f84_warm_link_to_the_open_pr_resolves_and_replaces`: with PR 12 loaded, `files/2` and an old base path each resolve to the path form with `history.length` unchanged and no second manifest fetch. `f84_confirming_a_link_over_a_dirty_editor_shows_its_address`: after "Discard changes" the address is `#/acme/docs/pull/12`. Mutation checks: the warm write as `"push"` fails the first test; removing `if (held) routeAdapter.publish(target)` fails the second. Both were reverted. |
 | WP12R-6 | Fixed in `6a39fc4`. The edge "parse, build" runs from app-context to hash-router, and the adapter has no edge to it. The hash-router box reads `parseHash, buildRoute`. The figure label says the adapter imports no other module. The drawio source, the exported SVG and the inline copy agree. |
 | WP12R-7 | Fixed in `524a614`. page.tsx imports `parseHash` and `buildFileHash` from `@/lib/routing/route`. |
+
+## Re-review
+
+- **Reviewer:** the same independent reviewer agent (Opus)
+- **Date:** 2026-11-12
+- **Fix commits:** `43982e4` (WP12R-1, -2, -3, -5), `524a614` (WP12R-4, -7), `6a39fc4` (WP12R-6), `326d39c` (dispositions, plan row). Diff `fcfe317..326d39c`; review branch fast-forwarded to `326d39c`.
+- **Baseline:** no `ci` output was supplied. I did not run `npm run ci`.
+- **How:**
+  - Read the full fix diff.
+  - Ran `npx vitest run` on `pr-file-links`, `check-layout`, `branch-navigation`, `review-links` and `routing-route`: 5 files, 60 passed.
+  - Ran `node scripts/check-layout.mjs .` on the real tree: `layout check: ok`.
+  - Ran `npx next build`, then `CI=1 PLAYWRIGHT_PORT=3420 npx playwright test e2e/pr-file-links.spec.ts e2e/branch-links.spec.ts e2e/pr-comment-navigation.spec.ts e2e/navigation-routing.spec.ts`: 54 passed, desktop and mobile.
+  - Mutation checks on a throwaway copy of `src` (deleted afterwards), running `pr-file-links.test.tsx` against each mutant.
+  - Re-ran the original LR-26 probe tree and a second one in `/tmp`.
+  - Measured the header error in a throwaway Playwright probe on the static export.
+  - Ran `sdlc-doclint` on the L2 page: 0 errors, 12 style warnings, the same count as before the fixes.
+
+### Verdict
+
+**PASS.** All seven original findings are closed, and each fix has a test that fails when the fix is reverted. I checked that for WP12R-1, -2, -3 and -5 by mutation. The re-review found two new Low findings, WP12R-8 and WP12R-9. Neither blocks owner acceptance; fix them or defer them with a backlog ID.
+
+### Status of the original findings
+
+| ID | Status | Evidence |
+|---|---|---|
+| WP12R-1 | Closed | `settle` publishes only when the link resolved. On `no-such-path` it reports the path and writes nothing (`app-context.tsx:1046-1051`). The warm branch selects with `"none"` (`:1131`). Mutation: making the publish unconditional fails `f84_missing_path_opens_the_first_file_with_a_message`. The e2e test `f84_missing_path_opens_the_pr_with_a_message` now asserts that the address stays `.../file/docs/gone.md`, and it passes on desktop and mobile. |
+| WP12R-2 | Closed | Spot-verified as asked. Mutation: changing the cold publish to `{ replace: false }` fails `f84_resolve_replaces_rather_than_pushes`, which now reads `history.length` while the manifest is held. The new e2e test `f84_back_after_a_cold_link_skips_the_unresolved_address` passes on the real build. It starts on a blob page and calls `goBack()` after the rewrite, so it covers Q-RT-9 in a real browser. The `pushState` spy was replaced with a `history.length` check. |
+| WP12R-3 | Closed | `selectPRFile` clears the error only while it equals the last linked-file message (`linkedFileError` ref). Mutation: deleting that line fails `f84_selecting_another_file_clears_only_the_linked_file_error`. `f84_selecting_another_file_keeps_other_errors` shows that a comments error survives a selection. |
+| WP12R-4 | Closed | Re-ran the original probe tree. `location.href =`, `assign`, `replace`, `{ hash }` and `{ history: h }` destructuring, `globalThis.history`, `self.history` and `window["history"]` are now caught. A local `history` passes. The alias and multi-line template cases remain, and the script header now documents them. The real tree passes. A residual gap in the new local-history exemption is recorded as WP12R-9. |
+| WP12R-5 | Closed | Mutation: the warm write as `"push"` fails `f84_warm_link_to_the_open_pr_resolves_and_replaces`. Removing `if (held) routeAdapter.publish(target)` fails `f84_confirming_a_link_over_a_dirty_editor_shows_its_address`. The warm test also covers the base-path fallback and the missing path with no second manifest fetch. |
+| WP12R-6 | Closed | The drawio source, the exported SVG and the inline copy each contain `parseHash, buildRoute` and the `e-app-route` edge, and none of them names `parseRoute`. The figure label says the adapter imports no other module, which matches `route-adapter.ts`. |
+| WP12R-7 | Closed | `page.tsx:16` imports both names from `@/lib/routing/route`. |
+
+### New findings
+
+| ID | Severity | Pass | Location | Finding | Failure scenario | Fix |
+|---|---|---|---|---|---|---|
+| WP12R-8 | Low | Bugs | `src/lib/app-context.tsx:1030`; `src/app/page.tsx:226` | The WP12R-1 message puts the path in the middle of the sentence: "The linked file `<path>` is not in this PR." The header shows errors in a `max-w-48 truncate` span with no `title` attribute. For any path longer than about 15 characters, "is not in this PR" is cut off, and the user cannot read the full message. | Measured on the static export at desktop 1280 px and iPhone 14. Open `#/acme/docs/pull/12/file/docs/guide/onboarding/setup.md`. The error span is 192 px wide but its text needs 364 px. The header reads roughly "The linked file docs/guide/onbo…" and never says the file is missing, while the PR shows a different file. The e2e test passes because CSS truncation does not affect `toBeVisible`. | Lead with the outcome: "Not in this PR: `<path>`". Also add `title={error}` to the span so the full text is reachable. |
+| WP12R-9 | Low | Compliance | `scripts/check-layout.mjs:104`, `:243-248` | The WP12R-4 fix exempts a file from the bare `history.<member>` check when `LR26_LOCAL_HISTORY` matches anywhere in it. That pattern also matches an object key (`, history:`) and a call argument (`(history)` or `, history)`), so these files are exempt even though they declare no `history` of their own. At `f0a6535` such a file failed LR-26, so this is a regression for those files. | Reproduced with a planted tree in `/tmp`. `src/components/Editor.tsx` contains `setUndo({ past, history: next });` then `history.back();`. `src/components/Nav.tsx` contains `track("nav", history);` then `history.pushState({}, "", "#/x");`. Both pass the layout check, and only a file without the key or argument (`Plain.tsx: history.back();`) is flagged. | Drop the file-wide exemption. Remove `length` and `state` from `LR26_BARE_HISTORY`, the only members an array-like local shares with `History`. A local undo `history.push(..)` or `history.length` then passes, while `history.back()`, `pushState`, `replaceState`, `go` and `forward` are always flagged. Add the two planted files to `nf80_lr26_only_the_route_adapter_touches_the_address_bar`. |
+
+### Checked in the fixes and found sound
+
+- **The linked-file error ref:**
+  - `pickLinkedPRFile` no longer sets state. The `{ index, resolved }` result is used the same way in `settle` and the warm branch, and an index link past the end still gives today's error.
+  - An empty manifest yields index 0, unresolved. It reports a missing path only for a path link, and it never publishes, because `files[0]` is undefined.
+  - In the warm branch, the `setError` updater from `selectPRFile` and the later `reportMissingLinkedFile` apply in order, so a new missing path replaces the old message. StrictMode's double call of the updater is idempotent.
+  - Errors that are not the linked-file message are left alone.
+- **The warm branch:**
+  - It replaces only for a resolved file link and writes nothing for a missing path or a bare `pull/N`.
+  - The external-change listener has already set `known` to the followed address, so leaving it in place keeps the write-loop guard consistent.
+- **The dirty-editor path:**
+  - Cancel still restores the previous address (`branch-navigation.test.tsx` passes).
+  - Confirm publishes the target before navigating, and the new unit test shows the address after "Discard changes".
+- **The LR-26 widening on the real tree:**
+  - `layout check: ok`. No current `src/` file uses any of the new patterns outside the adapter.
+  - `const { pathname } = window.location` is not flagged.
+- **e2e fixture:** the additions to `mockPR` (commits, trees, branches, pulls, repo) serve only the blob start page of the new Back test. They do not change any earlier test's path.
+- **Docs:** the L2 page's journey and failure-table rows describe the as-followed address and the clearing rule, which matches the code. The plan row says "pending re-review".
+
+**Security pass on the fixes:** no findings. The path in the new message is rendered as React text.
