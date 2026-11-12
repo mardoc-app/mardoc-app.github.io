@@ -36,6 +36,8 @@ import { transformGitHubAlerts } from "@/lib/github-alerts";
 import { transformFootnotes } from "@/lib/footnotes";
 import RepositoryReference, { type ReferenceTarget } from "./RepositoryReference";
 import { resolveReviewLink } from "@/lib/review-links";
+import { parseHash, sameRoute } from "@/lib/routing/route";
+import * as routeAdapter from "@/lib/routing/route-adapter";
 import { isHtmlFile, isDocumentFile, isImageFile } from "@/lib/file-types";
 import DiffViewer from "./DiffViewer";
 import SourceDiffViewer from "./SourceDiffViewer";
@@ -78,19 +80,13 @@ export default function PRDetail({ pr, onBack }: PRDetailProps) {
   useEffect(() => {
     // Our own hash update also emits history events. Cancel only when leaving
     // the requested route, including same-file anchor navigation.
-    const cancel = () => setCommentJump(jump => jump?.hash === window.location.hash ? jump : null);
-    window.addEventListener("popstate", cancel);
-    window.addEventListener("hashchange", cancel);
-    return () => { window.removeEventListener("popstate", cancel); window.removeEventListener("hashchange", cancel); };
+    return routeAdapter.onAddressChange(() => setCommentJump(jump =>
+      jump && sameRoute(parseHash(jump.hash), parseHash(routeAdapter.readLocation())) ? jump : null));
   }, []);
   const [returnFileIdx, setReturnFileIdx] = useState<number | null>(null);
   const [reference, setReference] = useState<ReferenceTarget | null>(null);
   useEffect(() => { setReference(null); }, [selectedPRFileIdx]);
-  useEffect(() => {
-    const close = () => setReference(null);
-    window.addEventListener("popstate", close);
-    return () => window.removeEventListener("popstate", close);
-  }, []);
+  useEffect(() => routeAdapter.onPopState(() => setReference(null)), []);
   const navigateReviewLink = useCallback((href: string, source: PRFile, side: "base" | "head") => {
     const link = resolveReviewLink(side === "base" ? source.basePath || source.path : source.path, href);
     if (link.type !== "document") return;
@@ -102,7 +98,7 @@ export default function PRDetail({ pr, onBack }: PRDetailProps) {
       const repo = (side === "base" ? source.baseRepo : source.headRepo) || currentRepo;
       const ref = side === "base" ? source.baseRef : source.headRef;
       if (!repo || !ref) { setReviewError("Repository revision is unavailable for this reference."); return; }
-      window.history.pushState({...window.history.state, mardocReference: true}, "");
+      routeAdapter.pushMarker({mardocReference: true});
       setReference({repo,ref,path:link.path,anchor:link.anchor,
         label:side === "base" ? "Base revision reference" : "Not changed in this PR"});
     }
@@ -527,7 +523,7 @@ export default function PRDetail({ pr, onBack }: PRDetailProps) {
         setReturnFileIdx(old => old ?? selectedPRFileIdx);
       }
       setSelectedPRFileIdx(index);
-      setCommentJump({id: comment.id, path: prFiles[index].path, sequence: ++jumpSequence.current, hash: window.location.hash});
+      setCommentJump({id: comment.id, path: prFiles[index].path, sequence: ++jumpSequence.current, hash: routeAdapter.readLocation()});
     }}/>
 
   </>;
@@ -646,7 +642,7 @@ export default function PRDetail({ pr, onBack }: PRDetailProps) {
             }
           </div>;
         })}
-        {reference && <RepositoryReference target={reference} returnPath={prFiles[selectedPRFileIdx]?.path} onClose={() => window.history.back()}/>}
+        {reference && <RepositoryReference target={reference} returnPath={prFiles[selectedPRFileIdx]?.path} onClose={routeAdapter.back}/>}
       </div>
 
       {(!selectedFile || selectedFile.loadState === "pending" || selectedFile.loadState === "error") && <ReviewDock

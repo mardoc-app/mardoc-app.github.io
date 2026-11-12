@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { buildFileHash } from "@/lib/hash-router";
 import { isCommitSha } from "@/lib/request-cache";
 import { useApp } from "@/lib/app-context";
 import { useTheme } from "@/lib/theme-context";
@@ -14,7 +13,8 @@ import SettingsPanel from "@/components/SettingsPanel";
 import SignInBanner, { routeLabel } from "@/components/SignInBanner";
 import { INSTALL_URL } from "@/components/sign-in-text";
 import { isAttemptStatus, isSignInKey } from "@/lib/auth/session";
-import { parseHash } from "@/lib/hash-router";
+import { parseHash, buildFileHash } from "@/lib/routing/route";
+import { readLocation } from "@/lib/routing/route-adapter";
 import ThemeToggle from "@/components/ThemeToggle";
 import KeyboardCheatsheet from "@/components/KeyboardCheatsheet";
 import CommandPalette from "@/components/CommandPalette";
@@ -70,8 +70,8 @@ export default function Home() {
   // A reload ended a sign-in session: name the document instead of demo data (F-37).
   const effectiveStatus = isAttemptStatus(session.status) ? session.statusBeforeAttempt : session.status;
   const awaitingSignIn = !isEmbedded && effectiveStatus === "sign-in-again";
-  const hashRoute = typeof window === "undefined" ? null : parseHash(window.location.hash);
-  const awaitingTarget = awaitingSignIn && typeof window !== "undefined" ? routeLabel(window.location.hash) : null;
+  const hashRoute = typeof window === "undefined" ? null : parseHash(readLocation());
+  const awaitingTarget = awaitingSignIn && typeof window !== "undefined" ? routeLabel(readLocation()) : null;
   // A deep link the sign-in token cannot reach: MarDoc may not be installed there (F-42).
   const noAccessRepo = isSignInKey(sessionKey) && error && /not found/i.test(error)
     ? (hashRoute?.repoFullName ?? currentRepo) : null;
@@ -223,7 +223,7 @@ export default function Home() {
           {error && (
             <div className="flex items-center gap-1 text-xs text-red-500 mr-2">
               <AlertCircle size={12} />
-              <span className="max-w-48 truncate">{error}</span>
+              <span className="max-w-48 truncate" title={error}>{error}</span>
             </div>
           )}
           {!isEmbedded && !isDemoMode && selectedFile && !selectedFile.path.startsWith("__") && (

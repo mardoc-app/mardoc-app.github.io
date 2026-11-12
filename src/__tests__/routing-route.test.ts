@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseHash, buildRoute, resolvePRFile } from "@/lib/routing/route";
+import { parseHash, buildRoute, resolvePRFile, sameRoute } from "@/lib/routing/route";
 import { parseHash as legacyParseHash } from "@/lib/hash-router";
 
 describe("routing/route", () => {
@@ -32,9 +32,9 @@ describe("routing/route", () => {
     expect(buildRoute({ type: "file", owner: "a", repo: "b", branch: "main", filePath: "x.md" })).toBe("#/a/b/blob/main/x.md");
   });
 
-  it("f84_legacy_wrapper_keeps_path_links_invalid_until_wp12", () => {
-    expect(legacyParseHash("#/a/b/pull/1/file/x.md")).toEqual({ type: "none" });
-    expect(legacyParseHash("#/a/b/pull/12/file/3")).toEqual({ type: "none" });
+  it("f84_hash_router_reads_path_links_like_route", () => {
+    expect(legacyParseHash("#/a/b/pull/1/file/x.md")).toEqual(parseHash("#/a/b/pull/1/file/x.md"));
+    expect(legacyParseHash("#/a/b/pull/12/file/3").file).toEqual({ kind: "path", path: "3" });
     expect(parseHash("#/a/b/pull/1/file/x.md").file).toEqual({ kind: "path", path: "x.md" });
   });
 
@@ -50,7 +50,7 @@ describe("routing/route", () => {
     expect(route.file).toEqual({ kind: "index", index: 2 });
     expect(buildRoute(route)).toBe("#/a/b/pull/1");
     expect(legacyParseHash("#/a/b/pull/1/files/2")).toEqual({
-      type: "pr", owner: "a", repo: "b", repoFullName: "a/b", prNumber: 1, prFileIdx: 2,
+      type: "pr", owner: "a", repo: "b", repoFullName: "a/b", prNumber: 1, file: { kind: "index", index: 2 },
     });
   });
 
@@ -62,6 +62,17 @@ describe("routing/route", () => {
     expect(resolvePRFile({ kind: "index", index: 1 }, paths)).toEqual({ ok: true, index: 1 });
     expect(resolvePRFile({ kind: "index", index: 2 }, paths)).toEqual({ ok: false, reason: "index-out-of-range" });
     expect(resolvePRFile(undefined, [])).toEqual({ ok: false, reason: "index-out-of-range" });
+  });
+
+  it("f84_same_route_ignores_mode_but_not_file_or_anchor", () => {
+    const same = (a: string, b: string) => sameRoute(parseHash(a), parseHash(b));
+    expect(same("#/a/b/pull/1/file/x.md", "#/a/b/pull/1/file/x.md?mode=preview")).toBe(true);
+    expect(same("#/a/b/pull/1/file/x%20y.md", "#/a/b/pull/1/file/x y.md")).toBe(true);
+    expect(same("#/a/b/pull/1/file/x.md", "#/a/b/pull/1/file/y.md")).toBe(false);
+    expect(same("#/a/b/pull/1/file/x.md", "#/a/b/pull/1/file/x.md?anchor=h")).toBe(false);
+    expect(same("#/a/b/pull/1/files/1", "#/a/b/pull/1")).toBe(false);
+    expect(same("#/a/b/pull/1/files/1", "#/a/b/pull/1/file/1")).toBe(false);
+    expect(same("#/a/b/pull/1", "#/a/b/pull/2")).toBe(false);
   });
 
   it("f86_mode_query_parses_and_unknown_is_dropped", () => {

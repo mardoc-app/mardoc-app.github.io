@@ -13,6 +13,21 @@
 //          imports nothing and uses none either. A listed exact path that is
 //          missing is a violation ("LR-12 <path> missing"). A new file under
 //          src/lib/routing is domain code by default.
+//   LR-26: in src/ outside src/__tests__, only the route adapter
+//          (src/lib/routing/route-adapter.ts, exempt by exact path) touches the
+//          address bar: location.hash, `location.href =`, location.assign()
+//          and location.replace(), the "hashchange" and "popstate" events
+//          (also as onhashchange/onpopstate), the history object on a global
+//          (`window.history`, `globalThis.history`, `self.history`,
+//          `window["history"]`), `{ hash }` or `{ history }` destructured from
+//          location or a global, and the bare global's navigation members
+//          (`history.back()`, `.forward()`, `.go()`, `.pushState(..)`,
+//          `.replaceState(..)`, `.scrollRestoration`). `history.length` and
+//          `history.state` are not checked, so a local undo array named
+//          `history` passes. Comments do not count.
+//          Known limits: an alias (`const loc = window.location; loc.hash = ..`)
+//          and a template literal spanning lines are not followed, and a
+//          multi-line template literal that mentions location.hash is flagged.
 // Banned globals (all rules): window, document, localStorage, sessionStorage,
 // fetch, navigator, XMLHttpRequest, indexedDB, caches, WebSocket,
 // BroadcastChannel, setTimeout, setInterval, eval, globalThis, self, process;
@@ -70,6 +85,24 @@ const LR11_IMPORTS = (spec) =>
 const LR12_EXEMPT = new Set(["src/lib/routing/route-adapter.ts"]);
 const LR12_SIBLING = (spec) => /^\.\/[\w-][\w.-]*$/.test(spec) && stripExt(spec) !== "./route-adapter";
 const LR12_EXACT = ["src/lib/tree-expansion.ts"];
+
+// LR-26: only the route adapter touches the address bar.
+const LR26_ADAPTER = "src/lib/routing/route-adapter.ts";
+const LR26_SKIP = "src/__tests__/";
+/** Patterns over comment-free code; `strings: true` patterns see string contents too. */
+const LR26_PATTERNS = [
+  [/(?<![\w$])location\s*\.\s*hash\b/, "location.hash", false],
+  [/(?<![\w$])location\s*\.\s*href\s*=(?!=)/, "location.href", false],
+  [/(?<![\w$])location\s*\.\s*(?:assign|replace)\s*\(/, "location.assign or location.replace", false],
+  [/(["'`])(hashchange|popstate)\1/, "a hashchange or popstate event", true],
+  [/\bon(?:hashchange|popstate)\b/, "a hashchange or popstate event", false],
+  [/(?<![\w$.])(?:window|globalThis|self)\s*\.\s*history\b/, "history", false],
+  [/(?<![\w$.])(?:window|globalThis|self)\s*\[\s*(["'`])history\1\s*\]/, "history", true],
+  [/\{[^{}]*\b(?:hash|history)\b[^{}]*\}\s*=\s*(?:(?:window|globalThis|self|document)\s*\.\s*)?(?:location|window|globalThis|self)\s*(?:[;,)]|$)/,
+    "destructuring from location or window", false],
+];
+/** The bare `history` global's navigation members; an array-like local shares only `length`. */
+const LR26_BARE_HISTORY = /(?<![\w$.])history\s*\.\s*(?:pushState|replaceState|back|forward|go|scrollRestoration)\b/;
 
 function walk(dir) {
   let entries;
@@ -202,6 +235,19 @@ for (const rel of LR12_EXACT) {
     continue;
   }
   checkFile(file, "LR-12", { idents: GLOBALS, allowImport: () => false });
+}
+
+for (const f of walk(path.join(root, "src"))) {
+  const rel = path.relative(root, f).split(path.sep).join("/");
+  if (rel === LR26_ADAPTER || rel.startsWith(LR26_SKIP)) continue;
+  const lines = stripComments(readFileSync(f, "utf8")).split("\n");
+  lines.forEach((raw, idx) => {
+    const code = blankStrings(raw);
+    const labels = new Set();
+    for (const [re, label, strings] of LR26_PATTERNS) if (re.test(strings ? raw : code)) labels.add(label);
+    if (LR26_BARE_HISTORY.test(code)) labels.add("history");
+    for (const label of labels) violations.push(`LR-26 ${rel}:${idx + 1} uses ${label}`);
+  });
 }
 
 if (violations.length) {

@@ -224,6 +224,48 @@ describe("layout check", () => {
     expect(ok.code).toBe(0);
   });
 
+  it("nf80_lr26_only_the_route_adapter_touches_the_address_bar", () => {
+    fails({ "src/components/Planted.tsx": "const h = window.location.hash;\n" }, /^LR-26 src\/components\/Planted\.tsx:1 uses location\.hash$/m);
+    fails({ "src/lib/app-context.tsx": "export const x = 1;\nlocation.hash = '#/a/b';\n" }, /^LR-26 src\/lib\/app-context\.tsx:2 uses location\.hash$/m);
+    fails({ "src/app/page.tsx": 'window.addEventListener("hashchange", f);\n' }, /^LR-26 src\/app\/page\.tsx:1 uses a hashchange or popstate event$/m);
+    fails({ "src/components/P.tsx": "addEventListener('popstate', f);\n" }, /^LR-26 src\/components\/P\.tsx:1 uses a hashchange or popstate event$/m);
+    fails({ "src/components/P.tsx": "window.onpopstate = f;\n" }, /^LR-26 src\/components\/P\.tsx:1 uses a hashchange or popstate event$/m);
+    fails({ "src/components/P.tsx": "window.history.pushState({}, '');\n" }, /^LR-26 src\/components\/P\.tsx:1 uses history$/m);
+    fails({ "src/components/P.tsx": "history.back();\n" }, /^LR-26 src\/components\/P\.tsx:1 uses history$/m);
+    fails({ "src/components/P.tsx": "const h = window.history;\n" }, /^LR-26 src\/components\/P\.tsx:1 uses history$/m);
+    // Writes through location other than the hash.
+    fails({ "src/components/A.tsx": 'location.href = "#/a/b/pull/1";\n' }, /^LR-26 src\/components\/A\.tsx:1 uses location\.href$/m);
+    fails({ "src/components/A.tsx": 'window.location.assign("#/a/b");\n' }, /^LR-26 src\/components\/A\.tsx:1 uses location\.assign or location\.replace$/m);
+    fails({ "src/components/A.tsx": 'location.replace("#/x/y");\n' }, /^LR-26 src\/components\/A\.tsx:1 uses location\.assign or location\.replace$/m);
+    // Other routes to the history object.
+    fails({ "src/components/A.tsx": "globalThis.history.back();\n" }, /^LR-26 src\/components\/A\.tsx:1 uses history$/m);
+    fails({ "src/components/A.tsx": 'self.history.pushState({}, "");\n' }, /^LR-26 src\/components\/A\.tsx:1 uses history$/m);
+    fails({ "src/components/A.tsx": 'window["history"].back();\n' }, /^LR-26 src\/components\/A\.tsx:1 uses history$/m);
+    // Destructuring the hash or the history object.
+    fails({ "src/components/A.tsx": "const { hash } = window.location;\n" }, /^LR-26 src\/components\/A\.tsx:1 uses destructuring from location or window$/m);
+    fails({ "src/components/A.tsx": "const { hash, search } = location;\n" }, /^LR-26 src\/components\/A\.tsx:1 uses destructuring from location or window$/m);
+    fails({ "src/components/A.tsx": "const { history: h } = window;\n" }, /^LR-26 src\/components\/A\.tsx:1 uses destructuring from location or window$/m);
+    fails({ "src/components/A.tsx": "const { history } = globalThis;\n" }, /^LR-26 src\/components\/A\.tsx:1 uses destructuring from location or window$/m);
+    // A history key or argument elsewhere in the file does not hide the browser's history.
+    fails({ "src/components/Editor.tsx": "setUndo({ past, history: next });\nhistory.back();\n" }, /^LR-26 src\/components\/Editor\.tsx:2 uses history$/m);
+    fails({ "src/components/Nav.tsx": 'track("nav", history);\nhistory.pushState({}, "", "#/x");\n' }, /^LR-26 src\/components\/Nav\.tsx:2 uses history$/m);
+    const adapter = run(fixture({ "src/lib/routing/route-adapter.ts":
+      "export const r = () => window.location.hash;\nwindow.addEventListener(\"popstate\", f);\nwindow.history.back();\n" }));
+    expect(adapter.out).toBe("layout check: ok\n");
+    expect(adapter.code).toBe(0);
+    const ok = run(fixture({
+      "src/__tests__/a.test.ts": "window.location.hash = '#/x'; window.history.back();\n",
+      "src/components/C.tsx": "// Back walks the history. so does location.hash and \"hashchange\"\n/* window.history.back() */\n"
+        + "const label = \"history.back location.hash\"; const t = state.history.length; const s = 'hashchange events';\n"
+        + "const u = new URL(href, window.location.href);\n",
+      // A local history (an undo stack) is not the browser's.
+      "src/components/Undo.tsx": "const history = undo.history; history.push(\"x\"); history.length;\n"
+        + "export function f(history: string[]) { return history.slice(0); }\nconst { pathname } = window.location;\n",
+    }));
+    expect(ok.out).toBe("layout check: ok\n");
+    expect(ok.code).toBe(0);
+  });
+
   it("t30_layout_check_real_tree_is_clean", () => {
     const r = run(repoRoot);
     expect(r.out).toBe("layout check: ok\n");

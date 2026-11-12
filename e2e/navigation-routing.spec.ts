@@ -1,7 +1,7 @@
 /**
  * E2E tests for MarDoc's sidebar navigation + demo-mode deep linking.
  *
- * The hash router (parseHash / buildFileHash / buildPRHash) is unit
+ * The hash router (parseHash / buildRoute / buildFileHash) is unit
  * tested separately. These tests verify what a real user sees as they
  * navigate: clicking files swaps the editor content, clicking PRs
  * shows the diff view, the sidebar tabs toggle between Files and PRs,

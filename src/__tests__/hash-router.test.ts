@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseHash, buildFileHash, buildPRHash, buildRepoHash } from "@/lib/hash-router";
+import { parseHash, buildFileHash, buildRepoHash } from "@/lib/hash-router";
 
 describe("parseHash", () => {
   // ─── Basic routes ───────────────────────────────────────────────────
@@ -51,7 +51,7 @@ describe("parseHash", () => {
       repo: "widgets",
       repoFullName: "acme/widgets",
       prNumber: 42,
-      prFileIdx: 3,
+      file: { kind: "index", index: 3 },
     });
   });
 
@@ -94,20 +94,6 @@ describe("buildFileHash", () => {
   it("builds a file hash", () => {
     expect(buildFileHash("acme/widgets", "main", "docs/readme.md"))
       .toBe("#/acme/widgets/blob/main/docs/readme.md");
-  });
-});
-
-describe("buildPRHash", () => {
-  it("builds a PR hash without file index", () => {
-    expect(buildPRHash("acme/widgets", 42)).toBe("#/acme/widgets/pull/42");
-  });
-
-  it("builds a PR hash with file index", () => {
-    expect(buildPRHash("acme/widgets", 42, 3)).toBe("#/acme/widgets/pull/42/files/3");
-  });
-
-  it("omits file index when 0", () => {
-    expect(buildPRHash("acme/widgets", 42, 0)).toBe("#/acme/widgets/pull/42");
   });
 });
 

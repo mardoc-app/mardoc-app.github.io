@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { resolveReviewLink, bindHtmlReviewLinks } from "@/lib/review-links";
-import { buildPRHash, parseHash } from "@/lib/hash-router";
+import { resolveReviewLink, bindHtmlReviewLinks, reviewLinkHash } from "@/lib/review-links";
+import { buildRoute, parseHash } from "@/lib/routing/route";
 
 describe("review document links", () => {
   it.each([
@@ -50,7 +50,19 @@ describe("review document links", () => {
     dispose();
   });
   it("round-trips a heading in a PR link without confusing it with the route", () => {
-    const hash=buildPRHash("acme/docs",381,2,"6-dashboard-walkthrough");
-    expect(parseHash(hash)).toMatchObject({type:"pr",prNumber:381,prFileIdx:2,anchor:"6-dashboard-walkthrough"});
+    const hash=buildRoute({type:"pr",repoFullName:"acme/docs",prNumber:381,file:{kind:"path",path:"docs/deck.html"},anchor:"6-dashboard-walkthrough"});
+    expect(parseHash(hash)).toMatchObject({type:"pr",prNumber:381,file:{kind:"path",path:"docs/deck.html"},anchor:"6-dashboard-walkthrough"});
+  });
+  it("f84_html_review_link_href_uses_the_path_form", () => {
+    const pr={repo:"acme/docs",prNumber:381,paths:["docs/support/workshop.md","docs/support/my notes 100%.md","docs/support/architecture.html"]};
+    const revision={repo:"acme/docs",ref:"b".repeat(40)};
+    expect(reviewLinkHash({path:"docs/support/workshop.md",anchor:"workshop-outcomes"},pr,revision))
+      .toBe("#/acme/docs/pull/381/file/docs/support/workshop.md?anchor=workshop-outcomes");
+    expect(reviewLinkHash({path:"docs/support/my notes 100%.md",anchor:""},pr,revision))
+      .toBe("#/acme/docs/pull/381/file/docs/support/my%20notes%20100%25.md");
+    expect(reviewLinkHash({path:"docs/reference.md",anchor:"reference-heading"},pr,revision))
+      .toBe(`#/acme/docs/blob/${"b".repeat(40)}/docs/reference.md`);
+    expect(reviewLinkHash({path:"docs/support/workshop.md",anchor:""},null,revision))
+      .toBe(`#/acme/docs/blob/${"b".repeat(40)}/docs/support/workshop.md`);
   });
 });

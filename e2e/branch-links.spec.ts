@@ -93,7 +93,7 @@ test("a large HTML PR deep link loads the requested HTML file without relying on
   await page.route("https://api.github.com/repos/acme/docs/git/blobs/**",route=>route.fulfill({contentType:"application/json",body:JSON.stringify({encoding:"base64",content:Buffer.from(deck).toString("base64")})}));
   await page.goto("/#/acme/docs/pull/381/files/2");
   await expect(page.frameLocator("iframe").locator("h1")).toHaveText("Training slide one");
-  await expect(page).toHaveURL(/#\/acme\/docs\/pull\/381\/files\/2$/);
+  await expect(page).toHaveURL(/#\/acme\/docs\/pull\/381\/file\/docs\/deck\.html$/);
   expect(fixture.reads).toEqual([]); // Unselected Markdown bodies were never requested.
 });
 
@@ -150,10 +150,10 @@ test("presenter links open PR documents and pinned references, and Back preserve
   await frame.getByRole("button",{name:"Next slide"}).click();
   await frame.getByRole("button",{name:"Presenter notes"}).click();
   await frame.getByRole("link",{name:"Workshop outcomes"}).hover();
-  await expect(frame.getByRole("link",{name:"Workshop outcomes"})).toHaveAttribute("href", /#\/acme\/docs\/pull\/381\?anchor=workshop-outcomes$/);
+  await expect(frame.getByRole("link",{name:"Workshop outcomes"})).toHaveAttribute("href", /#\/acme\/docs\/pull\/381\/file\/docs\/support\/workshop\.md\?anchor=workshop-outcomes$/);
   await frame.getByRole("link",{name:"Workshop outcomes"}).click();
   await expect(page.getByRole("heading",{name:"Workshop outcomes",exact:true}).first()).toBeInViewport();
-  await expect(page).toHaveURL(/pull\/381\?anchor=workshop-outcomes$/);
+  await expect(page).toHaveURL(/pull\/381\/file\/docs\/support\/workshop\.md\?anchor=workshop-outcomes$/);
   await page.keyboard.press("Escape"); // Dismiss the mobile comment sheet before returning.
   const returnBar = page.getByRole("navigation", {name:"Document review"});
   const returnButton = returnBar.getByRole("button", {name:"Back to review",exact:true});

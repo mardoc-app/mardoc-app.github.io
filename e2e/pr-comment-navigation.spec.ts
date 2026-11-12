@@ -78,7 +78,7 @@ test("a newer comment jump wins over an obsolete slow fetch",async ({page})=>{
   await openComment(page,"third.md");
   await expect(page.locator('mark[data-comment-id="rc-3"]').first()).toBeFocused();
   release();
-  await expect(page).toHaveURL(/files\/2$/);
+  await expect(page).toHaveURL(/file\/third\.md$/);
   await expect(page.locator('mark[data-comment-id="rc-2"]')).toHaveCount(0);
 });
 
