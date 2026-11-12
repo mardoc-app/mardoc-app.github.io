@@ -53,3 +53,26 @@ export function onExternalChange(cb: (hash: string, previous: string) => void): 
   window.addEventListener("hashchange", listener);
   return () => window.removeEventListener("hashchange", listener);
 }
+
+/** Calls `cb` on every address change, the app's own included (hashchange and popstate). */
+export function onAddressChange(cb: () => void): () => void {
+  window.addEventListener("hashchange", cb);
+  window.addEventListener("popstate", cb);
+  return () => { window.removeEventListener("hashchange", cb); window.removeEventListener("popstate", cb); };
+}
+
+/** Calls `cb` when the user moves through history (Back or Forward). */
+export function onPopState(cb: () => void): () => void {
+  window.addEventListener("popstate", cb);
+  return () => window.removeEventListener("popstate", cb);
+}
+
+/** Adds a history entry at the same address, with `marker` merged into its state, so Back can close a view. */
+export function pushMarker(marker: Record<string, unknown>): void {
+  window.history.pushState({ ...window.history.state, ...marker }, "");
+}
+
+/** Goes back one history entry. */
+export function back(): void {
+  window.history.back();
+}

@@ -7,5 +7,6 @@ export {
   buildFileHash,
   buildPRHash,
   resolvePRFile,
+  sameRoute,
 } from "./routing/route";
 export type { HashRoute, FileRef, ResolvedPRFile } from "./routing/route";

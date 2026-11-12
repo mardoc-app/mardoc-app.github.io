@@ -150,7 +150,7 @@ test("presenter links open PR documents and pinned references, and Back preserve
   await frame.getByRole("button",{name:"Next slide"}).click();
   await frame.getByRole("button",{name:"Presenter notes"}).click();
   await frame.getByRole("link",{name:"Workshop outcomes"}).hover();
-  await expect(frame.getByRole("link",{name:"Workshop outcomes"})).toHaveAttribute("href", /#\/acme\/docs\/pull\/381\?anchor=workshop-outcomes$/);
+  await expect(frame.getByRole("link",{name:"Workshop outcomes"})).toHaveAttribute("href", /#\/acme\/docs\/pull\/381\/file\/docs\/support\/workshop\.md\?anchor=workshop-outcomes$/);
   await frame.getByRole("link",{name:"Workshop outcomes"}).click();
   await expect(page.getByRole("heading",{name:"Workshop outcomes",exact:true}).first()).toBeInViewport();
   await expect(page).toHaveURL(/pull\/381\/file\/docs\/support\/workshop\.md\?anchor=workshop-outcomes$/);

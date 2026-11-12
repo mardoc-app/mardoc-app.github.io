@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseHash, buildRoute, resolvePRFile } from "@/lib/routing/route";
+import { parseHash, buildRoute, resolvePRFile, sameRoute } from "@/lib/routing/route";
 import { parseHash as legacyParseHash } from "@/lib/hash-router";
 
 describe("routing/route", () => {
@@ -62,6 +62,17 @@ describe("routing/route", () => {
     expect(resolvePRFile({ kind: "index", index: 1 }, paths)).toEqual({ ok: true, index: 1 });
     expect(resolvePRFile({ kind: "index", index: 2 }, paths)).toEqual({ ok: false, reason: "index-out-of-range" });
     expect(resolvePRFile(undefined, [])).toEqual({ ok: false, reason: "index-out-of-range" });
+  });
+
+  it("f84_same_route_ignores_mode_but_not_file_or_anchor", () => {
+    const same = (a: string, b: string) => sameRoute(parseHash(a), parseHash(b));
+    expect(same("#/a/b/pull/1/file/x.md", "#/a/b/pull/1/file/x.md?mode=preview")).toBe(true);
+    expect(same("#/a/b/pull/1/file/x%20y.md", "#/a/b/pull/1/file/x y.md")).toBe(true);
+    expect(same("#/a/b/pull/1/file/x.md", "#/a/b/pull/1/file/y.md")).toBe(false);
+    expect(same("#/a/b/pull/1/file/x.md", "#/a/b/pull/1/file/x.md?anchor=h")).toBe(false);
+    expect(same("#/a/b/pull/1/files/1", "#/a/b/pull/1")).toBe(false);
+    expect(same("#/a/b/pull/1/files/1", "#/a/b/pull/1/file/1")).toBe(false);
+    expect(same("#/a/b/pull/1", "#/a/b/pull/2")).toBe(false);
   });
 
   it("f86_mode_query_parses_and_unknown_is_dropped", () => {

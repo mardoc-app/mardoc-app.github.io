@@ -14,7 +14,8 @@ import SettingsPanel from "@/components/SettingsPanel";
 import SignInBanner, { routeLabel } from "@/components/SignInBanner";
 import { INSTALL_URL } from "@/components/sign-in-text";
 import { isAttemptStatus, isSignInKey } from "@/lib/auth/session";
-import { parseHash } from "@/lib/hash-router";
+import { parseHash } from "@/lib/routing/route";
+import { readLocation } from "@/lib/routing/route-adapter";
 import ThemeToggle from "@/components/ThemeToggle";
 import KeyboardCheatsheet from "@/components/KeyboardCheatsheet";
 import CommandPalette from "@/components/CommandPalette";
@@ -70,8 +71,8 @@ export default function Home() {
   // A reload ended a sign-in session: name the document instead of demo data (F-37).
   const effectiveStatus = isAttemptStatus(session.status) ? session.statusBeforeAttempt : session.status;
   const awaitingSignIn = !isEmbedded && effectiveStatus === "sign-in-again";
-  const hashRoute = typeof window === "undefined" ? null : parseHash(window.location.hash);
-  const awaitingTarget = awaitingSignIn && typeof window !== "undefined" ? routeLabel(window.location.hash) : null;
+  const hashRoute = typeof window === "undefined" ? null : parseHash(readLocation());
+  const awaitingTarget = awaitingSignIn && typeof window !== "undefined" ? routeLabel(readLocation()) : null;
   // A deep link the sign-in token cannot reach: MarDoc may not be installed there (F-42).
   const noAccessRepo = isSignInKey(sessionKey) && error && /not found/i.test(error)
     ? (hashRoute?.repoFullName ?? currentRepo) : null;

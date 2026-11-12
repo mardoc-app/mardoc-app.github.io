@@ -1,4 +1,5 @@
 import { resolvePath } from "./link-handler";
+import { buildRoute, buildFileHash } from "./routing/route";
 
 export type ReviewLink = { type: "anchor"; anchor: string } | { type: "external"; href: string }
   | { type: "document"; path: string; anchor: string } | { type: "blocked" };
@@ -80,4 +81,18 @@ export function bindHtmlReviewLinks(doc: Document, navigate: (href: string) => v
     doc.removeEventListener("mouseover", showDestination, true);
     doc.removeEventListener("focusin", showDestination, true);
   };
+}
+
+/**
+ * The address an HTML review link opens: a file in the open PR by path (with
+ * its anchor), else the file at the given revision.
+ */
+export function reviewLinkHash(link: { path: string; anchor: string },
+  pr: { repo: string; prNumber: number; paths: readonly string[] } | null,
+  revision: { repo: string; ref: string }): string {
+  if (pr && pr.paths.includes(link.path)) {
+    return buildRoute({ type: "pr", repoFullName: pr.repo, prNumber: pr.prNumber,
+      file: { kind: "path", path: link.path }, anchor: link.anchor || undefined });
+  }
+  return buildFileHash(revision.repo, revision.ref, link.path);
 }

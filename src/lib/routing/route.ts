@@ -95,6 +95,14 @@ export function buildRoute(route: HashRoute): string {
   return query.length ? `${base}?${query.join("&")}` : base;
 }
 
+/** Whether two routes open the same place; the view mode is ignored. */
+export function sameRoute(a: HashRoute, b: HashRoute): boolean {
+  const fileKey = (r: HashRoute) => !r.file ? "" : r.file.kind === "path" ? `p:${r.file.path}` : `i:${r.file.index}`;
+  return a.type === b.type && a.repoFullName === b.repoFullName && a.branch === b.branch
+    && a.filePath === b.filePath && a.prNumber === b.prNumber && fileKey(a) === fileKey(b)
+    && (a.anchor || "") === (b.anchor || "");
+}
+
 /** Which file of a PR a link names: no reference means the first file. */
 export function resolvePRFile(ref: FileRef | undefined, paths: readonly string[]): ResolvedPRFile {
   if (!ref) return paths.length > 0 ? { ok: true, index: 0 } : { ok: false, reason: "index-out-of-range" };

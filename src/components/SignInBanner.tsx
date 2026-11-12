@@ -6,7 +6,8 @@
 import React from "react";
 import { useApp } from "@/lib/app-context";
 import { isAttemptStatus } from "@/lib/auth/session";
-import { parseHash } from "@/lib/hash-router";
+import { parseHash } from "@/lib/routing/route";
+import { readLocation } from "@/lib/routing/route-adapter";
 import { signInErrorText } from "./sign-in-text";
 import OpenInNewTabLink from "./OpenInNewTabLink";
 
@@ -32,7 +33,7 @@ export default function SignInBanner({ onUseToken }: Props) {
   // During an attempt the banner keeps showing the state it started from.
   const status = isAttemptStatus(session.status) ? session.statusBeforeAttempt : session.status;
   const showable = !isEmbedded && (status === "expiring" || status === "expired" || status === "sign-in-again");
-  const hash = typeof window === "undefined" ? "" : window.location.hash;
+  const hash = typeof window === "undefined" ? "" : readLocation();
   const target = status === "sign-in-again" ? routeLabel(hash) : null;
   const attempting = isAttemptStatus(session.status);
 

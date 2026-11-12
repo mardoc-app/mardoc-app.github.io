@@ -29,8 +29,7 @@ import FeedbackPolisher from "./FeedbackPolisher";
 import { mapSelectionToLines, rewriteImageUrls, loadAuthenticatedImages, loadEmbedLocalImages } from "@/lib/github-api";
 import { useHtmlCommentJump } from "@/lib/use-html-comment-jump";
 import { useHtmlReviewLinks } from "@/lib/use-html-review-links";
-import { resolveReviewLink, scrollToDocumentAnchor } from "@/lib/review-links";
-import { buildFileHash, buildPRHash } from "@/lib/hash-router";
+import { resolveReviewLink, reviewLinkHash, scrollToDocumentAnchor } from "@/lib/review-links";
 import { useApp } from "@/lib/app-context";
 import { openExternal } from "@/lib/open-external";
 import { createRenderCache } from "@/lib/render-cache";
@@ -371,10 +370,11 @@ export default function DiffViewer({
   const onHtmlLoad = useHtmlReviewLinks(htmlIframeRef, navigateHtmlLink, href => {
     const link = resolveReviewLink(htmlShowBase ? file.basePath || file.path : file.path, href);
     if (link.type !== "document") return undefined;
-    const idx = !htmlShowBase ? prFiles?.findIndex(f => f.path === link.path) ?? -1 : -1;
-    const hash = idx >= 0 && selectedPR ? buildPRHash(repoFullName, selectedPR.number, idx, link.anchor)
-      : buildFileHash((htmlShowBase ? file.baseRepo : file.headRepo) || repoFullName,
-        (htmlShowBase ? file.baseRef : file.headRef) || (htmlShowBase ? baseBranch : headBranch), link.path);
+    const pr = !htmlShowBase && selectedPR
+      ? { repo: repoFullName, prNumber: selectedPR.number, paths: (prFiles ?? []).map(f => f.path) } : null;
+    const hash = reviewLinkHash(link, pr, {
+      repo: (htmlShowBase ? file.baseRepo : file.headRepo) || repoFullName,
+      ref: (htmlShowBase ? file.baseRef : file.headRef) || (htmlShowBase ? baseBranch : headBranch) });
     return new URL(hash, window.location.href).href;
   });
   useEffect(() => {
