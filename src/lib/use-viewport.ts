@@ -45,3 +45,8 @@ export function useViewport(): Viewport {
 export function useIsMobile(): boolean {
   return useViewport() === "mobile";
 }
+
+/** Whether the screen is wide enough for side-by-side views now (768px and up, the `md` breakpoint). */
+export function isWideScreen(): boolean {
+  return typeof window !== "undefined" && typeof window.matchMedia === "function" && !window.matchMedia(QUERY).matches;
+}

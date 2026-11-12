@@ -10,6 +10,7 @@ import { resetTreeExpansion } from "./use-tree-expansion";
 import { repoFiles as mockFiles, pullRequests as mockPRs, findFile, flattenFiles } from "./mock-data";
 import { parseHash, buildRoute, resolvePRFile, buildFileHash, buildRepoHash, buildBranchHash, type FileRef } from "./routing/route";
 import * as routeAdapter from "./routing/route-adapter";
+import type { ViewMode as LinkViewMode } from "./routing/view-mode";
 import * as safeStorage from "./safe-storage";
 import { isHtmlFile } from "./file-types";
 import { isReloadShortcut, postReloadRequest, shouldApplyFileContent, isBlockedByDirtyEditor } from "./embed-reload";
@@ -69,6 +70,8 @@ interface AppState {
   selectedPRFileIdx: number;
   setSelectedPRFileIdx: (idx: number, anchor?: string) => void;
   documentAnchor: string;
+  /** The view mode named by the link that opened the current file; cleared when the user opens another file. */
+  linkMode: LinkViewMode | undefined;
   loadingPRFiles: boolean;
 
   // Loading states
@@ -110,8 +113,8 @@ interface AppState {
 }
 
 /** The address of a PR, or of one of its files by path. */
-function prFileRoute(repo: string, prNumber: number, path?: string, anchor?: string): string {
-  return buildRoute({ type: "pr", repoFullName: repo, prNumber, file: path ? { kind: "path", path } : undefined, anchor: anchor || undefined });
+function prFileRoute(repo: string, prNumber: number, path?: string, anchor?: string, mode?: LinkViewMode): string {
+  return buildRoute({ type: "pr", repoFullName: repo, prNumber, file: path ? { kind: "path", path } : undefined, anchor: anchor || undefined, mode });
 }
 
 const AppContext = createContext<AppState | null>(null);
@@ -207,6 +210,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [prFiles, setPRFiles] = useState<PRFile[]>([]);
   const [prComments, setPRComments] = useState<PRComment[]>([]);
   const [selectedPRFileIdx, setSelectedPRFileIdx] = useState(0);
+  const [linkMode, setLinkMode] = useState<LinkViewMode | undefined>(undefined);
   const [documentAnchor, setDocumentAnchor] = useState("");
   const [loadingPRFiles, setLoadingPRFiles] = useState(false);
 
@@ -1036,7 +1040,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // a path that is not in the PR stays as followed. A PR opened from the list
   // pushes its address at once.
   const _openPRInternal = useCallback(async (pr: PullRequest,
-    repo = locationRef.current.repo, file?: FileRef, anchor = "", fromLink = false) => {
+    repo = locationRef.current.repo, file?: FileRef, anchor = "", fromLink = false, mode?: LinkViewMode) => {
+    if (!fromLink) setLinkMode(undefined);
     invalidateNavigation();
     const isCurrent = prLoadGuard.begin();
     setSelectedPR(pr); setSelectedFile(null); setCurrentView("pr-diff");
@@ -1047,7 +1052,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (!pick) return null;
       if (file?.kind === "path" && !pick.resolved) reportMissingLinkedFile(file.path);
       else if (repo && file && files[pick.index]) {
-        routeAdapter.publish(prFileRoute(repo, pr.number, files[pick.index].path, anchor), { replace: true });
+        routeAdapter.publish(prFileRoute(repo, pr.number, files[pick.index].path, anchor, mode), { replace: true });
       }
       return pick.index;
     };
@@ -1101,7 +1106,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   prFilesRef.current = prFiles;
   // Show one file of the open PR. A click or an in-PR link pushes the path
   // form so Back returns; a link already in the address bar replaces it.
-  const selectPRFile = useCallback((idx: number, anchor: string, write: "push" | "replace" | "none") => {
+  const selectPRFile = useCallback((idx: number, anchor: string, write: "push" | "replace" | "none", mode?: LinkViewMode) => {
+    setLinkMode(undefined);
     setDocumentAnchor(anchor);
     setSelectedPRFileIdx(idx);
     setError(old => old !== null && old === linkedFileError.current ? null : old);
@@ -1109,7 +1115,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       ? { ...file, loadState: "pending", loadError: undefined } : file));
     const path = prFilesRef.current[idx]?.path;
     if (write !== "none" && currentRepo && selectedPR && path) {
-      routeAdapter.publish(prFileRoute(currentRepo, selectedPR.number, path, anchor), { replace: write === "replace" });
+      routeAdapter.publish(prFileRoute(currentRepo, selectedPR.number, path, anchor, mode), { replace: write === "replace" });
     }
   }, [currentRepo, selectedPR]);
 
@@ -1120,6 +1126,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const navigateToHash = useCallback(async (hash: string) => {
     const route = parseHash(hash);
     if (route.type === "none") { if (hash) setError("Invalid document link."); return; }
+    setLinkMode(route.type === "pr" ? route.mode : undefined);
     if (route.type === "file" && route.filePath && route.branch) {
       await _openFileInternal({ id: `hash-${route.filePath}`, name: route.filePath.split("/").pop()!,
         path: route.filePath, type: "file" }, route.repoFullName, route.branch);
@@ -1128,14 +1135,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (selectedPR?.number === route.prNumber && currentRepo === route.repoFullName && prFiles.length) {
         const pick = pickLinkedPRFile(prFiles, route.file);
         if (!pick) { setError("The linked PR file no longer exists. Open the PR to select a file."); return; }
-        selectPRFile(pick.index, route.anchor || "", route.file && pick.resolved ? "replace" : "none");
+        selectPRFile(pick.index, route.anchor || "", route.file && pick.resolved ? "replace" : "none", route.mode);
+        setLinkMode(route.mode);
         if (route.file?.kind === "path" && !pick.resolved) reportMissingLinkedFile(route.file.path);
         setCurrentView("pr-diff");
         return;
       }
       if (isDemoMode) {
         const pr = mockPRs.find(p => p.number === route.prNumber);
-        if (pr) await _openPRInternal(pr, null, route.file, route.anchor, true);
+        if (pr) await _openPRInternal(pr, null, route.file, route.anchor, true, route.mode);
         return;
       }
       invalidateNavigation();
@@ -1143,7 +1151,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setError(null); setSelectedFile(null); setSelectedPR(null); setLoadingPRFiles(true);
       try {
         const pr = await fetchPullRequest(route.repoFullName!, route.prNumber, navigationController.current.signal);
-        if (isCurrent()) await _openPRInternal(pr, route.repoFullName, route.file, route.anchor, true);
+        if (isCurrent()) await _openPRInternal(pr, route.repoFullName, route.file, route.anchor, true, route.mode);
       } catch (err) {
         if (isCurrent()) { setError(formatApiError(err, "Failed to open linked PR")); setLoadingPRFiles(false); }
       }
@@ -1222,6 +1230,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         prComments,
         selectedPRFileIdx,
         documentAnchor,
+        linkMode,
         setSelectedPRFileIdx: setSelectedPRFileIdxWithHash,
         loadingPRFiles,
         loadingFiles,

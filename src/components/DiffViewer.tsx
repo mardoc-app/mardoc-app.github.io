@@ -45,7 +45,9 @@ import { buildHtmlDiff } from "@/lib/html-diff";
 import ReviewDock from "./ReviewDock";
 import HtmlDiffToolbar, { type HtmlDiffMode } from "./HtmlDiffToolbar";
 import { navigateHtmlDiff } from "@/lib/html-diff-navigation";
-import { useIsMobile } from "@/lib/use-viewport";
+import { useIsMobile, isWideScreen } from "@/lib/use-viewport";
+import { pickMode, type MdMode, type ViewMode } from "@/lib/routing/view-mode";
+import * as routeAdapter from "@/lib/routing/route-adapter";
 import BottomSheet from "./BottomSheet";
 import MobileCommentButton from "./MobileCommentButton";
 import CommentPanel, { type PanelComment } from "./CommentPanel";
@@ -55,7 +57,23 @@ import { parseSuggestionBody } from "@/lib/suggestion-body";
 import { commentFileIndex, commentTargetForFile } from "@/lib/comment-target";
 import { locateMarkdownComment, markCommentLocation, clearCommentMarks, commentLocationMessages } from "@/lib/markdown-comment-location";
 
+type MdViewMode = "rendered" | "split" | "suggest" | "preview";
+const MD_TOKEN: Record<MdViewMode, MdMode> = { rendered: "inline", split: "split", suggest: "suggest", preview: "preview" };
+const MD_FROM_TOKEN: Record<MdMode, MdViewMode> = { inline: "rendered", split: "split", suggest: "suggest", preview: "preview" };
+
+/** The Markdown view a file opens in: the link's mode, then the remembered one, then Inline Diff. */
+function pickMdMode(link: ViewMode | undefined): MdViewMode {
+  const available: MdMode[] = isWideScreen() ? ["inline", "split", "suggest", "preview"] : ["inline", "suggest", "preview"];
+  return MD_FROM_TOKEN[pickMode({ link, remembered: routeAdapter.loadMode("md"), available, fallback: "inline" })];
+}
+
 interface DiffViewerProps {
+  /** Whether this file is the one shown; a file that becomes shown picks its view mode again. */
+  active?: boolean;
+  /** The view mode named by the link that opened the file. */
+  linkMode?: ViewMode;
+  /** Called with the token when the user picks a view mode. */
+  onModeChange?: (token: ViewMode) => void;
   reviewDetails?: (close: () => void) => React.ReactNode;
   returnPath?: string;
   onReturn?: () => void;
@@ -297,6 +315,9 @@ function FloatingToolbar({
 // ─── Main DiffViewer ───────────────────────────────────────────────────────
 
 export default function DiffViewer({
+  active = true,
+  linkMode,
+  onModeChange,
   reviewDetails,
   returnPath,
   onReturn,
@@ -315,7 +336,20 @@ export default function DiffViewer({
   onAcceptSuggestion,
   onDiscardPendingComment,
 }: DiffViewerProps) {
-  const [viewMode, setViewMode] = useState<"rendered" | "split" | "suggest" | "preview">("rendered");
+  const [viewMode, setViewMode] = useState<MdViewMode>(() => pickMdMode(linkMode));
+  const lastPick = useRef({ active, linkMode });
+  useEffect(() => {
+    const last = lastPick.current;
+    lastPick.current = { active, linkMode };
+    if (!active || (last.active === active && last.linkMode === linkMode)) return;
+    setViewMode(pickMdMode(linkMode));
+  }, [active, linkMode]);
+  const pickViewMode = (value: MdViewMode) => {
+    setViewMode(value);
+    routeAdapter.saveMode("md", MD_TOKEN[value]);
+    routeAdapter.publishMode(MD_TOKEN[value]);
+    onModeChange?.(MD_TOKEN[value]);
+  };
   const [htmlViewMode, setHtmlViewMode] = useState<"rendered" | "source">("rendered");
   const [htmlDiffMode, setHtmlDiffMode] = useState<HtmlDiffMode>("diff");
   const htmlShowBase = htmlDiffMode === "base";
@@ -985,7 +1019,7 @@ export default function DiffViewer({
   ) : (
     <div role="group" aria-label="Markdown preview version" className="flex flex-wrap items-center gap-0.5">
       {([["rendered", "Inline Diff"], ["split", "Side by Side"], ["suggest", "Suggest"], ["preview", "Preview"]] as const).map(([value, label]) =>
-        <button key={value} type="button" onClick={() => setViewMode(value)} aria-pressed={viewMode === value}
+        <button key={value} type="button" onClick={() => pickViewMode(value)} aria-pressed={viewMode === value}
           className={modeButtonClass + (value === "split" ? " hidden md:block" : "") +
             (viewMode === value ? " bg-[var(--accent)] text-white" : " hover:bg-[var(--surface-hover)]")}>
           {value === "suggest" && <Pencil size={10} className="inline mr-1" />}

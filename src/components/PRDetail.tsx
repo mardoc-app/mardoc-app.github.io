@@ -68,6 +68,7 @@ export default function PRDetail({ pr, onBack }: PRDetailProps) {
     prComments,
     selectedPRFileIdx,
     documentAnchor,
+    linkMode,
     setSelectedPRFileIdx,
   } = useApp();
 
@@ -630,7 +631,7 @@ export default function PRDetail({ pr, onBack }: PRDetailProps) {
               : file.loadState === "pending" ? <p role="status" className="p-6">Loading document…</p>
               : file.loadState === "error" ? <div role="alert" className="p-6">{file.loadError}
                 <button className="toolbar-btn" onClick={() => setSelectedPRFileIdx(idx)}>Retry document</button></div>
-              : <DiffViewer file={file} repoFullName={currentRepo || ""} baseBranch={pr.baseBranch} headBranch={pr.headBranch}
+              : <DiffViewer active={active} linkMode={active ? linkMode : undefined} file={file} repoFullName={currentRepo || ""} baseBranch={pr.baseBranch} headBranch={pr.headBranch}
                 externalJump={active && commentJump?.path === file.path ? commentJump : undefined}
                 anchor={active ? documentAnchor : undefined} onNavigateLink={navigateReviewLink}
                 returnPath={returnFileIdx !== null && returnFileIdx !== idx ? prFiles[returnFileIdx]?.path : undefined}
