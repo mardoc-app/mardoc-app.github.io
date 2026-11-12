@@ -233,6 +233,19 @@ describe("layout check", () => {
     fails({ "src/components/P.tsx": "window.history.pushState({}, '');\n" }, /^LR-26 src\/components\/P\.tsx:1 uses history$/m);
     fails({ "src/components/P.tsx": "history.back();\n" }, /^LR-26 src\/components\/P\.tsx:1 uses history$/m);
     fails({ "src/components/P.tsx": "const h = window.history;\n" }, /^LR-26 src\/components\/P\.tsx:1 uses history$/m);
+    // Writes through location other than the hash.
+    fails({ "src/components/A.tsx": 'location.href = "#/a/b/pull/1";\n' }, /^LR-26 src\/components\/A\.tsx:1 uses location\.href$/m);
+    fails({ "src/components/A.tsx": 'window.location.assign("#/a/b");\n' }, /^LR-26 src\/components\/A\.tsx:1 uses location\.assign or location\.replace$/m);
+    fails({ "src/components/A.tsx": 'location.replace("#/x/y");\n' }, /^LR-26 src\/components\/A\.tsx:1 uses location\.assign or location\.replace$/m);
+    // Other routes to the history object.
+    fails({ "src/components/A.tsx": "globalThis.history.back();\n" }, /^LR-26 src\/components\/A\.tsx:1 uses history$/m);
+    fails({ "src/components/A.tsx": 'self.history.pushState({}, "");\n' }, /^LR-26 src\/components\/A\.tsx:1 uses history$/m);
+    fails({ "src/components/A.tsx": 'window["history"].back();\n' }, /^LR-26 src\/components\/A\.tsx:1 uses history$/m);
+    // Destructuring the hash or the history object.
+    fails({ "src/components/A.tsx": "const { hash } = window.location;\n" }, /^LR-26 src\/components\/A\.tsx:1 uses destructuring from location or window$/m);
+    fails({ "src/components/A.tsx": "const { hash, search } = location;\n" }, /^LR-26 src\/components\/A\.tsx:1 uses destructuring from location or window$/m);
+    fails({ "src/components/A.tsx": "const { history: h } = window;\n" }, /^LR-26 src\/components\/A\.tsx:1 uses destructuring from location or window$/m);
+    fails({ "src/components/A.tsx": "const { history } = globalThis;\n" }, /^LR-26 src\/components\/A\.tsx:1 uses destructuring from location or window$/m);
     const adapter = run(fixture({ "src/lib/routing/route-adapter.ts":
       "export const r = () => window.location.hash;\nwindow.addEventListener(\"popstate\", f);\nwindow.history.back();\n" }));
     expect(adapter.out).toBe("layout check: ok\n");
@@ -242,6 +255,9 @@ describe("layout check", () => {
       "src/components/C.tsx": "// Back walks the history. so does location.hash and \"hashchange\"\n/* window.history.back() */\n"
         + "const label = \"history.back location.hash\"; const t = state.history.length; const s = 'hashchange events';\n"
         + "const u = new URL(href, window.location.href);\n",
+      // A local history (an undo stack) is not the browser's.
+      "src/components/Undo.tsx": "const history = undo.history; history.push(\"x\"); history.length;\n"
+        + "export function f(history: string[]) { return history.slice(0); }\nconst { pathname } = window.location;\n",
     }));
     expect(ok.out).toBe("layout check: ok\n");
     expect(ok.code).toBe(0);

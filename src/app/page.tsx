@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { buildFileHash } from "@/lib/hash-router";
 import { isCommitSha } from "@/lib/request-cache";
 import { useApp } from "@/lib/app-context";
 import { useTheme } from "@/lib/theme-context";
@@ -14,7 +13,7 @@ import SettingsPanel from "@/components/SettingsPanel";
 import SignInBanner, { routeLabel } from "@/components/SignInBanner";
 import { INSTALL_URL } from "@/components/sign-in-text";
 import { isAttemptStatus, isSignInKey } from "@/lib/auth/session";
-import { parseHash } from "@/lib/routing/route";
+import { parseHash, buildFileHash } from "@/lib/routing/route";
 import { readLocation } from "@/lib/routing/route-adapter";
 import ThemeToggle from "@/components/ThemeToggle";
 import KeyboardCheatsheet from "@/components/KeyboardCheatsheet";
