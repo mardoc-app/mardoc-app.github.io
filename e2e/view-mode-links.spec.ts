@@ -201,3 +201,17 @@ test("f86_blob_source_link_opens_code_view", async ({ page }) => {
   await expect(page).toHaveURL(/readme\.md\?mode=source$/);
   expect(await stored(page)).toBeNull();
 });
+
+test("f88_reopening_a_file_uses_the_remembered_mode", async ({ page }) => {
+  await mockPR(page);
+  await page.goto(GUIDE);
+  await expect(guideHeading(page)).toBeVisible();
+  await page.getByRole("button", { name: "Preview", exact: true }).click();
+  await openReadme(page);
+  await expect(pressed(page, "Preview")).toBeVisible();
+  await page.getByRole("button", { name: "Inline Diff", exact: true }).click();
+  await openSidebar(page);
+  await clickVisibleText(page, "guide.md");
+  await expect(guideHeading(page)).toBeVisible();
+  await expect(pressed(page, "Inline Diff")).toBeVisible();
+});

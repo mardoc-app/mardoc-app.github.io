@@ -344,11 +344,16 @@ export default function DiffViewer({
   onDiscardPendingComment,
 }: DiffViewerProps) {
   const [viewMode, setViewMode] = useState<MdViewMode>(() => pickMdMode(linkMode));
-  const lastPick = useRef({ active, linkMode });
+  // A file keeps its view when it is shown again. It picks again only on its first
+  // time shown, or when a link names a different mode for the file on screen.
+  const lastPick = useRef({ shown: active, linkMode });
   useEffect(() => {
     const last = lastPick.current;
-    lastPick.current = { active, linkMode };
-    if (!active || (last.active === active && last.linkMode === linkMode)) return;
+    lastPick.current = { shown: last.shown || active, linkMode };
+    if (!active) return;
+    const firstShown = !last.shown;
+    const newLinkMode = linkMode !== undefined && last.linkMode !== linkMode;
+    if (!firstShown && !newLinkMode) return;
     setViewMode(pickMdMode(linkMode));
     const pick = pickHtmlMode(linkMode);
     setHtmlViewMode(pick.view);
