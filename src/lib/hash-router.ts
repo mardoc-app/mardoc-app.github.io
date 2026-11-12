@@ -5,7 +5,6 @@ export {
   buildRepoHash,
   buildBranchHash,
   buildFileHash,
-  buildPRHash,
   resolvePRFile,
   sameRoute,
 } from "./routing/route";

@@ -126,9 +126,3 @@ export function buildBranchHash(repoFullName: string, branch: string): string {
 export function buildFileHash(repoFullName: string, branch: string, filePath: string): string {
   return `${buildRepoHash(repoFullName)}/blob/${encodeURIComponent(branch)}/${encodePath(filePath)}`;
 }
-
-export function buildPRHash(repoFullName: string, prNumber: number, fileIdx?: number, anchor?: string): string {
-  const base = `#/${repoFullName}/pull/${prNumber}`;
-  const route = fileIdx !== undefined && fileIdx > 0 ? `${base}/files/${fileIdx}` : base;
-  return anchor ? `${route}?anchor=${encodeURIComponent(anchor)}` : route;
-}

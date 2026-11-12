@@ -224,6 +224,29 @@ describe("layout check", () => {
     expect(ok.code).toBe(0);
   });
 
+  it("nf80_lr26_only_the_route_adapter_touches_the_address_bar", () => {
+    fails({ "src/components/Planted.tsx": "const h = window.location.hash;\n" }, /^LR-26 src\/components\/Planted\.tsx:1 uses location\.hash$/m);
+    fails({ "src/lib/app-context.tsx": "export const x = 1;\nlocation.hash = '#/a/b';\n" }, /^LR-26 src\/lib\/app-context\.tsx:2 uses location\.hash$/m);
+    fails({ "src/app/page.tsx": 'window.addEventListener("hashchange", f);\n' }, /^LR-26 src\/app\/page\.tsx:1 uses a hashchange or popstate event$/m);
+    fails({ "src/components/P.tsx": "addEventListener('popstate', f);\n" }, /^LR-26 src\/components\/P\.tsx:1 uses a hashchange or popstate event$/m);
+    fails({ "src/components/P.tsx": "window.onpopstate = f;\n" }, /^LR-26 src\/components\/P\.tsx:1 uses a hashchange or popstate event$/m);
+    fails({ "src/components/P.tsx": "window.history.pushState({}, '');\n" }, /^LR-26 src\/components\/P\.tsx:1 uses history$/m);
+    fails({ "src/components/P.tsx": "history.back();\n" }, /^LR-26 src\/components\/P\.tsx:1 uses history$/m);
+    fails({ "src/components/P.tsx": "const h = window.history;\n" }, /^LR-26 src\/components\/P\.tsx:1 uses history$/m);
+    const adapter = run(fixture({ "src/lib/routing/route-adapter.ts":
+      "export const r = () => window.location.hash;\nwindow.addEventListener(\"popstate\", f);\nwindow.history.back();\n" }));
+    expect(adapter.out).toBe("layout check: ok\n");
+    expect(adapter.code).toBe(0);
+    const ok = run(fixture({
+      "src/__tests__/a.test.ts": "window.location.hash = '#/x'; window.history.back();\n",
+      "src/components/C.tsx": "// Back walks the history. so does location.hash and \"hashchange\"\n/* window.history.back() */\n"
+        + "const label = \"history.back location.hash\"; const t = state.history.length; const s = 'hashchange events';\n"
+        + "const u = new URL(href, window.location.href);\n",
+    }));
+    expect(ok.out).toBe("layout check: ok\n");
+    expect(ok.code).toBe(0);
+  });
+
   it("t30_layout_check_real_tree_is_clean", () => {
     const r = run(repoRoot);
     expect(r.out).toBe("layout check: ok\n");
