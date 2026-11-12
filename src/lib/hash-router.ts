@@ -1,11 +1,6 @@
-/**
- * Compatibility layer over routing/route.ts. The URL grammar lives there;
- * this module keeps the legacy `prFileIdx` field for existing callers.
- */
-
-import { parseHash as parseRoute, type HashRoute as Route } from "./routing/route";
-
+/** The hash URL contract; the grammar lives in routing/route.ts. */
 export {
+  parseHash,
   buildRoute,
   buildRepoHash,
   buildBranchHash,
@@ -13,18 +8,4 @@ export {
   buildPRHash,
   resolvePRFile,
 } from "./routing/route";
-export type { FileRef, ResolvedPRFile } from "./routing/route";
-
-export interface HashRoute extends Route {
-  prFileIdx?: number;
-}
-
-export function parseHash(hash: string): HashRoute {
-  const route = parseRoute(hash);
-  if (route.file?.kind === "path") return { type: "none" }; // path links stay invalid for current callers until WP-12
-  if (route.file?.kind === "index") {
-    const { file, ...rest } = route;
-    return { ...rest, prFileIdx: file.index };
-  }
-  return route;
-}
+export type { HashRoute, FileRef, ResolvedPRFile } from "./routing/route";

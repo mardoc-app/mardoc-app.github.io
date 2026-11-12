@@ -8,7 +8,8 @@ import { createStalenessGuard } from "./staleness-guard";
 import { EXPANSION_KEY } from "./expansion-store";
 import { resetTreeExpansion } from "./use-tree-expansion";
 import { repoFiles as mockFiles, pullRequests as mockPRs, findFile, flattenFiles } from "./mock-data";
-import { parseHash, buildFileHash, buildPRHash, buildRepoHash, buildBranchHash } from "./hash-router";
+import { parseHash, buildRoute, resolvePRFile, buildFileHash, buildRepoHash, buildBranchHash, type FileRef } from "./routing/route";
+import * as routeAdapter from "./routing/route-adapter";
 import * as safeStorage from "./safe-storage";
 import { isHtmlFile } from "./file-types";
 import { isReloadShortcut, postReloadRequest, shouldApplyFileContent, isBlockedByDirtyEditor } from "./embed-reload";
@@ -106,6 +107,11 @@ interface AppState {
   // AppProvider asking the user to confirm or cancel.
   editorIsDirty: boolean;
   setEditorIsDirty: (dirty: boolean) => void;
+}
+
+/** The address of a PR, or of one of its files by path. */
+function prFileRoute(repo: string, prNumber: number, path?: string, anchor?: string): string {
+  return buildRoute({ type: "pr", repoFullName: repo, prNumber, file: path ? { kind: "path", path } : undefined, anchor: anchor || undefined });
 }
 
 const AppContext = createContext<AppState | null>(null);
@@ -288,15 +294,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("beforeunload", handler);
   }, []);
 
-  // Track the last hash we wrote so the hashchange listener can
-  // distinguish self-triggered events from real user navigation.
-  // This replaces the old setTimeout(0) flag dance, which was racey
-  // when rapid setHash calls fired during a single event loop turn.
-  const lastWrittenHash = useRef<string>("");
-  const setHash = useCallback((hash: string) => {
-    lastWrittenHash.current = hash;
-    window.location.hash = hash;
-  }, []);
+  // A navigation the user started pushes its address, so Back returns to the
+  // previous one. The route adapter tells our own writes from user navigation.
+  const setHash = useCallback((hash: string) => routeAdapter.publish(hash), []);
 
   // Staleness guards — each domain gets its own generation counter so
   // quickly switching repos/files/PRs drops out-of-order responses
@@ -1009,14 +1009,43 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [invalidateNavigation]);
 
 
+  // Which file of a PR a link names: its head path, then its base path
+  // (renamed and deleted files), else its index. Returns the index to show,
+  // or null when the link names an index past the end.
+  const pickLinkedPRFile = useCallback((files: readonly PRFile[], file: FileRef | undefined): number | null => {
+    let found = resolvePRFile(file, files.map(f => f.path));
+    if (!found.ok && found.reason === "no-such-path") {
+      const byBase = resolvePRFile(file, files.map(f => f.basePath || f.path));
+      if (byBase.ok) found = byBase;
+    }
+    if (found.ok) return found.index;
+    if (found.reason === "no-such-path") { setError("The linked file is not in this PR."); return 0; }
+    return files.length ? null : 0;
+  }, []);
+
+  // A PR opened from a link writes nothing until its files are known; then a
+  // named file replaces the link with its path form. A PR opened from the
+  // list pushes its address at once.
   const _openPRInternal = useCallback(async (pr: PullRequest,
-    repo = locationRef.current.repo, fileIdx = 0, anchor = "") => {
+    repo = locationRef.current.repo, file?: FileRef, anchor = "", fromLink = false) => {
     invalidateNavigation();
     const isCurrent = prLoadGuard.begin();
     setSelectedPR(pr); setSelectedFile(null); setCurrentView("pr-diff");
-    setSelectedPRFileIdx(fileIdx); setError(null); setPRFiles([]); setPRComments([]);
-    if (repo) setHash(buildPRHash(repo, pr.number, fileIdx, anchor));
-    if (isDemoMode) { setPRFiles(pr.files); setPRComments(pr.comments); return; }
+    setSelectedPRFileIdx(0); setError(null); setPRFiles([]); setPRComments([]);
+    if (repo && !fromLink) setHash(prFileRoute(repo, pr.number, undefined, anchor));
+    const settle = (files: PRFile[]) => {
+      const idx = pickLinkedPRFile(files, file);
+      if (idx === null) return null;
+      if (repo && file && files[idx]) routeAdapter.publish(prFileRoute(repo, pr.number, files[idx].path, anchor), { replace: true });
+      return idx;
+    };
+    if (isDemoMode) {
+      const idx = settle(pr.files);
+      if (idx === null) setError("The linked PR file no longer exists. Open the PR to select a file.");
+      else { setPRFiles(pr.files); setSelectedPRFileIdx(idx); }
+      setPRComments(pr.comments);
+      return;
+    }
     if (!repo || !hasCredential) return;
     activateRepo(repo, pr.headBranch);
     setLoadingPRFiles(true);
@@ -1028,12 +1057,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       const files = await fetchPRFileManifest(repo, pr.number, navigationController.current.signal);
       if (!isCurrent()) return;
-      if (fileIdx >= files.length && files.length) throw new Error("The linked PR file no longer exists. Open the PR to select a file.");
-      setPRFiles(files);
+      const idx = settle(files);
+      if (idx === null) throw new Error("The linked PR file no longer exists. Open the PR to select a file.");
+      setPRFiles(files); setSelectedPRFileIdx(idx);
     } catch (err) {
       if (isCurrent()) setError(formatApiError(err, `Failed to load PR #${pr.number}`));
     } finally { if (isCurrent()) setLoadingPRFiles(false); }
-  }, [invalidateNavigation, prLoadGuard, setHash, isDemoMode, hasCredential, activateRepo]);
+  }, [invalidateNavigation, prLoadGuard, setHash, isDemoMode, hasCredential, activateRepo, pickLinkedPRFile]);
 
   const selectedPRFile = prFiles[selectedPRFileIdx];
   useEffect(() => {
@@ -1055,13 +1085,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     guardNavigation(`open PR #${pr.number}`, () => { void _openPRInternal(pr); });
   }, [guardNavigation, _openPRInternal]);
 
-  const setSelectedPRFileIdxWithHash = useCallback((idx: number, anchor = "") => {
+  const prFilesRef = useRef(prFiles);
+  prFilesRef.current = prFiles;
+  // Show one file of the open PR. A click or an in-PR link pushes the path
+  // form so Back returns; a link already in the address bar replaces it.
+  const selectPRFile = useCallback((idx: number, anchor: string, write: "push" | "replace" | "none") => {
     setDocumentAnchor(anchor);
     setSelectedPRFileIdx(idx);
     setPRFiles(files => files.map((file, i) => i === idx && file.loadState === "error"
       ? { ...file, loadState: "pending", loadError: undefined } : file));
-    if (currentRepo && selectedPR) setHash(buildPRHash(currentRepo, selectedPR.number, idx, anchor));
-  }, [currentRepo, selectedPR, setHash]);
+    const path = prFilesRef.current[idx]?.path;
+    if (write !== "none" && currentRepo && selectedPR && path) {
+      routeAdapter.publish(prFileRoute(currentRepo, selectedPR.number, path, anchor), { replace: write === "replace" });
+    }
+  }, [currentRepo, selectedPR]);
+
+  const setSelectedPRFileIdxWithHash = useCallback((idx: number, anchor = "") => {
+    selectPRFile(idx, anchor, "push");
+  }, [selectPRFile]);
 
   const navigateToHash = useCallback(async (hash: string) => {
     const route = parseHash(hash);
@@ -1072,14 +1113,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } else if (route.type === "pr" && route.prNumber) {
       setDocumentAnchor(route.anchor || "");
       if (selectedPR?.number === route.prNumber && currentRepo === route.repoFullName && prFiles.length) {
-        if ((route.prFileIdx || 0) >= prFiles.length) { setError("The linked PR file no longer exists. Open the PR to select a file."); return; }
-        setSelectedPRFileIdxWithHash(route.prFileIdx || 0, route.anchor || "");
+        const idx = pickLinkedPRFile(prFiles, route.file);
+        if (idx === null) { setError("The linked PR file no longer exists. Open the PR to select a file."); return; }
+        selectPRFile(idx, route.anchor || "", route.file ? "replace" : "none");
         setCurrentView("pr-diff");
         return;
       }
       if (isDemoMode) {
         const pr = mockPRs.find(p => p.number === route.prNumber);
-        if (pr) await _openPRInternal(pr, null, route.prFileIdx, route.anchor);
+        if (pr) await _openPRInternal(pr, null, route.file, route.anchor, true);
         return;
       }
       invalidateNavigation();
@@ -1087,14 +1129,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setError(null); setSelectedFile(null); setSelectedPR(null); setLoadingPRFiles(true);
       try {
         const pr = await fetchPullRequest(route.repoFullName!, route.prNumber, navigationController.current.signal);
-        if (isCurrent()) await _openPRInternal(pr, route.repoFullName, route.prFileIdx, route.anchor);
+        if (isCurrent()) await _openPRInternal(pr, route.repoFullName, route.file, route.anchor, true);
       } catch (err) {
         if (isCurrent()) { setError(formatApiError(err, "Failed to open linked PR")); setLoadingPRFiles(false); }
       }
     } else if (route.repoFullName && !isDemoMode) {
       await loadRepoRoot(route.repoFullName, route.branch);
     }
-  }, [_openFileInternal, _openPRInternal, isDemoMode, invalidateNavigation, navigationGuard, loadRepoRoot, selectedPR, currentRepo, prFiles.length, setSelectedPRFileIdxWithHash]);
+  }, [_openFileInternal, _openPRInternal, isDemoMode, invalidateNavigation, navigationGuard, loadRepoRoot, selectedPR, currentRepo, prFiles, pickLinkedPRFile, selectPRFile]);
 
   // Read the latest callback without replaying navigation on every state update.
   const navigateRef = useRef(navigateToHash);
@@ -1103,22 +1145,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // key, so the open document is not re-opened (F-35).
   useEffect(() => {
     if (!authReady || pendingInitRef.current || vsCodeInitData || awaitingSignIn) return;
-    const hash = window.location.hash;
+    const hash = routeAdapter.readLocation();
     if (hash) void navigateRef.current(hash);
     else if (sessionKey !== null) {
       const saved = safeStorage.getItem(REPO_KEY);
       if (saved) void navigateRef.current(buildRepoHash(saved));
     }
-    const onHashChange = () => {
-      const target = window.location.hash;
-      if (target === lastWrittenHash.current) return;
-      if (editorIsDirtyRef.current) {
-        window.history.replaceState(null, "", window.location.pathname + window.location.search + lastWrittenHash.current);
-      }
-      guardNavigation("open the linked document", () => { void navigateRef.current(target); });
-    };
-    window.addEventListener("hashchange", onHashChange);
-    return () => window.removeEventListener("hashchange", onHashChange);
+    return routeAdapter.onExternalChange((target, previous) => {
+      // A dirty editor keeps the page: put the address back until the user confirms.
+      const held = editorIsDirtyRef.current;
+      if (held) routeAdapter.restore(previous);
+      guardNavigation("open the linked document", () => {
+        if (held) routeAdapter.publish(target);
+        void navigateRef.current(target);
+      });
+    });
   }, [authReady, sessionKey, awaitingSignIn, guardNavigation]);
 
   // Refresh sidebar metadata after a write without changing the open document or URL.

@@ -51,7 +51,7 @@ describe("parseHash", () => {
       repo: "widgets",
       repoFullName: "acme/widgets",
       prNumber: 42,
-      prFileIdx: 3,
+      file: { kind: "index", index: 3 },
     });
   });
 

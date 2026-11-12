@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { resolveReviewLink, bindHtmlReviewLinks } from "@/lib/review-links";
-import { buildPRHash, parseHash } from "@/lib/hash-router";
+import { buildRoute, parseHash } from "@/lib/routing/route";
 
 describe("review document links", () => {
   it.each([
@@ -50,7 +50,7 @@ describe("review document links", () => {
     dispose();
   });
   it("round-trips a heading in a PR link without confusing it with the route", () => {
-    const hash=buildPRHash("acme/docs",381,2,"6-dashboard-walkthrough");
-    expect(parseHash(hash)).toMatchObject({type:"pr",prNumber:381,prFileIdx:2,anchor:"6-dashboard-walkthrough"});
+    const hash=buildRoute({type:"pr",repoFullName:"acme/docs",prNumber:381,file:{kind:"path",path:"docs/deck.html"},anchor:"6-dashboard-walkthrough"});
+    expect(parseHash(hash)).toMatchObject({type:"pr",prNumber:381,file:{kind:"path",path:"docs/deck.html"},anchor:"6-dashboard-walkthrough"});
   });
 });

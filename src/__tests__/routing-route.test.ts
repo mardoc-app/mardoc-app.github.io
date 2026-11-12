@@ -32,9 +32,9 @@ describe("routing/route", () => {
     expect(buildRoute({ type: "file", owner: "a", repo: "b", branch: "main", filePath: "x.md" })).toBe("#/a/b/blob/main/x.md");
   });
 
-  it("f84_legacy_wrapper_keeps_path_links_invalid_until_wp12", () => {
-    expect(legacyParseHash("#/a/b/pull/1/file/x.md")).toEqual({ type: "none" });
-    expect(legacyParseHash("#/a/b/pull/12/file/3")).toEqual({ type: "none" });
+  it("f84_hash_router_reads_path_links_like_route", () => {
+    expect(legacyParseHash("#/a/b/pull/1/file/x.md")).toEqual(parseHash("#/a/b/pull/1/file/x.md"));
+    expect(legacyParseHash("#/a/b/pull/12/file/3").file).toEqual({ kind: "path", path: "3" });
     expect(parseHash("#/a/b/pull/1/file/x.md").file).toEqual({ kind: "path", path: "x.md" });
   });
 
@@ -50,7 +50,7 @@ describe("routing/route", () => {
     expect(route.file).toEqual({ kind: "index", index: 2 });
     expect(buildRoute(route)).toBe("#/a/b/pull/1");
     expect(legacyParseHash("#/a/b/pull/1/files/2")).toEqual({
-      type: "pr", owner: "a", repo: "b", repoFullName: "a/b", prNumber: 1, prFileIdx: 2,
+      type: "pr", owner: "a", repo: "b", repoFullName: "a/b", prNumber: 1, file: { kind: "index", index: 2 },
     });
   });
 
