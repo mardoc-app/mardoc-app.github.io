@@ -124,3 +124,70 @@ All seven findings are Fixed in commit `37da8a1`. Each test is named in the tabl
 | WP13R-5 | Fixed (`37da8a1`) | The blob view marks the link mode as applied once it has entered code view, so a remount stays Rich. Refresh keeps the current address, so it adds no history entry and keeps `?mode=`. | `view-mode-links.spec.ts`: `f86_refresh_after_choosing_rich_stays_rich_and_keeps_the_address` |
 | WP13R-6 | Fixed (`37da8a1`) | The missing proofs are added. | `diff-viewer-view-mode.test.tsx`: `f88_a_file_shown_again_keeps_its_clicked_view` (Back to review), `f88_a_comment_jump_does_not_save_a_mode`, `f88_an_html_comment_jump_does_not_save_a_mode`, `f88_suggest_from_the_context_menu_does_not_save_a_mode`, `f86_preview_link_on_an_html_file_presses_head`; `view-mode-links.spec.ts`: `f86_preview_link_opens_an_html_file_on_head`, `f87_html_blob_source_link_opens_code_view_and_shares_mode_source`. The existing `pr-comment-navigation.spec.ts` deck test still covers Back to review end to end. |
 | WP13R-7 | Fixed (`37da8a1`) | The L2 links page now matches the code: the §05 status, a solid storage box (drawio, SVG and inline copy kept in step), the adapter's callers and Boundary text (it builds the mode query), the DiffViewer source anchors, the prop text, the F-89 order in the failure table and the Share journey hops. Doclint reports 0 errors. | `sdlc-doclint --mode errors docs/design/l2-links-routing.html` |
+
+## Re-review
+
+- **Date:** 2026-11-13
+- **Fix commits:**
+  - `37da8a1`: code, tests and the L2 page;
+  - `9f80795`: dispositions.
+  - I reviewed `git diff 05fc7ae..9f80795`; the branch head is `9f80795`.
+- **Baseline:**
+  - `diff-viewer-view-mode.test.tsx` and `view-mode-storage.test.ts`: 15 passed.
+  - Static export built. `CI=1 PLAYWRIGHT_PORT=3461 npx playwright test e2e/view-mode-links.spec.ts --workers=1`: 37 passed and 1 skipped (Side by Side Copy link on mobile, by design).
+  - `sdlc-doclint --mode errors docs/design/l2-links-routing.html`: 0 errors and 14 warnings. The warnings are style only.
+- **How:** I read every changed hunk against the original failure scenarios. I reverted each of the three main fixes in turn and re-ran its tests:
+  - **WP13R-1:** I reverted the `available` filter in `pickHtmlMode`. The 3 `f89_*_html_file_opens_diff` tests failed.
+  - **WP13R-4:** I reverted the `linkSeq` comparison in DiffViewer. `f86_following_the_same_link_again_applies_its_mode_again` failed.
+  - **WP13R-2:** I restored the `05fc7ae` Editor and removed its `onCodeViewApplied` prop, then rebuilt the static export. Both `f86_source_link_waits_for_the_draft_banner_*` tests failed, and so did `f86_refresh_after_choosing_rich_stays_rich_and_keeps_the_address` (WP13R-5).
+  - I restored every revert afterwards. I reproduced the new findings with a throwaway Playwright spec and config, then deleted both.
+
+### Verdict
+
+**FAIL.** All seven original findings are Closed. The WP13R-2 fix brings in one new Medium problem, WP13R-8: if the user turns on code view before answering the draft banner, Discard throws away their typed text and Restore shows the original file instead of the draft. I reproduced both. Fix WP13R-8 before owner acceptance. WP13R-9 (Low) and WP13R-10 (Nit) are optional.
+
+| ID | Status | Evidence |
+|---|---|---|
+| WP13R-1 | Closed | `pickHtmlMode` now takes the file's revisions and leaves out `base` or `head` when that revision is empty. The 3 new `f89_*` unit tests pass, and they fail when the filter is reverted. The unit test also checks the frame's `srcdoc`, so it proves the content as well as the pressed button. |
+| WP13R-2 | Closed (scenario as reported); see WP13R-8 | A `?mode=source` link now waits while the banner shows. Discard opens code view on the original text. Restore opens it through the Code toggle, so the box shows the draft, and typing keeps the draft. Both Playwright tests pass, and both fail with the `05fc7ae` Editor. The builder used Playwright instead of a component test because TipTap does not run in jsdom. That is adequate: these tests prove the real TipTap and textarea behaviour, which a jsdom test could not. |
+| WP13R-3 | Closed | An effect cleanup in DiffViewer reports `undefined` when the viewer stops being shown or unmounts. React runs passive-effect cleanups before mounts in the same commit, so a file-to-file switch ends on the new file's mode. The deck cases (going to a file and Back to review) end the same way. `f87_the_shown_mode_is_reported_and_cleared_*` expects `["inline","preview",undefined]`, so it fails without the cleanup. `f87_copy_link_for_a_file_with_no_view_mode_has_no_mode` proves `src/app.ts` is copied with no `mode`. |
+| WP13R-4 | Closed | `navigateToHash` increments `linkSeq` for every followed link. DiffViewer picks again when `linkSeq` changes and `linkMode` is set. Inactive viewers get `linkMode` undefined, so they do not pick again. The unit test fails when the comparison is reverted. The app-side wiring has no test (WP13R-9). |
+| WP13R-5 | Closed | The blob view now consumes the link mode once it has entered code view, so a remount stays Rich. `refreshDocument` keeps the address's `mode`, so the hash it publishes equals the current one: no new history entry and no `hashchange`. `f86_refresh_after_choosing_rich_stays_rich_and_keeps_the_address` checks the view, the address and `history.length`, and fails with the `05fc7ae` Editor. |
+| WP13R-6 | Closed | The missing proofs are added: keep-view on show again, no save after a Markdown jump, an HTML jump or a context-menu Suggest, the HTML Head twin (unit and e2e), and the HTML blob `?mode=source` (open and Share). The departure for Back to review is adequate. The unit test drives `active` false then true and fails if the `lastPick` check is removed. The remaining ways the app could break it are a remount of the returned file or a change of key, and the existing `pr-comment-navigation.spec.ts` deck test catches those because the deck's frame state survives Back to review. |
+| WP13R-7 | Closed | The L2 page and diagram now match the code. §05 status is built, the storage box is solid in the drawio, SVG and inline copy, and the adapter's callers and Boundary are correct. The DiffViewer anchors point at `65-80`, `354-390` and `1054-1070` (checked against the file). The `linkMode`/`linkSeq` prop text, the F-89 order in the failure table and the Share journey are fixed. Doclint reports 0 errors. |
+
+### New findings
+
+| ID | Severity | Pass | Location | Finding | Failure scenario | Fix |
+|---|---|---|---|---|---|---|
+| WP13R-8 | Medium | Bugs | `src/components/Editor.tsx:1835-1840` (Restore) and `:1850-1856` (Discard) | While a `?mode=source` link waits for the draft banner, the page shows the rich view with the Code button enabled. If the user presses Code themselves, `codeEntryWaitsForDraft` stays set. The banner's buttons then act as if code view were still off. Discard resets the box to the original file text. Restore calls `toggleCodeView()`, which reads `codeView === true` from its closure, so it switches *out of* code view. That switch replaces the just-restored draft in the editor with the box's original text. | **Reproduced** (static export, desktop). In each case a draft is saved for `readme.md`, the user opens `#/acme/docs/blob/main/readme.md?mode=source`, sees "Unsaved draft found" and clicks Code. (a) They type ` TYPED-EDIT` in the box, then click Discard. The box reads `# Readme\n\nBody of readme.md.`, the typed text is gone, and the stored draft is `null`, so the edit is lost. Before this fix, Discard only cleared the banner. (b) They click Restore instead of Discard. The view switches to Rich and shows `Readme / Body of readme.md.`. The draft is not shown, and the page still counts as having unsaved changes. | When the user toggles code view by hand, end the wait: clear `codeEntryWaitsForDraft` and call `onCodeViewApplied`, for example inside `toggleCodeView`. Then, when Restore runs with code view already on, set `codeContent` to the restored Markdown instead of toggling. Add both sequences above as e2e tests. |
+| WP13R-9 | Low | Compliance | `src/lib/app-context.tsx:1142`; `src/components/PRDetail.tsx:636` | WP13R-4's proof feeds `linkSeq` into DiffViewer directly. No test follows the same link twice through the app, so the wiring is untested: the increment in `navigateToHash` and PRDetail passing `linkSeq` on. | Found by inspection, not run. If someone deletes `setLinkSeq(n => n + 1)` or the `linkSeq={linkSeq}` prop, every unit and e2e test stays green, and the original WP13R-4 failure is back. In that failure, `…/guide.md?mode=preview`, then a click on Inline Diff, then entering the `?mode=preview` address again leaves the view on Inline Diff. | Add one e2e test: open `GUIDE?mode=preview`, click Inline Diff, set `location.hash` back to the `?mode=preview` form, and expect Preview to be pressed. |
+| WP13R-10 | Nit | Compliance | `e2e/view-mode-links.spec.ts:297` | The final check of the Restore test, that the stored draft contains "Draft body of the edit.", would also pass if typing saved nothing, because the seeded draft already contains that text. The test still fails on the original bug through its textarea check at `:294`. | If a change stops the code box from saving drafts, line 297 still passes. | Assert the exact stored value after typing, for example that it contains `Draft body of the edit.!`. |
+
+### Checked in the fixes and found sound
+
+**`linkSeq`**
+- It increments once per `navigateToHash`. That includes the initial load, but a viewer mounted after the increment stores the current value in `lastPick`, so it does not pick again.
+- `guardNavigation` is stable (it depends only on `setPendingNavigation`), so the subscription effect does not keep re-navigating and incrementing `linkSeq`.
+- Browser Back to an entry with `?mode=` still picks the mode again, because the inactive viewer recorded `linkMode` as undefined.
+
+**`consumeLinkMode`**
+- Only Editor and HtmlViewer call it in the blob view. The PR view's `linkMode` is not affected.
+- After it runs, `openInCode` turns false. Editor's load effect does not depend on that prop, and HtmlViewer's effect returns early, so there is no loop.
+- The blob address keeps `?mode=source`, as the plan decided.
+
+**Clearing the shown mode**
+- The cleanup runs only for a viewer that was active.
+- StrictMode's mount, unmount and mount replay ends on the shown token.
+- Copy link while a document is loading now writes the path form with no mode.
+
+**Refresh**
+- `parseHash(readLocation()).mode` is read at click time, through the adapter, so LR-26 holds.
+- The rebuilt hash equals the current blob address, so `publish` makes no history entry and no `hashchange`, as the `history.length` check shows.
+
+**`pickHtmlMode`**
+- A file whose base and head are both empty falls back to `diff`.
+- The per-file re-pick (`pickHtmlAgain`) and the first-show pick use the same revision facts.
+
+**Public-repo wording**
+- The report contains none of the restricted terms.
