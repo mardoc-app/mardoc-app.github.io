@@ -45,7 +45,9 @@ import { buildHtmlDiff } from "@/lib/html-diff";
 import ReviewDock from "./ReviewDock";
 import HtmlDiffToolbar, { type HtmlDiffMode } from "./HtmlDiffToolbar";
 import { navigateHtmlDiff } from "@/lib/html-diff-navigation";
-import { useIsMobile } from "@/lib/use-viewport";
+import { useIsMobile, isWideScreen } from "@/lib/use-viewport";
+import { pickMode, type MdMode, type ViewMode } from "@/lib/routing/view-mode";
+import * as routeAdapter from "@/lib/routing/route-adapter";
 import BottomSheet from "./BottomSheet";
 import MobileCommentButton from "./MobileCommentButton";
 import CommentPanel, { type PanelComment } from "./CommentPanel";
@@ -55,7 +57,36 @@ import { parseSuggestionBody } from "@/lib/suggestion-body";
 import { commentFileIndex, commentTargetForFile } from "@/lib/comment-target";
 import { locateMarkdownComment, markCommentLocation, clearCommentMarks, commentLocationMessages } from "@/lib/markdown-comment-location";
 
+type MdViewMode = "rendered" | "split" | "suggest" | "preview";
+const MD_TOKEN: Record<MdViewMode, MdMode> = { rendered: "inline", split: "split", suggest: "suggest", preview: "preview" };
+const MD_FROM_TOKEN: Record<MdMode, MdViewMode> = { inline: "rendered", split: "split", suggest: "suggest", preview: "preview" };
+
+/** The Markdown view a file opens in: the link's mode, then the remembered one, then Inline Diff. */
+function pickMdMode(link: ViewMode | undefined): MdViewMode {
+  const available: MdMode[] = isWideScreen() ? ["inline", "split", "suggest", "preview"] : ["inline", "suggest", "preview"];
+  return MD_FROM_TOKEN[pickMode({ link, remembered: routeAdapter.loadMode("md"), available, fallback: "inline" })];
+}
+
+/**
+ * The HTML view a file opens in: the link's mode, then the remembered one, then Inline Diff.
+ * Head needs a head revision and Base a base revision, so an added or deleted file never opens on an empty one.
+ */
+function pickHtmlMode(link: ViewMode | undefined, revisions: { base: boolean; head: boolean }): { view: "rendered" | "source"; diff: HtmlDiffMode } {
+  const available = (["diff", "head", "base", "source"] as const).filter(token =>
+    token === "head" ? revisions.head : token === "base" ? revisions.base : true);
+  const token = pickMode({ link, remembered: routeAdapter.loadMode("html"), available, fallback: "diff" });
+  return token === "source" ? { view: "source", diff: "diff" } : { view: "rendered", diff: token };
+}
+
 interface DiffViewerProps {
+  /** Whether this file is the one shown; a file that becomes shown picks its view mode again. */
+  active?: boolean;
+  /** The view mode named by the link that opened the file. */
+  linkMode?: ViewMode;
+  /** Identifies the followed link; following the same link again applies its mode again. */
+  linkSeq?: number;
+  /** Called with the token when the user picks a view mode. */
+  onModeChange?: (token: ViewMode | undefined) => void;
   reviewDetails?: (close: () => void) => React.ReactNode;
   returnPath?: string;
   onReturn?: () => void;
@@ -297,6 +328,10 @@ function FloatingToolbar({
 // ─── Main DiffViewer ───────────────────────────────────────────────────────
 
 export default function DiffViewer({
+  active = true,
+  linkMode,
+  linkSeq,
+  onModeChange,
   reviewDetails,
   returnPath,
   onReturn,
@@ -315,10 +350,49 @@ export default function DiffViewer({
   onAcceptSuggestion,
   onDiscardPendingComment,
 }: DiffViewerProps) {
-  const [viewMode, setViewMode] = useState<"rendered" | "split" | "suggest" | "preview">("rendered");
-  const [htmlViewMode, setHtmlViewMode] = useState<"rendered" | "source">("rendered");
-  const [htmlDiffMode, setHtmlDiffMode] = useState<HtmlDiffMode>("diff");
+  const [viewMode, setViewMode] = useState<MdViewMode>(() => pickMdMode(linkMode));
+  // A file keeps its view when it is shown again. It picks again only on its first
+  // time shown, or when a link names a different mode for the file on screen.
+  const revisions = { base: !!file.baseContent, head: !!file.headContent };
+  const lastPick = useRef({ shown: active, linkMode, linkSeq });
+  useEffect(() => {
+    const last = lastPick.current;
+    lastPick.current = { shown: last.shown || active, linkMode, linkSeq };
+    if (!active) return;
+    const firstShown = !last.shown;
+    const newLinkMode = linkMode !== undefined && (last.linkMode !== linkMode || last.linkSeq !== linkSeq);
+    if (!firstShown && !newLinkMode) return;
+    setViewMode(pickMdMode(linkMode));
+    const pick = pickHtmlMode(linkMode, revisions);
+    setHtmlViewMode(pick.view);
+    setHtmlDiffMode(pick.diff);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, linkMode, linkSeq]);
+  const pickViewMode = (value: MdViewMode) => {
+    setViewMode(value);
+    routeAdapter.saveMode("md", MD_TOKEN[value]);
+    routeAdapter.publishMode(MD_TOKEN[value]);
+  };
+  const htmlHeld = useRef<{ view: "rendered" | "source"; diff: HtmlDiffMode }>();
+  if (!htmlHeld.current) htmlHeld.current = pickHtmlMode(linkMode, revisions);
+  const [htmlViewMode, setHtmlViewMode] = useState<"rendered" | "source">(htmlHeld.current.view);
+  const [htmlDiffMode, setHtmlDiffMode] = useState<HtmlDiffMode>(htmlHeld.current.diff);
+  const pickHtmlAgain = () => {
+    const pick = pickHtmlMode(linkMode, revisions);
+    setHtmlViewMode(pick.view);
+    setHtmlDiffMode(pick.diff);
+  };
   const htmlShowBase = htmlDiffMode === "base";
+  const fileIsHtmlNow = isHtmlFile(file.path);
+  const shownToken: ViewMode = fileIsHtmlNow ? (htmlViewMode === "source" ? "source" : htmlDiffMode) : MD_TOKEN[viewMode];
+  useEffect(() => {
+    if (active) onModeChange?.(shownToken);
+  }, [active, shownToken, onModeChange]);
+  // A file that is no longer shown reports no mode, so Copy link never carries another file's.
+  useEffect(() => {
+    if (!active) return;
+    return () => onModeChange?.(undefined);
+  }, [active, onModeChange]);
   const [activeHtmlChange, setActiveHtmlChange] = useState(-1);
   const [htmlReady, setHtmlReady] = useState(false);
   useEffect(() => { setHtmlReady(true); }, []);
@@ -474,14 +548,19 @@ export default function DiffViewer({
   }, [fileIsHtml, htmlDiffMode, htmlDiff.html, htmlAnnotatedSource, htmlShowBase]);
 
   useEffect(() => {
-    setHtmlDiffMode("diff");
+    pickHtmlAgain();
     setActiveHtmlChange(-1);
     setPendingSelection(null);
     setPendingSelectionRange(null);
     setPendingCommentInput("");
   }, [file.path, file.baseContent, file.headContent]);
 
+  const rememberHtmlMode = (token: ViewMode) => {
+    routeAdapter.saveMode("html", token);
+    routeAdapter.publishMode(token);
+  };
   const changeHtmlMode = (mode: HtmlDiffMode) => {
+    rememberHtmlMode(mode);
     setHtmlDiffMode(mode);
     setActiveHtmlChange(-1);
     setJumpRequest(null);
@@ -975,9 +1054,9 @@ export default function DiffViewer({
   const modeButtonClass = "min-h-11 sm:min-h-8 rounded px-2 text-xs whitespace-nowrap focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]";
   const revisionControls = fileIsHtml ? (
     <div role="group" aria-label="HTML display" className="flex shrink-0 items-center gap-0.5">
-      {htmlViewMode === "source" && <button type="button" onClick={() => setHtmlViewMode("rendered")}
+      {htmlViewMode === "source" && <button type="button" onClick={() => { setHtmlViewMode("rendered"); rememberHtmlMode(htmlDiffMode); }}
         className={modeButtonClass}><Eye size={14} className="inline mr-1" />Rendered</button>}
-      <button type="button" onClick={() => setHtmlViewMode("source")} aria-pressed={htmlViewMode === "source"}
+      <button type="button" onClick={() => { setHtmlViewMode("source"); rememberHtmlMode("source"); }} aria-pressed={htmlViewMode === "source"}
         className={modeButtonClass + (htmlViewMode === "source" ? " bg-[var(--accent)] text-white" : " hover:bg-[var(--surface-hover)]")}>
         <FileCode size={14} className="inline mr-1" />Source Diff
       </button>
@@ -985,7 +1064,7 @@ export default function DiffViewer({
   ) : (
     <div role="group" aria-label="Markdown preview version" className="flex flex-wrap items-center gap-0.5">
       {([["rendered", "Inline Diff"], ["split", "Side by Side"], ["suggest", "Suggest"], ["preview", "Preview"]] as const).map(([value, label]) =>
-        <button key={value} type="button" onClick={() => setViewMode(value)} aria-pressed={viewMode === value}
+        <button key={value} type="button" onClick={() => pickViewMode(value)} aria-pressed={viewMode === value}
           className={modeButtonClass + (value === "split" ? " hidden md:block" : "") +
             (viewMode === value ? " bg-[var(--accent)] text-white" : " hover:bg-[var(--surface-hover)]")}>
           {value === "suggest" && <Pencil size={10} className="inline mr-1" />}

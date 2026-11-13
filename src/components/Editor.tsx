@@ -168,6 +168,12 @@ interface EditorProps {
   // current file, forcing the content-load effect to re-run for the
   // same filePath. See feature 040.
   reloadNonce?: number;
+  /** Open the file in code view (a link with mode=source). */
+  openInCode?: boolean;
+  /** Called once the link's code view has been entered. */
+  onCodeViewApplied?: () => void;
+  /** Called with whether the code view is on. */
+  onCodeViewChange?: (codeView: boolean) => void;
 }
 
 interface EditorComment {
@@ -507,7 +513,7 @@ function CommentSidePanel({
 
 // ─── Main Editor Component ──────────────────────────────────────────────
 
-export default function Editor({ content, onContentChange, filePath, repoFullName, branch, assetRef = branch, reloadNonce = 0 }: EditorProps) {
+export default function Editor({ content, onContentChange, filePath, repoFullName, branch, assetRef = branch, reloadNonce = 0, openInCode = false, onCodeViewApplied, onCodeViewChange }: EditorProps) {
   const editorContainerRef = useRef<HTMLDivElement>(null);
   // Separate ref for the positioned content wrapper inside the scroll
   // container. LinkImageBubble uses `position: absolute`, so its
@@ -538,6 +544,18 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
   // Code view toggle
   const [codeView, setCodeView] = useState(false);
   const [codeContent, setCodeContent] = useState("");
+  // In code view the text box is the document, so the rich editor's delayed autosave must not
+  // overwrite the draft the text box saved.
+  const codeViewRef = useRef(codeView);
+  codeViewRef.current = codeView;
+  useEffect(() => { onCodeViewChange?.(codeView); }, [codeView, onCodeViewChange]);
+  // A link opens its file in code view once, after the content is loaded and any saved
+  // draft is settled; the app then marks the link mode as applied.
+  const openInCodeRef = useRef(openInCode);
+  openInCodeRef.current = openInCode;
+  const onCodeViewAppliedRef = useRef(onCodeViewApplied);
+  onCodeViewAppliedRef.current = onCodeViewApplied;
+  const codeEntryWaitsForDraft = useRef(false);
   const codeTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Word count + reading time — displayed in the toolbar. Recomputed in the
@@ -781,6 +799,7 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
       // on file switches.
       if (dirtyCheckTimer.current) clearTimeout(dirtyCheckTimer.current);
       dirtyCheckTimer.current = setTimeout(() => {
+        if (codeViewRef.current) return;
         const scope = draftScopeRef.current;
         const turndown = createTurndownService();
         const currentMd = turndown.turndown(editor.getHTML());
@@ -831,6 +850,7 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
   // Update content when file changes: pre-render mermaid, set content, then fetch images
   useEffect(() => {
     let cancelled = false;
+    codeEntryWaitsForDraft.current = false;
 
     if (editor) {
       if (content) {
@@ -856,6 +876,15 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
           );
           if (draft) {
             setDraftPrompt({ markdown: draft.markdown, savedAt: draft.savedAt });
+          }
+          if (openInCodeRef.current) {
+            if (draft) codeEntryWaitsForDraft.current = true;
+            else {
+              setCodeContent(originalMarkdownRef.current);
+              setCodeView(true);
+              editor.setEditable(false);
+              onCodeViewAppliedRef.current?.();
+            }
           }
 
           // Fetch private repo images after TipTap renders. In embed
@@ -894,6 +923,12 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
 
   const toggleCodeView = useCallback(async () => {
     if (!editor) return;
+    // The user chose a view, so a link's code view no longer waits for the draft banner
+    // and the link mode counts as used.
+    if (codeEntryWaitsForDraft.current) {
+      codeEntryWaitsForDraft.current = false;
+      onCodeViewAppliedRef.current?.();
+    }
     if (!codeView) {
       const turndown = createTurndownService();
       const html = editor.getHTML();
@@ -1808,6 +1843,13 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
                       const currentMd = turndown.turndown(editor.getHTML());
                       setIsDirty(currentMd !== originalMarkdownRef.current);
                       setDraftPrompt(null);
+                      if (codeEntryWaitsForDraft.current) {
+                        // The link's code view opens through the Code toggle, so the box shows the restored text.
+                        await toggleCodeView();
+                      } else if (codeView) {
+                        // Already in code view: the box shows the restored text and stays in code view.
+                        setCodeContent(md);
+                      }
                     }}
                     className="text-xs px-3 py-1 bg-amber-600 text-white rounded hover:bg-amber-700 transition-colors"
                   >
@@ -1817,6 +1859,13 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
                     onClick={() => {
                       clearDraft(repoFullName, branch, filePath);
                       setDraftPrompt(null);
+                      if (codeEntryWaitsForDraft.current) {
+                        codeEntryWaitsForDraft.current = false;
+                        setCodeContent(originalMarkdownRef.current ?? "");
+                        setCodeView(true);
+                        editor?.setEditable(false);
+                        onCodeViewAppliedRef.current?.();
+                      }
                     }}
                     className="text-xs px-3 py-1 border border-[var(--border)] text-[var(--text-secondary)] rounded hover:bg-[var(--surface-hover)] transition-colors"
                   >
@@ -1863,6 +1912,7 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
                 value={codeContent}
                 onChange={(e) => {
                   const next = e.target.value;
+                  if (dirtyCheckTimer.current) clearTimeout(dirtyCheckTimer.current);
                   setCodeContent(next);
                   const { dirty } = reconcileDraft(
                     draftScopeRef.current,

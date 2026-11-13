@@ -21,6 +21,12 @@ interface HtmlViewerProps {
   filePath: string;
   repoFullName?: string;
   branch?: string;
+  /** Open the file in code view (a link with mode=source). */
+  openInCode?: boolean;
+  /** Called once the link's code view has been entered. */
+  onCodeViewApplied?: () => void;
+  /** Called with whether the code view is on. */
+  onCodeViewChange?: (codeView: boolean) => void;
 }
 
 interface HtmlComment {
@@ -34,8 +40,16 @@ interface HtmlComment {
   resolved: boolean;
 }
 
-export default function HtmlViewer({ content, filePath, repoFullName, branch }: HtmlViewerProps) {
-  const [viewSource, setViewSource] = useState(false);
+export default function HtmlViewer({ content, filePath, repoFullName, branch, openInCode = false, onCodeViewApplied, onCodeViewChange }: HtmlViewerProps) {
+  const [viewSource, setViewSource] = useState(openInCode);
+  // A link opens its file in code view once; the app then marks the link mode as applied.
+  useEffect(() => {
+    if (!openInCode) return;
+    setViewSource(true);
+    onCodeViewApplied?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filePath, openInCode]);
+  useEffect(() => { onCodeViewChange?.(viewSource); }, [viewSource, onCodeViewChange]);
   const [fullscreen, setFullscreen] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
