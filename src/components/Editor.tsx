@@ -918,6 +918,8 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
 
   const toggleCodeView = useCallback(async () => {
     if (!editor) return;
+    // The user chose a view, so a link's code view no longer waits for the draft banner.
+    codeEntryWaitsForDraft.current = false;
     if (!codeView) {
       const turndown = createTurndownService();
       const html = editor.getHTML();
@@ -1834,9 +1836,11 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
                       setDraftPrompt(null);
                       if (codeEntryWaitsForDraft.current) {
                         // The link's code view opens through the Code toggle, so the box shows the restored text.
-                        codeEntryWaitsForDraft.current = false;
                         await toggleCodeView();
                         onCodeViewAppliedRef.current?.();
+                      } else if (codeView) {
+                        // Already in code view: the box shows the restored text and stays in code view.
+                        setCodeContent(md);
                       }
                     }}
                     className="text-xs px-3 py-1 bg-amber-600 text-white rounded hover:bg-amber-700 transition-colors"

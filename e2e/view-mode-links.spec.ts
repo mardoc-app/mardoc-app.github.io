@@ -3,7 +3,7 @@
  * when the screen can show it; a picked mode carries to the next file; a
  * link's mode is shown but not remembered.
  */
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Locator, type Page } from "@playwright/test";
 import { openSidebar, clickVisibleText } from "./fixtures/helpers";
 
 const FILES = ["deck-a.html", "deck-b.html", "docs/guide.md", "readme.md", "src/app.ts"];
@@ -269,6 +269,9 @@ const DRAFT_KEY = "mardoc:draft:v1:acme/docs:main:readme.md";
 async function seedDraft(page: Page) {
   await page.addInitScript(key => localStorage.setItem(key, JSON.stringify({ markdown: "# Readme\n\nDraft body of the edit.", savedAt: Date.now() })), DRAFT_KEY);
 }
+async function caretToEnd(box: Locator) {
+  await box.evaluate((el: HTMLTextAreaElement) => { el.focus(); el.setSelectionRange(el.value.length, el.value.length); });
+}
 const draftBanner = (page: Page) => page.getByText("Unsaved draft found");
 
 test("f86_source_link_waits_for_the_draft_banner_then_shows_the_upstream_text_after_discard", async ({ page }) => {
@@ -292,7 +295,51 @@ test("f86_source_link_waits_for_the_draft_banner_then_shows_the_restored_text_af
   await expect(page.getByTitle("Switch back to rich editor")).toBeVisible();
   const box = page.locator("textarea").first();
   await expect(box).toHaveValue(/Draft body of the edit\./);
-  await box.press("End");
+  await caretToEnd(box);
   await box.pressSequentially("!");
-  await expect.poll(() => page.evaluate(key => localStorage.getItem(key), DRAFT_KEY)).toContain("Draft body of the edit.");
+  await expect.poll(() => page.evaluate(key => localStorage.getItem(key), DRAFT_KEY)).toContain("Draft body of the edit.!");
+});
+
+test("f86_pressing_code_while_a_source_link_waits_keeps_the_typing_when_the_draft_is_discarded", async ({ page }) => {
+  await seedDraft(page);
+  await mockPR(page);
+  await page.goto(`${BLOB}?mode=source`);
+  await expect(draftBanner(page)).toBeVisible();
+  await page.getByTitle("Edit raw markdown").click();
+  const box = page.locator("textarea").first();
+  await expect(box).toHaveValue(/Body of readme\.md/);
+  await caretToEnd(box);
+  await box.pressSequentially(" TYPED-EDIT");
+  await page.getByRole("button", { name: "Discard" }).click();
+  await expect(draftBanner(page)).toHaveCount(0);
+  await expect(page.getByTitle("Switch back to rich editor")).toBeVisible();
+  await expect(box).toHaveValue(/Body of readme\.md\. TYPED-EDIT/);
+  await expect.poll(() => page.evaluate(key => localStorage.getItem(key), DRAFT_KEY)).toBeNull();
+});
+
+test("f86_pressing_code_while_a_source_link_waits_shows_the_draft_when_it_is_restored", async ({ page }) => {
+  await seedDraft(page);
+  await mockPR(page);
+  await page.goto(`${BLOB}?mode=source`);
+  await expect(draftBanner(page)).toBeVisible();
+  await page.getByTitle("Edit raw markdown").click();
+  await expect(page.getByTitle("Switch back to rich editor")).toBeVisible();
+  await page.getByRole("button", { name: "Restore" }).click();
+  await expect(draftBanner(page)).toHaveCount(0);
+  await expect(page.getByTitle("Switch back to rich editor")).toBeVisible();
+  const box = page.locator("textarea").first();
+  await expect(box).toHaveValue(/Draft body of the edit\./);
+  await caretToEnd(box);
+  await box.pressSequentially("?");
+  await expect.poll(() => page.evaluate(key => localStorage.getItem(key), DRAFT_KEY)).toContain("Draft body of the edit.?");
+});
+
+test("f86_following_the_same_mode_link_again_applies_it_again", async ({ page }) => {
+  await mockPR(page);
+  await page.goto(`${GUIDE}?mode=preview`);
+  await expect(pressed(page, "Preview")).toBeVisible();
+  await page.getByRole("button", { name: "Inline Diff", exact: true }).click();
+  await expect(pressed(page, "Inline Diff")).toBeVisible();
+  await page.evaluate(() => { location.hash = "#/acme/docs/pull/12/file/docs/guide.md?mode=preview"; });
+  await expect(pressed(page, "Preview")).toBeVisible();
 });
