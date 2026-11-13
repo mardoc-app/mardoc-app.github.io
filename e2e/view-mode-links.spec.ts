@@ -343,3 +343,18 @@ test("f86_following_the_same_mode_link_again_applies_it_again", async ({ page })
   await page.evaluate(() => { location.hash = "#/acme/docs/pull/12/file/docs/guide.md?mode=preview"; });
   await expect(pressed(page, "Preview")).toBeVisible();
 });
+
+test("f86_pressing_code_while_a_source_link_waits_uses_up_the_link_so_refresh_stays_rich", async ({ page }) => {
+  await seedDraft(page);
+  await mockPR(page);
+  await page.goto(`${BLOB}?mode=source`);
+  await expect(draftBanner(page)).toBeVisible();
+  await page.getByTitle("Edit raw markdown").click();
+  await expect(page.getByTitle("Switch back to rich editor")).toBeVisible();
+  await page.getByRole("button", { name: "Discard" }).click();
+  await page.getByTitle("Switch back to rich editor").click();
+  await expect(page.getByTitle("Edit raw markdown")).toBeVisible();
+  await page.getByRole("button", { name: "Refresh document" }).click();
+  await expect(page.getByRole("heading", { name: "Readme", exact: true }).first()).toBeVisible();
+  await expect(page.getByTitle("Edit raw markdown")).toBeVisible();
+});

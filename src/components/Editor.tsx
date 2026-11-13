@@ -918,8 +918,12 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
 
   const toggleCodeView = useCallback(async () => {
     if (!editor) return;
-    // The user chose a view, so a link's code view no longer waits for the draft banner.
-    codeEntryWaitsForDraft.current = false;
+    // The user chose a view, so a link's code view no longer waits for the draft banner
+    // and the link mode counts as used.
+    if (codeEntryWaitsForDraft.current) {
+      codeEntryWaitsForDraft.current = false;
+      onCodeViewAppliedRef.current?.();
+    }
     if (!codeView) {
       const turndown = createTurndownService();
       const html = editor.getHTML();
@@ -1837,7 +1841,6 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
                       if (codeEntryWaitsForDraft.current) {
                         // The link's code view opens through the Code toggle, so the box shows the restored text.
                         await toggleCodeView();
-                        onCodeViewAppliedRef.current?.();
                       } else if (codeView) {
                         // Already in code view: the box shows the restored text and stays in code view.
                         setCodeContent(md);

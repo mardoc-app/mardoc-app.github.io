@@ -260,3 +260,9 @@ The deliberate choice that Discard in code view keeps the typing and clears the 
 
 **Public-repo wording**
 - The report contains none of the restricted terms.
+
+### Second re-review dispositions
+
+| ID | Disposition | Fix | Test |
+|---|---|---|---|
+| WP13R-11 | Fixed | Pressing Code while a source link waits for the draft banner now marks the link mode as applied, so a later remount or Refresh stays in the view the user chose. | `view-mode-links.spec.ts`: `f86_pressing_code_while_a_source_link_waits_uses_up_the_link_so_refresh_stays_rich`. It failed before the fix. |
