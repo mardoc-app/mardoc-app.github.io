@@ -267,7 +267,13 @@ test("f86_refresh_after_choosing_rich_stays_rich_and_keeps_the_address", async (
 
 const DRAFT_KEY = "mardoc:draft:v1:acme/docs:main:readme.md";
 async function seedDraft(page: Page) {
-  await page.addInitScript(key => localStorage.setItem(key, JSON.stringify({ markdown: "# Readme\n\nDraft body of the edit.", savedAt: Date.now() })), DRAFT_KEY);
+  // Init scripts run in every new document and frame, so seed once, in the top page only;
+  // a later run would overwrite what the test typed.
+  await page.addInitScript(key => {
+    if (window !== window.top || sessionStorage.getItem("e2e_draft_seeded")) return;
+    sessionStorage.setItem("e2e_draft_seeded", "1");
+    localStorage.setItem(key, JSON.stringify({ markdown: "# Readme\n\nDraft body of the edit.", savedAt: Date.now() }));
+  }, DRAFT_KEY);
 }
 async function caretToEnd(box: Locator) {
   await box.evaluate((el: HTMLTextAreaElement) => { el.focus(); el.setSelectionRange(el.value.length, el.value.length); });

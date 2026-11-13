@@ -544,6 +544,10 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
   // Code view toggle
   const [codeView, setCodeView] = useState(false);
   const [codeContent, setCodeContent] = useState("");
+  // In code view the text box is the document, so the rich editor's delayed autosave must not
+  // overwrite the draft the text box saved.
+  const codeViewRef = useRef(codeView);
+  codeViewRef.current = codeView;
   useEffect(() => { onCodeViewChange?.(codeView); }, [codeView, onCodeViewChange]);
   // A link opens its file in code view once, after the content is loaded and any saved
   // draft is settled; the app then marks the link mode as applied.
@@ -795,6 +799,7 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
       // on file switches.
       if (dirtyCheckTimer.current) clearTimeout(dirtyCheckTimer.current);
       dirtyCheckTimer.current = setTimeout(() => {
+        if (codeViewRef.current) return;
         const scope = draftScopeRef.current;
         const turndown = createTurndownService();
         const currentMd = turndown.turndown(editor.getHTML());
@@ -1907,6 +1912,7 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
                 value={codeContent}
                 onChange={(e) => {
                   const next = e.target.value;
+                  if (dirtyCheckTimer.current) clearTimeout(dirtyCheckTimer.current);
                   setCodeContent(next);
                   const { dirty } = reconcileDraft(
                     draftScopeRef.current,
