@@ -72,6 +72,10 @@ interface AppState {
   documentAnchor: string;
   /** The view mode named by the link that opened the current file; cleared when the user opens another file. */
   linkMode: LinkViewMode | undefined;
+  /** Changes each time a link is followed, so following the same link again is a new link. */
+  linkSeq: number;
+  /** Marks the link mode as applied; a blob view calls it once it has entered the mode. */
+  consumeLinkMode: () => void;
   /** The view mode token of the PR file on screen, reported by its viewer; used by Copy link. */
   shownMode: LinkViewMode | undefined;
   setShownMode: (token: LinkViewMode | undefined) => void;
@@ -214,6 +218,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [prComments, setPRComments] = useState<PRComment[]>([]);
   const [selectedPRFileIdx, setSelectedPRFileIdx] = useState(0);
   const [linkMode, setLinkMode] = useState<LinkViewMode | undefined>(undefined);
+  const [linkSeq, setLinkSeq] = useState(0);
+  const consumeLinkMode = useCallback(() => setLinkMode(undefined), []);
   const [shownMode, setShownMode] = useState<LinkViewMode | undefined>(undefined);
   const [documentAnchor, setDocumentAnchor] = useState("");
   const [loadingPRFiles, setLoadingPRFiles] = useState(false);
@@ -958,7 +964,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const refreshDocument = useCallback(() => {
     if (selectedFile && !selectedFile.path.startsWith("__")) {
-      guardNavigation("refresh this document", () => { void _openFileInternal(selectedFile); });
+      // The refreshed file keeps the address as it is, mode included.
+      const mode = parseHash(routeAdapter.readLocation()).mode;
+      guardNavigation("refresh this document", () => { void _openFileInternal(selectedFile, undefined, undefined, mode); });
     }
   }, [selectedFile, guardNavigation, _openFileInternal]);
 
@@ -1131,6 +1139,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const route = parseHash(hash);
     if (route.type === "none") { if (hash) setError("Invalid document link."); return; }
     setLinkMode(route.type === "pr" || route.type === "file" ? route.mode : undefined);
+    setLinkSeq(n => n + 1);
     if (route.type === "file" && route.filePath && route.branch) {
       await _openFileInternal({ id: `hash-${route.filePath}`, name: route.filePath.split("/").pop()!,
         path: route.filePath, type: "file" }, route.repoFullName, route.branch, route.mode);
@@ -1235,6 +1244,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         selectedPRFileIdx,
         documentAnchor,
         linkMode,
+        linkSeq,
+        consumeLinkMode,
         shownMode,
         setShownMode,
         setSelectedPRFileIdx: setSelectedPRFileIdxWithHash,

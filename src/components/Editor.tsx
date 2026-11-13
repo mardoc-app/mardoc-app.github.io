@@ -170,6 +170,8 @@ interface EditorProps {
   reloadNonce?: number;
   /** Open the file in code view (a link with mode=source). */
   openInCode?: boolean;
+  /** Called once the link's code view has been entered. */
+  onCodeViewApplied?: () => void;
   /** Called with whether the code view is on. */
   onCodeViewChange?: (codeView: boolean) => void;
 }
@@ -511,7 +513,7 @@ function CommentSidePanel({
 
 // ─── Main Editor Component ──────────────────────────────────────────────
 
-export default function Editor({ content, onContentChange, filePath, repoFullName, branch, assetRef = branch, reloadNonce = 0, openInCode = false, onCodeViewChange }: EditorProps) {
+export default function Editor({ content, onContentChange, filePath, repoFullName, branch, assetRef = branch, reloadNonce = 0, openInCode = false, onCodeViewApplied, onCodeViewChange }: EditorProps) {
   const editorContainerRef = useRef<HTMLDivElement>(null);
   // Separate ref for the positioned content wrapper inside the scroll
   // container. LinkImageBubble uses `position: absolute`, so its
@@ -543,10 +545,13 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
   const [codeView, setCodeView] = useState(false);
   const [codeContent, setCodeContent] = useState("");
   useEffect(() => { onCodeViewChange?.(codeView); }, [codeView, onCodeViewChange]);
-  // A link opens its file in code view once, after the content is loaded.
-  const openedInCode = useRef<string | null>(null);
+  // A link opens its file in code view once, after the content is loaded and any saved
+  // draft is settled; the app then marks the link mode as applied.
   const openInCodeRef = useRef(openInCode);
   openInCodeRef.current = openInCode;
+  const onCodeViewAppliedRef = useRef(onCodeViewApplied);
+  onCodeViewAppliedRef.current = onCodeViewApplied;
+  const codeEntryWaitsForDraft = useRef(false);
   const codeTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Word count + reading time — displayed in the toolbar. Recomputed in the
@@ -840,6 +845,7 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
   // Update content when file changes: pre-render mermaid, set content, then fetch images
   useEffect(() => {
     let cancelled = false;
+    codeEntryWaitsForDraft.current = false;
 
     if (editor) {
       if (content) {
@@ -854,13 +860,6 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
           // Initialize downstream feature state from the loaded content.
           setStats(analyzeMarkdown(originalMarkdownRef.current));
           setCurrentMarkdown(originalMarkdownRef.current);
-          if (!openInCodeRef.current) openedInCode.current = null;
-          else if (openedInCode.current !== `${repoFullName}@${branch}:${filePath}`) {
-            openedInCode.current = `${repoFullName}@${branch}:${filePath}`;
-            setCodeContent(originalMarkdownRef.current);
-            setCodeView(true);
-            editor.setEditable(false);
-          }
 
           // Check for a locally-saved draft that differs from upstream — if
           // found, offer to restore it. resolveDraftOnLoad handles the
@@ -872,6 +871,15 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
           );
           if (draft) {
             setDraftPrompt({ markdown: draft.markdown, savedAt: draft.savedAt });
+          }
+          if (openInCodeRef.current) {
+            if (draft) codeEntryWaitsForDraft.current = true;
+            else {
+              setCodeContent(originalMarkdownRef.current);
+              setCodeView(true);
+              editor.setEditable(false);
+              onCodeViewAppliedRef.current?.();
+            }
           }
 
           // Fetch private repo images after TipTap renders. In embed
@@ -1824,6 +1832,12 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
                       const currentMd = turndown.turndown(editor.getHTML());
                       setIsDirty(currentMd !== originalMarkdownRef.current);
                       setDraftPrompt(null);
+                      if (codeEntryWaitsForDraft.current) {
+                        // The link's code view opens through the Code toggle, so the box shows the restored text.
+                        codeEntryWaitsForDraft.current = false;
+                        await toggleCodeView();
+                        onCodeViewAppliedRef.current?.();
+                      }
                     }}
                     className="text-xs px-3 py-1 bg-amber-600 text-white rounded hover:bg-amber-700 transition-colors"
                   >
@@ -1833,6 +1847,13 @@ export default function Editor({ content, onContentChange, filePath, repoFullNam
                     onClick={() => {
                       clearDraft(repoFullName, branch, filePath);
                       setDraftPrompt(null);
+                      if (codeEntryWaitsForDraft.current) {
+                        codeEntryWaitsForDraft.current = false;
+                        setCodeContent(originalMarkdownRef.current ?? "");
+                        setCodeView(true);
+                        editor?.setEditable(false);
+                        onCodeViewAppliedRef.current?.();
+                      }
                     }}
                     className="text-xs px-3 py-1 border border-[var(--border)] text-[var(--text-secondary)] rounded hover:bg-[var(--surface-hover)] transition-colors"
                   >

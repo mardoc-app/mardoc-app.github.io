@@ -6,7 +6,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { openSidebar, clickVisibleText } from "./fixtures/helpers";
 
-const FILES = ["deck-a.html", "deck-b.html", "docs/guide.md", "readme.md"];
+const FILES = ["deck-a.html", "deck-b.html", "docs/guide.md", "readme.md", "src/app.ts"];
 const TITLES: Record<string, string> = { "docs/guide.md": "Linked guide", "readme.md": "Readme" };
 
 async function mockPR(page: Page) {
@@ -214,4 +214,85 @@ test("f88_reopening_a_file_uses_the_remembered_mode", async ({ page }) => {
   await clickVisibleText(page, "guide.md");
   await expect(guideHeading(page)).toBeVisible();
   await expect(pressed(page, "Inline Diff")).toBeVisible();
+});
+
+test("f86_preview_link_opens_an_html_file_on_head", async ({ page }) => {
+  await mockPR(page);
+  await page.goto(`${DECK_A}?mode=preview`);
+  await expect(page.frameLocator('iframe[title="deck-a.html"]').getByText("New text.")).toBeVisible();
+  await expect(toggle(page, "Head (new)")).toBeVisible();
+});
+
+test("f87_copy_link_for_a_file_with_no_view_mode_has_no_mode", async ({ page }) => {
+  await captureClipboard(page);
+  await mockPR(page);
+  await page.goto(GUIDE);
+  await expect(guideHeading(page)).toBeVisible();
+  await page.getByRole("button", { name: "Preview", exact: true }).click();
+  await openSidebar(page);
+  await clickVisibleText(page, "app.ts");
+  await expect(page).toHaveURL(/file\/src\/app\.ts$/);
+  await page.getByRole("button", { name: "Copy link" }).click();
+  await expect.poll(() => lastCopied(page)).toMatch(/\/pull\/12\/file\/src\/app\.ts$/);
+});
+
+const BLOB_HTML = "/#/acme/docs/blob/main/deck-a.html";
+
+test("f87_html_blob_source_link_opens_code_view_and_shares_mode_source", async ({ page }) => {
+  await captureClipboard(page);
+  await mockPR(page);
+  await page.goto(`${BLOB_HTML}?mode=source`);
+  await expect(page.getByTitle("Switch back to rendered view")).toBeVisible();
+  await expect(page).toHaveURL(/deck-a\.html\?mode=source$/);
+  await page.getByRole("button", { name: "Copy revision link" }).click();
+  await expect.poll(() => lastCopied(page)).toMatch(/\/blob\/c+\/deck-a\.html\?mode=source$/);
+  await page.getByTitle("Switch back to rendered view").click();
+  await page.getByRole("button", { name: "Copy branch link" }).click();
+  await expect.poll(() => lastCopied(page)).toMatch(/\/blob\/main\/deck-a\.html$/);
+});
+
+test("f86_refresh_after_choosing_rich_stays_rich_and_keeps_the_address", async ({ page }) => {
+  await mockPR(page);
+  await page.goto(`${BLOB}?mode=source`);
+  await expect(page.getByTitle("Switch back to rich editor")).toBeVisible();
+  await page.getByTitle("Switch back to rich editor").click();
+  await expect(page.getByTitle("Edit raw markdown")).toBeVisible();
+  const entries = await page.evaluate(() => history.length);
+  await page.getByRole("button", { name: "Refresh document" }).click();
+  await expect(page.getByTitle("Edit raw markdown")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Readme", exact: true }).first()).toBeVisible();
+  await expect(page).toHaveURL(/readme\.md\?mode=source$/);
+  expect(await page.evaluate(() => history.length)).toBe(entries);
+});
+
+const DRAFT_KEY = "mardoc:draft:v1:acme/docs:main:readme.md";
+async function seedDraft(page: Page) {
+  await page.addInitScript(key => localStorage.setItem(key, JSON.stringify({ markdown: "# Readme\n\nDraft body of the edit.", savedAt: Date.now() })), DRAFT_KEY);
+}
+const draftBanner = (page: Page) => page.getByText("Unsaved draft found");
+
+test("f86_source_link_waits_for_the_draft_banner_then_shows_the_upstream_text_after_discard", async ({ page }) => {
+  await seedDraft(page);
+  await mockPR(page);
+  await page.goto(`${BLOB}?mode=source`);
+  await expect(draftBanner(page)).toBeVisible();
+  await expect(page.getByTitle("Edit raw markdown")).toBeVisible();
+  await page.getByRole("button", { name: "Discard" }).click();
+  await expect(page.getByTitle("Switch back to rich editor")).toBeVisible();
+  await expect(page.locator("textarea").first()).toHaveValue(/Body of readme\.md/);
+});
+
+test("f86_source_link_waits_for_the_draft_banner_then_shows_the_restored_text_after_restore", async ({ page }) => {
+  await seedDraft(page);
+  await mockPR(page);
+  await page.goto(`${BLOB}?mode=source`);
+  await expect(draftBanner(page)).toBeVisible();
+  await expect(page.getByTitle("Edit raw markdown")).toBeVisible();
+  await page.getByRole("button", { name: "Restore" }).click();
+  await expect(page.getByTitle("Switch back to rich editor")).toBeVisible();
+  const box = page.locator("textarea").first();
+  await expect(box).toHaveValue(/Draft body of the edit\./);
+  await box.press("End");
+  await box.pressSequentially("!");
+  await expect.poll(() => page.evaluate(key => localStorage.getItem(key), DRAFT_KEY)).toContain("Draft body of the edit.");
 });

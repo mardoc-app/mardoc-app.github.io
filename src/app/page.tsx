@@ -46,6 +46,7 @@ export default function Home() {
     selectedPRFileIdx,
     prFiles,
     linkMode,
+    consumeLinkMode,
     shownMode,
     setSelectedPR,
     fileContent,
@@ -357,6 +358,7 @@ export default function Home() {
                 onContentChange={() => {}}
                 reloadNonce={reloadNonce}
                 openInCode={linkMode === "source"}
+                onCodeViewApplied={consumeLinkMode}
                 onCodeViewChange={setBlobCodeView}
               />
             )
@@ -375,6 +377,7 @@ export default function Home() {
                 repoFullName={currentRepo || undefined}
                 branch={fileRevision || selectedBranch}
                 openInCode={linkMode === "source"}
+                onCodeViewApplied={consumeLinkMode}
                 onCodeViewChange={setBlobCodeView}
               />
             )

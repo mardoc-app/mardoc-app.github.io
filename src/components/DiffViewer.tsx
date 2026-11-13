@@ -67,10 +67,14 @@ function pickMdMode(link: ViewMode | undefined): MdViewMode {
   return MD_FROM_TOKEN[pickMode({ link, remembered: routeAdapter.loadMode("md"), available, fallback: "inline" })];
 }
 
-/** The HTML view a file opens in: the link's mode, then the remembered one, then Inline Diff. */
-function pickHtmlMode(link: ViewMode | undefined): { view: "rendered" | "source"; diff: HtmlDiffMode } {
-  const token = pickMode({ link, remembered: routeAdapter.loadMode("html"),
-    available: ["diff", "head", "base", "source"] as const, fallback: "diff" });
+/**
+ * The HTML view a file opens in: the link's mode, then the remembered one, then Inline Diff.
+ * Head needs a head revision and Base a base revision, so an added or deleted file never opens on an empty one.
+ */
+function pickHtmlMode(link: ViewMode | undefined, revisions: { base: boolean; head: boolean }): { view: "rendered" | "source"; diff: HtmlDiffMode } {
+  const available = (["diff", "head", "base", "source"] as const).filter(token =>
+    token === "head" ? revisions.head : token === "base" ? revisions.base : true);
+  const token = pickMode({ link, remembered: routeAdapter.loadMode("html"), available, fallback: "diff" });
   return token === "source" ? { view: "source", diff: "diff" } : { view: "rendered", diff: token };
 }
 
@@ -79,8 +83,10 @@ interface DiffViewerProps {
   active?: boolean;
   /** The view mode named by the link that opened the file. */
   linkMode?: ViewMode;
+  /** Identifies the followed link; following the same link again applies its mode again. */
+  linkSeq?: number;
   /** Called with the token when the user picks a view mode. */
-  onModeChange?: (token: ViewMode) => void;
+  onModeChange?: (token: ViewMode | undefined) => void;
   reviewDetails?: (close: () => void) => React.ReactNode;
   returnPath?: string;
   onReturn?: () => void;
@@ -324,6 +330,7 @@ function FloatingToolbar({
 export default function DiffViewer({
   active = true,
   linkMode,
+  linkSeq,
   onModeChange,
   reviewDetails,
   returnPath,
@@ -346,30 +353,32 @@ export default function DiffViewer({
   const [viewMode, setViewMode] = useState<MdViewMode>(() => pickMdMode(linkMode));
   // A file keeps its view when it is shown again. It picks again only on its first
   // time shown, or when a link names a different mode for the file on screen.
-  const lastPick = useRef({ shown: active, linkMode });
+  const revisions = { base: !!file.baseContent, head: !!file.headContent };
+  const lastPick = useRef({ shown: active, linkMode, linkSeq });
   useEffect(() => {
     const last = lastPick.current;
-    lastPick.current = { shown: last.shown || active, linkMode };
+    lastPick.current = { shown: last.shown || active, linkMode, linkSeq };
     if (!active) return;
     const firstShown = !last.shown;
-    const newLinkMode = linkMode !== undefined && last.linkMode !== linkMode;
+    const newLinkMode = linkMode !== undefined && (last.linkMode !== linkMode || last.linkSeq !== linkSeq);
     if (!firstShown && !newLinkMode) return;
     setViewMode(pickMdMode(linkMode));
-    const pick = pickHtmlMode(linkMode);
+    const pick = pickHtmlMode(linkMode, revisions);
     setHtmlViewMode(pick.view);
     setHtmlDiffMode(pick.diff);
-  }, [active, linkMode]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, linkMode, linkSeq]);
   const pickViewMode = (value: MdViewMode) => {
     setViewMode(value);
     routeAdapter.saveMode("md", MD_TOKEN[value]);
     routeAdapter.publishMode(MD_TOKEN[value]);
   };
   const htmlHeld = useRef<{ view: "rendered" | "source"; diff: HtmlDiffMode }>();
-  if (!htmlHeld.current) htmlHeld.current = pickHtmlMode(linkMode);
+  if (!htmlHeld.current) htmlHeld.current = pickHtmlMode(linkMode, revisions);
   const [htmlViewMode, setHtmlViewMode] = useState<"rendered" | "source">(htmlHeld.current.view);
   const [htmlDiffMode, setHtmlDiffMode] = useState<HtmlDiffMode>(htmlHeld.current.diff);
   const pickHtmlAgain = () => {
-    const pick = pickHtmlMode(linkMode);
+    const pick = pickHtmlMode(linkMode, revisions);
     setHtmlViewMode(pick.view);
     setHtmlDiffMode(pick.diff);
   };
@@ -379,6 +388,11 @@ export default function DiffViewer({
   useEffect(() => {
     if (active) onModeChange?.(shownToken);
   }, [active, shownToken, onModeChange]);
+  // A file that is no longer shown reports no mode, so Copy link never carries another file's.
+  useEffect(() => {
+    if (!active) return;
+    return () => onModeChange?.(undefined);
+  }, [active, onModeChange]);
   const [activeHtmlChange, setActiveHtmlChange] = useState(-1);
   const [htmlReady, setHtmlReady] = useState(false);
   useEffect(() => { setHtmlReady(true); }, []);
