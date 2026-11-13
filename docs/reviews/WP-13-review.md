@@ -199,3 +199,64 @@ All seven findings are Fixed in commit `37da8a1`. Each test is named in the tabl
 | WP13R-8 | Fixed (`2dfb499`) | Pressing Code ends a source link's wait for the draft banner. Discard in code view now only clears the banner and the stored draft, as it does without a link, so the typing stays in the box. Restore in code view puts the draft text in the box and stays in code view. | `view-mode-links.spec.ts`: `f86_pressing_code_while_a_source_link_waits_keeps_the_typing_when_the_draft_is_discarded`, `f86_pressing_code_while_a_source_link_waits_shows_the_draft_when_it_is_restored`. Both failed before the fix. |
 | WP13R-9 | Fixed (`2dfb499`) | An app-level test follows the same `?mode=` link twice with a mode click between. | `view-mode-links.spec.ts`: `f86_following_the_same_mode_link_again_applies_it_again`. It fails when the `linkSeq` increment in `navigateToHash` is removed, and fails when PRDetail stops passing `linkSeq`; each revert was rebuilt and run, then restored. |
 | WP13R-10 | Fixed (`2dfb499`) | The Restore test now types at the end of the box and asserts the stored draft ends in the typed character, which the seeded draft does not contain. | `view-mode-links.spec.ts`: `f86_source_link_waits_for_the_draft_banner_then_shows_the_restored_text_after_restore` |
+
+## Second re-review
+
+- **Date:** 2026-11-13
+- **Fix commits:** `2dfb499` (code and tests) and `f54dff8` (dispositions). I reviewed `git diff e0ee06b..f54dff8`, and the branch head is `f54dff8`.
+- **Baseline:**
+  - Vitest: `draft-store`, `editor-modals`, `editor-save-flow` and `diff-viewer-view-mode` all passed (4 files, 93 tests).
+  - Playwright: I built the static export and ran `CI=1 PLAYWRIGHT_PORT=3463 npx playwright test e2e/view-mode-links.spec.ts --workers=1`. 43 passed and 1 was skipped. The skip is the Side by Side Copy link test on mobile, which is skipped by design.
+- **How:**
+  - I read the Editor change against every banner and toggle path.
+  - To spot-verify WP13R-8, I restored the `e0ee06b` Editor, rebuilt and ran the banner tests. Both `f86_pressing_code_while_a_source_link_waits_*` tests failed. The Restore test (`…restored_text_after_restore`) still passed, because its scenario belongs to WP13R-2. I then restored the file.
+  - With a throwaway Playwright spec, since deleted, I checked two things:
+    - The normal Code toggle and Restore without a link work. This passed.
+    - One new path, below. This was reproduced.
+
+### Verdict
+
+**PASS.** WP13R-8, WP13R-9 and WP13R-10 are Closed. One new Low finding, WP13R-11, is open. It does not lose data and can be fixed now or deferred with a backlog ID.
+
+The deliberate choice that Discard in code view keeps the typing and clears the stored draft is acceptable:
+
+- It matches main. There, typing in either view, with the banner still open, has already replaced the stored draft. Discard then clears that key, and the edits stay on screen and marked unsaved.
+- The next keystroke saves the draft again.
+- The unsaved-changes guard still covers leaving the page.
+- The user sees nothing disappear, which was the WP13R-8 failure.
+
+| ID | Status | Evidence |
+|---|---|---|
+| WP13R-8 | Closed | `toggleCodeView` now ends a link's wait for the banner, so the banner's buttons act on the view on screen. In code view, Restore puts the draft text in the box and stays in code view. Discard only clears the banner and the stored draft. Both of my sequences are now e2e tests, and both pass. Both fail with the `e0ee06b` Editor (reproduced by revert). |
+| WP13R-9 | Closed | `f86_following_the_same_mode_link_again_applies_it_again` changes `location.hash` to the same `?mode=preview` address after an Inline Diff click, and expects Preview to be pressed. This goes through the app's hashchange path. The address differs from the `?mode=inline` that `publishMode` wrote, so it counts as an outside change. I did not re-run the builder's two reverts (the `linkSeq` increment and the PRDetail prop). By reading the code, without either one, `linkMode` stays `preview` and nothing picks again, so the test would fail. |
+| WP13R-10 | Closed | The Restore test now puts the caret at the end and asserts the stored draft contains `Draft body of the edit.!`. The seeded draft does not contain that string, so the check proves the typing was saved. |
+
+### New findings
+
+| ID | Severity | Pass | Location | Finding | Failure scenario | Fix |
+|---|---|---|---|---|---|---|
+| WP13R-11 | Low | Bugs | `src/components/Editor.tsx:919-922` (`toggleCodeView`) | When the user presses Code while a link waits for the banner, the wait ends, but the link mode is never marked as applied: `onCodeViewApplied` is not called. `linkMode` stays `source`, so the next remount of the Editor enters code view again. This brings back the WP13R-5 failure on this path. | **Reproduced** on the static export, desktop: 1. Store a draft for `readme.md`. 2. Open `#/acme/docs/blob/main/readme.md?mode=source`; the banner shows. 3. Click Code, then Discard, then Rich. 4. Click Refresh. Result: the file reopens in code view, with the Rich button showing and the raw text in the box, although the user chose Rich. | In `toggleCodeView`, when `codeEntryWaitsForDraft.current` was true, call `onCodeViewAppliedRef.current?.()` as well as clearing the flag. Add this sequence to `f86_refresh_after_choosing_rich_stays_rich_and_keeps_the_address`, or add it as a separate e2e test. |
+
+### Checked in the fixes and found sound
+
+**The normal Code toggle without a link**
+- The wait flag is already false, so clearing it changes nothing.
+- The Restore-in-rich path is the same as on main.
+- Restore while in code view without a link now fills the box too. On main, the box kept the original file text, so this is an improvement.
+- My throwaway check opened a blob with a stored draft, clicked Restore, then Code, then Rich. It saw the draft in each view.
+
+**Restore from the link's wait**
+- The flag is now cleared inside `toggleCodeView`, so the wait path still enters code view once.
+- The wait path still calls `onCodeViewApplied`.
+- `toggleCodeView` reads `codeView === false` from its closure, because the user had not toggled.
+
+**Saving**
+- The save, commit and PR handlers still read `codeView` and `codeContent`, which are unchanged.
+- In code view, Restore sets `codeContent` to the raw draft Markdown. The next save or edit therefore uses the draft text.
+- `editor-save-flow.test.ts` and `draft-store.test.ts` pass.
+
+**The full e2e spec**
+- `view-mode-links.spec.ts` passes on both projects at `f54dff8`.
+
+**Public-repo wording**
+- The report contains none of the restricted terms.
