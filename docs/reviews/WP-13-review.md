@@ -191,3 +191,11 @@ All seven findings are Fixed in commit `37da8a1`. Each test is named in the tabl
 
 **Public-repo wording**
 - The report contains none of the restricted terms.
+
+### Re-review dispositions
+
+| ID | Disposition | Fix | Test |
+|---|---|---|---|
+| WP13R-8 | Fixed (`2dfb499`) | Pressing Code ends a source link's wait for the draft banner. Discard in code view now only clears the banner and the stored draft, as it does without a link, so the typing stays in the box. Restore in code view puts the draft text in the box and stays in code view. | `view-mode-links.spec.ts`: `f86_pressing_code_while_a_source_link_waits_keeps_the_typing_when_the_draft_is_discarded`, `f86_pressing_code_while_a_source_link_waits_shows_the_draft_when_it_is_restored`. Both failed before the fix. |
+| WP13R-9 | Fixed (`2dfb499`) | An app-level test follows the same `?mode=` link twice with a mode click between. | `view-mode-links.spec.ts`: `f86_following_the_same_mode_link_again_applies_it_again`. It fails when the `linkSeq` increment in `navigateToHash` is removed, and fails when PRDetail stops passing `linkSeq`; each revert was rebuilt and run, then restored. |
+| WP13R-10 | Fixed (`2dfb499`) | The Restore test now types at the end of the box and asserts the stored draft ends in the typed character, which the seeded draft does not contain. | `view-mode-links.spec.ts`: `f86_source_link_waits_for_the_draft_banner_then_shows_the_restored_text_after_restore` |
