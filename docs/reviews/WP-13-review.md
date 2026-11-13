@@ -110,3 +110,17 @@ WP13R-7 lists these stale or wrong statements in the L2 page:
 - The files follow the plan's increments.
 - LR-26 holds: only `route-adapter.ts` touches the address.
 - The plan row is marked "DONE pending review".
+
+## Dispositions
+
+All seven findings are Fixed in commit `37da8a1`. Each test is named in the table.
+
+| ID | Disposition | Fix | Test |
+|---|---|---|---|
+| WP13R-1 | Fixed (`37da8a1`) | `pickHtmlMode` drops `base` when the file has no base content and `head` when it has no head content, so the pick falls back as F-89 says. | `diff-viewer-view-mode.test.tsx`: `f89_remembered_base_on_an_added_html_file_opens_diff`, `f89_linked_base_on_an_added_html_file_opens_diff`, `f89_remembered_head_on_a_deleted_html_file_opens_diff` |
+| WP13R-2 | Fixed (`37da8a1`) | A `?mode=source` link waits while the saved-draft banner shows. Discard then enters code view on the upstream text. Restore then enters code view through the Code toggle, so the box shows the restored text. | `view-mode-links.spec.ts`: `f86_source_link_waits_for_the_draft_banner_then_shows_the_upstream_text_after_discard`, `f86_source_link_waits_for_the_draft_banner_then_shows_the_restored_text_after_restore`. Both are Playwright tests, because TipTap does not run in jsdom; the second also checks that the stored draft keeps the restored text after typing. |
+| WP13R-3 | Fixed (`37da8a1`) | A viewer that stops being shown reports no mode, so the shown mode is empty for images, source files and files still loading. Copy link then writes the path form with no `mode`. | `diff-viewer-view-mode.test.tsx`: `f87_the_shown_mode_is_reported_and_cleared_when_the_file_is_no_longer_shown`; `view-mode-links.spec.ts`: `f87_copy_link_for_a_file_with_no_view_mode_has_no_mode` |
+| WP13R-4 | Fixed (`37da8a1`) | app-context numbers each followed link (`linkSeq`); DiffViewer applies the link mode again when the number changes. | `diff-viewer-view-mode.test.tsx`: `f86_following_the_same_link_again_applies_its_mode_again` |
+| WP13R-5 | Fixed (`37da8a1`) | The blob view marks the link mode as applied once it has entered code view, so a remount stays Rich. Refresh keeps the current address, so it adds no history entry and keeps `?mode=`. | `view-mode-links.spec.ts`: `f86_refresh_after_choosing_rich_stays_rich_and_keeps_the_address` |
+| WP13R-6 | Fixed (`37da8a1`) | The missing proofs are added. | `diff-viewer-view-mode.test.tsx`: `f88_a_file_shown_again_keeps_its_clicked_view` (Back to review), `f88_a_comment_jump_does_not_save_a_mode`, `f88_an_html_comment_jump_does_not_save_a_mode`, `f88_suggest_from_the_context_menu_does_not_save_a_mode`, `f86_preview_link_on_an_html_file_presses_head`; `view-mode-links.spec.ts`: `f86_preview_link_opens_an_html_file_on_head`, `f87_html_blob_source_link_opens_code_view_and_shares_mode_source`. The existing `pr-comment-navigation.spec.ts` deck test still covers Back to review end to end. |
+| WP13R-7 | Fixed (`37da8a1`) | The L2 links page now matches the code: the §05 status, a solid storage box (drawio, SVG and inline copy kept in step), the adapter's callers and Boundary text (it builds the mode query), the DiffViewer source anchors, the prop text, the F-89 order in the failure table and the Share journey hops. Doclint reports 0 errors. | `sdlc-doclint --mode errors docs/design/l2-links-routing.html` |
